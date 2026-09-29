@@ -30,6 +30,13 @@ lfcd() {
 	[ -d "$dir" ] && [ "$dir" != "$PWD" ] && cd "$dir"
 }
 
+# config: git for the dotfiles. vertrice-install keeps them as a bare repo
+# (history only) in ~/.local/share/vertrice.git with $HOME as the work tree,
+# so `config status`, `config add FILE`, `config commit`, `config pull` work
+# like git anywhere else. Untracked files are hidden; add files by name,
+# never with `config add .` from $HOME.
+config() { git --git-dir="$HOME/.local/share/vertrice.git" --work-tree="$HOME" "$@"; }
+
 # Not carried over from .zshrc, because ksh has no equivalent:
 # - key macros (ctrl-o lfcd, ctrl-a bc, ctrl-f fzf cd): ksh's `bind -m`
 #   works only in emacs mode. Type the command instead.
