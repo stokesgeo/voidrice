@@ -580,6 +580,5 @@ case $1 in
 home)	home ;;
 system)	system ;;
 pf)	pf ;;
-check)	exec "$data/check" ;;
 *)	usage ;;
 esac

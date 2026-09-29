@@ -1,0 +1,67 @@
+#!/bin/ksh
+# check: run once on the X220 after the first boot, as you, inside X.
+# Confirms what the mocks in this suite stand in for. Changes nothing.
+
+fails=0
+try() {	# try "label" command...: PASS if the command succeeds
+	typeset label=$1; shift
+	if "$@" >/dev/null 2>&1; then print "PASS  $label"; else print "FAIL  $label"; fails=$((fails + 1)); fi
+}
+num() { [[ $1 == +([0-9]) ]]; }
+
+print "== base tools the scripts use"
+try "pgrep -f, pgrep -xn" eval 'pgrep -f "nonexis[t]ent"; [ $? -eq 1 ] && { pgrep -xn nonexistent; [ $? -eq 1 ]; }'
+try "rm -P (otp)" eval 'f=$(mktemp) && rm -P "$f"'
+try "stat -f %m and %Sm" eval 'num $(stat -f %m /etc/passwd) && stat -f %Sm -t %Y-%m-%d /etc/passwd'
+try "md5 on stdin prints the digest (lf)" eval '[[ $(echo x | md5) == +([0-9a-f]) ]]'
+try "sed [[:<:]] word bounds (sb-clock)" eval '[ "$(echo "a 5 55" | sed "s/[[:<:]]5[[:>:]]/X/")" = "a X 55" ]'
+try "route -n get default (network up)" route -n get default
+
+print "== status block sources"
+try "apm -l -a -b print numbers" eval 'num $(apm -l) && num $(apm -a) && num $(apm -b)'
+try "wsconsctl reads and steps brightness" wsconsctl display.brightness+=0
+try "CPU temperature sensor" eval 'sysctl -n hw.sensors.cpu0.temp0 || sysctl -n hw.sensors.acpitz0.temp0'
+try "kern.cp_time2.0 has 6 fields" eval '[ "$(sysctl -n kern.cp_time2.0 | awk -F, "{print NF}")" = 6 ]'
+try "sndioctl output.level and output.mute" eval 'sndioctl -n output.level && sndioctl -n output.mute'
+try "top -b prints Memory: Real" eval 'top -b -d 1 | grep -q "^Memory: Real"'
+try "netstat -ibn has <Link> rows" eval 'netstat -ibn | grep -q "<Link>"'
+try "hw.cpuspeed" eval 'num $(sysctl -n hw.cpuspeed)'
+try "acpithinkpad attached (Fn keys)" eval 'dmesg | grep -q "^acpithinkpad0 at"'
+
+print "== what vertrice-install set up"
+try "sndiod, apmd, obsdfreqd, hotplugd running" eval 'for d in sndiod apmd obsdfreqd hotplugd; do pgrep -x $d || exit 1; done'
+try "apmd has -z and no -A/-L/-H (obsdfreqd owns the speed)" eval 'pgrep -lf "apmd.* -z" && ! pgrep -lf "apmd.* -[ALH]"'
+try "you are in wheel (doas, zzz)" eval 'id -Gn | grep -qw wheel'
+try "doas.conf parses" doas -C /etc/doas.conf
+try "/etc/apm/suspend locks X" grep -q 'pkill -USR1 -x xidle' /etc/apm/suspend
+try "/etc/hotplug/attach installed" test -x /etc/hotplug/attach
+try "staff class: datasize 4096M" eval '[ "$(ulimit -d)" -ge 4194304 ]'
+try "touchpad off (mouse.tp.disable=1)" eval '[ "$(wsconsctl -n mouse.tp.disable)" = 1 ]'
+try "webcam: kern.video.record=1, /dev/video0 yours" eval '[ "$(sysctl -n kern.video.record)" = 1 ] && [ -O /dev/video0 ]'
+try "root's crontab counts updates" eval 'doas crontab -l | grep -q /var/db/updates'
+while read -r p; do try "package $p" pkg_info -qe "$p-*"; done <~/.local/share/openbsd/pkglist
+
+print "== X"
+try "cwm accepts the cwmrc" cwm -n -c ~/.config/cwm/cwmrc
+try "TrackPoint wheel emulation on (remaps)" eval 'xinput list-props /dev/wsmouse | grep -Eq "Wheel Emulation \([0-9]+\):[[:space:]]*1$"'
+for b in sb-battery sb-brightness sb-cpu sb-memory sb-nettraf sb-volume sb-clock sb-disk; do
+	try "$b prints" eval "[ -n \"\$($b)\" ]"
+done
+
+print "== Codex box"
+src=~/.local/src/codex-box box=~/.local/src/codex-box/codex-box
+sys="-u rx:/bin -u rx:/usr -u r:/var/run/ld.so.hints -u rw:/dev/null"	# split on purpose
+try "codex-box builds" eval "(cd $src && make)"
+try "box: unveil survives exec" eval "$box $sys -- /bin/ls /usr"
+try "box: home hidden" eval "! $box $sys -- /bin/ls ~"
+try "box: setuid refused" eval "$box $sys -- /usr/bin/doas -C /etc/doas.conf 2>&1 | grep -q 'Permission denied'"
+try "box: ptys work" eval "$box $sys -u rw:/dev/ptm -u rw:/dev/tty -- /usr/bin/script -c true /dev/null"
+d=$(mktemp -d); mkdir -p $d/a/p
+try "box: nothing renamed into a folder without c" eval "! $box $sys -u rx:$d -u rwxc:$d/a -- /bin/mv $d/a $d/b"
+try "box: a read-only child keeps its place (git walls)" eval "! $box $sys -u rwxc:$d/a -u r:$d/a/p -- /bin/mv $d/a/p $d/a/q"
+$box -D $d/s & r=$!; sleep 1
+try "box: cdxb doas reaches the relay" eval "! $box $sys -u rw:$d/s -u rx:$box -- $box -C $d/s -- /usr/bin/true 2>&1 | grep -q codex-box:"
+kill $r; rm -rf $d
+
+print "== $fails failed"
+[ $fails -eq 0 ]
