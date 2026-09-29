@@ -99,6 +99,11 @@ t_fetch_sb_ticker() {
 	echo 1 >"$VT_STATE/rc.ftp"
 	BLOCK_BUTTON=2 sb-ticker >/dev/null
 	[ -e "$XDG_CACHE_HOME/stock-prices" ] && fail "failed fetch left the price file"
+	# First run, no click: it fetches.
+	rm "$VT_STATE/rc.ftp"; : >"$VT_STATE/log"
+	sb-ticker >/dev/null
+	eq "first run: fetched" 1 "$(nlogged '^ftp ')"
+	[ -s "$XDG_CACHE_HOME/stock-prices" ] || fail "first run: no price file"
 	return 0
 }
 
