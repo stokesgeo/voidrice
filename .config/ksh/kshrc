@@ -1,0 +1,42 @@
+# kshrc: settings for interactive ksh. The profile sets ENV to this file, and
+# ksh reads $ENV at the start of every interactive shell. It replaces
+# voidrice's .zshrc; see ksh(1) for everything used here.
+
+# Prompt: [user@host dir]$ in the voidrice colors. \[ \] mark the escape
+# sequences as zero-width so line editing counts columns right.
+PS1='\[\e[1;31m\][\[\e[33m\]\u\[\e[32m\]@\[\e[34m\]\h \[\e[35m\]\w\[\e[31m\]]\[\e[0m\]\$ '
+
+set -o vi		# vi line editing (zsh: bindkey -v)
+set -o vi-tabcomplete	# Tab completes in insert mode too
+stty stop undef		# free ctrl-s from freezing the terminal
+
+# History. The profile exports HISTFILE; ksh reads it when it starts.
+HISTSIZE=10000
+
+# Aliases and bookmark shortcuts, if they exist.
+for f in shortcutrc shortcutenvrc aliasrc; do
+	[ -f "${XDG_CONFIG_HOME:-$HOME/.config}/shell/$f" ] &&
+		. "${XDG_CONFIG_HOME:-$HOME/.config}/shell/$f"
+done
+unset f
+
+# lfcd: browse with lf, and cd to the directory lf was in when it quit.
+lfcd() {
+	typeset tmp dir
+	tmp=$(mktemp -uq) || return
+	trap 'rm -f "$tmp"' EXIT
+	lf -last-dir-path="$tmp" "$@"
+	if [ -f "$tmp" ]; then
+		dir=$(<"$tmp")
+		[ -d "$dir" ] && [ "$dir" != "$PWD" ] && cd "$dir"
+	fi
+	rm -f "$tmp"
+	trap - EXIT
+}
+
+# Not carried over from .zshrc, because ksh has no equivalent:
+# - key macros (ctrl-o lfcd, ctrl-a bc, ctrl-f fzf cd): ksh's `bind -m`
+#   works only in emacs mode. Type the command instead.
+# - cursor shape per vi mode, autocd, menu completion, syntax highlighting.
+# Kept for free: in vi command mode, `v` opens the line in $VISUAL/$EDITOR
+# (zsh needed ctrl-e and edit-command-line for this).

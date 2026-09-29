@@ -6,7 +6,7 @@ bmfiles="${XDG_CONFIG_HOME:-$HOME/.config}/shell/bm-files"
 # Output locations. Unactivated progs should go to /dev/null.
 shell_shortcuts="${XDG_CONFIG_HOME:-$HOME/.config}/shell/shortcutrc"
 shell_env_shortcuts="${XDG_CONFIG_HOME:-$HOME/.config}/shell/shortcutenvrc"
-zsh_named_dirs="${XDG_CONFIG_HOME:-$HOME/.config}/shell/zshnameddirrc"
+zsh_named_dirs="/dev/null"	# zsh named dirs; ksh has none
 lf_shortcuts="${XDG_CONFIG_HOME:-$HOME/.config}/lf/shortcutrc"
 vim_shortcuts="${XDG_CONFIG_HOME:-$HOME/.config}/nvim/shortcuts.vim"
 qute_shortcuts="/dev/null"
@@ -22,7 +22,7 @@ printf "\" vim: filetype=vim\\n" > "$vifm_shortcuts"
 
 # Format the `directories` file in the correct syntax and sent it to all three configs.
 eval "echo \"$(cat "$bmdirs")\"" | \
-awk "!/^\s*#/ && !/^\s*\$/ {gsub(\"\\\s*#.*$\",\"\");
+awk "!/^[[:space:]]*#/ && !/^[[:space:]]*\$/ {gsub(\"[[:space:]]*#.*$\",\"\");
 	printf(\"%s=\42cd %s && ls -A\42 \\\\\n\",\$1,\$2)   >> \"$shell_shortcuts\" ;
 	printf(\"[ -n \42%s\42 ] && export %s=\42%s\42 \n\",\$1,\$1,\$2)   >> \"$shell_env_shortcuts\" ;
 	printf(\"hash -d %s=%s \n\",\$1,\$2)                 >> \"$zsh_named_dirs\"  ;
@@ -34,7 +34,7 @@ awk "!/^\s*#/ && !/^\s*\$/ {gsub(\"\\\s*#.*$\",\"\");
 
 # Format the `files` file in the correct syntax and sent it to both configs.
 eval "echo \"$(cat "$bmfiles")\"" | \
-awk "!/^\s*#/ && !/^\s*\$/ {gsub(\"\\\s*#.*$\",\"\");
+awk "!/^[[:space:]]*#/ && !/^[[:space:]]*\$/ {gsub(\"[[:space:]]*#.*$\",\"\");
 	printf(\"%s=\42\$EDITOR %s\42 \\\\\n\",\$1,\$2)  >> \"$shell_shortcuts\" ;
 	printf(\"[ -n \42%s\42 ] && export %s=\42%s\42 \n\",\$1,\$1,\$2)   >> \"$shell_env_shortcuts\" ;
 	printf(\"hash -d %s=%s \n\",\$1,\$2)             >> \"$zsh_named_dirs\"  ;

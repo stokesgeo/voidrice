@@ -10,9 +10,9 @@ cfb	~/.local/src/dwmblocks/config.h				# dwmblocks: the status bar for dwm
 # These do not update automatically, but on the next new instance of a program:
 
 cfv	${XDG_CONFIG_HOME:-$HOME/.config}/nvim/init.vim		# vim/neovim config
-cfz	$ZDOTDIR/.zshrc						# zsh (shell) config
-cfa	${XDG_CONFIG_HOME:-$HOME/.config}/shell/aliasrc		# aliases used by zsh (and potentially other shells)
-cfp	${XDG_CONFIG_HOME:-$HOME/.config}/shell/profile		# profile file for login settings for zsh
+cfk	${XDG_CONFIG_HOME:-$HOME/.config}/ksh/kshrc		# ksh (shell) config
+cfa	${XDG_CONFIG_HOME:-$HOME/.config}/shell/aliasrc		# aliases used by ksh (and other POSIX shells)
+cfp	${XDG_CONFIG_HOME:-$HOME/.config}/shell/profile		# profile file for login settings (~/.profile)
 cfm	${XDG_CONFIG_HOME:-$HOME/.config}/mutt/muttrc		# mutt (email client) config
 cfn	${XDG_CONFIG_HOME:-$HOME/.config}/newsboat/config	# newsboat (RSS reader)
 cfu	${XDG_CONFIG_HOME:-$HOME/.config}/newsboat/urls		# RSS urls for newsboat
