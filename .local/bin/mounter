@@ -41,9 +41,12 @@ partitions() {
 
 set -f	# dmenu text below must never glob
 mounted=$(mount)
+# The system disk (the one holding /) is never offered, mounted or not.
+rootdisk=$(print "$mounted" | awk '$3 == "/" {sub("/dev/", "", $1); sub("[a-p]$", "", $1); print $1}')
 inuse=$(doas bioctl softraid0 2>/dev/null | grep -o '<[a-z]*[0-9]*[a-p]>' | tr -d '<>')
 
 drives=$(print "$disknames" | tr ',' '\n' | sed 's/:.*//' | grep -E '^(sd|cd)[0-9]+$' |
+	grep -vx "${rootdisk:-none}" |
 	while read -r d; do partitions "$d"; done |
 	while read -r part size type label; do
 		if [ "$type" = RAID ]; then

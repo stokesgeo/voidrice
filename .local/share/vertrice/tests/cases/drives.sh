@@ -137,7 +137,6 @@ t_mounter_excludes() {
 }
 
 t_mounter_system_disk_unmounted_partition() {
-	xfail "mounter:46-57 offers an unmounted partition of the system disk; OPENBSD.md says the system disk is never offered (only mounted partitions are skipped)"
 	add_partition sd1 "  j:             2.0G        900000000  4.2BSD   2048 16384 12960 # /altroot"
 	answers
 	with_tty mounter

@@ -33,7 +33,6 @@ cfk='vi $XDG_CONFIG_HOME/ksh/kshrc'" "$out"
 }
 
 t_shortcuts_leaves_dev_null() {
-	xfail "shortcuts:17 runs rm -f on \$qute_shortcuts and \$zsh_named_dirs, both /dev/null: harmless as a user, deletes /dev/null if run as root"
 	sc_setup
 	notlogged '^rm-devnull'
 }
