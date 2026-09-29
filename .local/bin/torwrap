@@ -1,7 +1,11 @@
 #!/bin/sh
 
-ifinstalled stig transmission-daemon || exit 1
+# Open the torrent client (Super+F6), starting transmission-daemon first if
+# it is not running. The client is tremc (package tremc), a curses front end
+# to transmission-daemon, in place of voidrice's stig, which has no port.
+
+ifinstalled tremc transmission-daemon || exit 1
 
 ! pgrep -x transmission-daemon >/dev/null && transmission-daemon && notify-send "Starting torrent daemon..."
 
-$TERMINAL -e stig; sb-refresh
+$TERMINAL -e tremc; sb-refresh

@@ -89,6 +89,12 @@ WiFi
   line to /etc/hostname.IF. sb-internet's click runs it (in place of
   nmtui); its middle click shows the current network.
 
+Torrents
+
+- torwrap (Super+F6) and sb-torrent's click open tremc (package, in
+  pkglist.extra beside transmission) in place of stig, which has no port.
+  td-toggle and the counts stay on transmission.
+
 Files and drives
 
 - New `ext` extracts every archive type by name; lf's E key calls it.

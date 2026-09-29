@@ -1172,7 +1172,11 @@ Core (`pkglist`), and why base does not cover it:
 Extra (`pkglist.extra`): mutt-wizard (mail: neomutt, isync, msmtp and pass
 come with it; Super+e, sb-mailbox), newsboat (Super+Shift+n, sb-news),
 password-store and pass-otp (Super+Shift+d, otp), transmission
-(torrents), yt-dlp (web video in mpv),
+(torrents),
+tremc (the torrent screen on Super+F6 and sb-torrent's click: a curses
+front end to transmission-daemon, in place of voidrice's stig, which has
+no port),
+yt-dlp (web video in mpv),
 nq (qndl's download queue; listed beside yt-dlp, the queue's default command),
 xwallpaper (setbg; without it the
 root window takes the theme's background colour), unclutter (hides an idle pointer), ntfs_3g
