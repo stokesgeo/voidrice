@@ -9,6 +9,7 @@ cfx	${XDG_CONFIG_HOME:-$HOME/.config}/x11/xresources	# Colors, themes and variab
 # These do not update automatically, but on the next new instance of a program:
 
 cfb	~/.local/bin/statusbar/sbar				# sbar: the status bar ($blocks; restart sbar)
+cfw	${XDG_CONFIG_HOME:-$HOME/.config}/cwm/cwmrc		# cwm (window manager) keys; Super+F5 rereads it
 cfv	${XDG_CONFIG_HOME:-$HOME/.config}/nvim/init.vim		# vim/neovim config
 cfk	${XDG_CONFIG_HOME:-$HOME/.config}/ksh/kshrc		# ksh (shell) config
 cfa	${XDG_CONFIG_HOME:-$HOME/.config}/shell/aliasrc		# aliases used by ksh (and other POSIX shells)

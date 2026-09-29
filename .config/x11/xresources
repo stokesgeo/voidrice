@@ -4,6 +4,14 @@
 !! Set a default font and font size as below:
 *.font: monospace:size=10
 
+!! xterm (OpenBSD base, the default terminal). Like st, it reads the
+!! *.colorN lines of whichever scheme below is uncommented. These lines give
+!! it the same font and let Alt act as Meta, which vi-mode ksh and nvim use.
+XTerm*faceName: monospace
+XTerm*faceSize: 10
+XTerm*metaSendsEscape: true
+XTerm*selectToClipboard: true
+
 /* name		dark	light */
 /* black	0	8 */
 /* red		1	9 */

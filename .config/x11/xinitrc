@@ -24,19 +24,21 @@ else
 	. "$HOME/.xprofile"
 fi
 
-# Window manager: dwm if it is installed, else cwm from base. Which one to
-# live in is still open; building and installing dwm is that choice.
-# dwm draws the status bar from the root window name, which sbar sets.
-if command -v dwm >/dev/null 2>&1; then
-	wm=dwm
-	sbar &
-else
-	wm=cwm
-fi
+# Window manager: cwm from base, with voidrice's keys in cwm/cwmrc. dwm is
+# the opt-in: WM="dwm" in the profile, and dwm installed. dwm draws its bar
+# from the root window name, which sbar sets; cwm has no bar (Super+b shows
+# the status line instead).
+wm=${WM:-cwm}
+command -v "$wm" >/dev/null 2>&1 || wm=cwm
+case $wm in
+	cwm) set -- -c "${XDG_CONFIG_HOME:-$HOME/.config}/cwm/cwmrc" ;;
+	dwm) sbar & set -- ;;
+	*) set -- ;;
+esac
 
 # One ssh-agent: xenodm may already have started one.
 if [ -z "$SSH_AUTH_SOCK" ]; then
-	exec ssh-agent "$wm"
+	exec ssh-agent "$wm" "$@"
 else
-	exec "$wm"
+	exec "$wm" "$@"
 fi

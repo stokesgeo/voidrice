@@ -5,6 +5,11 @@ Upstream is Arch/Void Linux; the port keeps the pattern (suckless tools,
 scripts in `~/.local/bin`, config in `~/.config`, bookmarks compiled to
 shell shortcuts) and swaps each Linux mechanism for the OpenBSD base one.
 
+**Base first by default.** The default setup is what OpenBSD ships: ksh,
+cwm and xterm. voidrice's tiling keys are carried into cwm (see "Keys"
+below). Luke's dwm and st are opt-ins: build them into `~/.local/src`, then
+set `WM="dwm"` and `TERMINAL="st"` in `.config/shell/profile`.
+
 **State.** Written and tested off the machine: every shell file parses under
 oksh (the portable OpenBSD ksh), the status blocks run against mocked
 OpenBSD command output under BWK awk (OpenBSD's awk), and getbib's rewrite
@@ -42,9 +47,11 @@ The commits follow the same order.
 5. **The X session.** `startx` from the first console (`ttyC0`), as
    voidrice does from tty1; or xenodm, which runs `~/.xsession` (a
    symlink to xinitrc). xinitrc starts the D-Bus session bus first, so
-   dunst and notify-send share one bus; then dwm and sbar when dwm is
-   installed, and cwm from base otherwise. It starts ssh-agent only if
-   none is running (xenodm may have started one).
+   dunst and notify-send share one bus; then `$WM`: cwm with
+   `.config/cwm/cwmrc` by default, or dwm plus sbar when `WM=dwm` and dwm
+   is installed. It starts ssh-agent only if none is running (xenodm may
+   have started one). xprofile now loads xresources, where xterm gets
+   voidrice's font and Alt-as-Meta.
 6. **Sound.** sndiod(8) is the base sound server, started by rc(8).
    mpd outputs to sndio, volume goes through sndioctl(1), recording
    through ffmpeg's sndio input.
@@ -67,6 +74,51 @@ The commits follow the same order.
     planted symlink (OpenBSD has no protected_symlinks) moved to
     `~/.cache`. Upstream's other /tmp downloads (linkhandler,
     dmenuhandler, noisereduce) are unchanged.
+
+## Keys: voidrice's dwm on cwm
+
+cwm is a floating window manager with tiling on request. The mapping keeps
+Luke's key for each job and uses cwm's own function where one exists
+(`.config/cwm/cwmrc`; Super+F1 opens it). Every function name was checked
+against cwm's source, and `cwm -n` accepts the file.
+
+| Key (Super+) | dwm | cwm |
+|---|---|---|
+| j / k | focus next / previous | `window-cycle-ingroup` / `window-rcycle-ingroup` |
+| t / Shift+t | tile / bottom stack layout | `window-vtile` / `window-htile`: focused window becomes master, the group's other windows share the rest |
+| Space | zoom (focused to master) | `window-vtile` |
+| h / l | master narrower / wider | resize the focused window left / right |
+| Shift+h/j/k/l, Ctrl+h/j/k/l | (push in stack) | move / resize the window, vi directions |
+| f / Shift+u | fullscreen / monocle | `window-fullscreen` / `window-maximize` |
+| q | kill window | `window-close` |
+| 1-9 / Shift+1-9 / Ctrl+1-9 | view / tag / toggle view | `group-only-N` / `window-movetogroup-N` / `group-toggle-N` |
+| 0 / Shift+0 / s | view all / tag all / sticky | `group-toggle-all` / `window-stick` / `window-stick` |
+| Tab, \ / g, ; / PgUp, PgDn | last tag / prev, next tag | `group-last` / `group-rcycle`, `group-cycle` |
+| Return / Shift+Return / ' | terminal / scratch terminal / scratch calculator | `$TERMINAL` / `scratch term` / `scratch calc` |
+| d | dmenu_run | `menu-exec`, cwm's own run prompt |
+| b | toggle bar | `sb-show`: the status line as a notification |
+| w, e, r, n, m, c, Shift+d/e/n/r | browser, mail, lf, wiki, music, chat, passmenu, abook, news, top | same programs (top from base for htop) |
+| p, [, ], comma, period | mpc | mpc |
+| minus / equal / Shift+m | volume / mute (wpctl) | sndioctl |
+| BackSpace, Shift+q | sysact | sysact |
+| F1 / F5 | LARBS guide / reload xresources | cwmrc in less / `restart` (rereads cwmrc) |
+| Print, Shift+Print, Super+Print, Delete | screenshots, recording | same |
+
+Mouse: Super+drag moves, Super+right-drag resizes. Clicking the empty
+desktop gives cwm's window, group and command menus.
+
+What does not carry over, because cwm has no equivalent:
+
+- Automatic layouts. cwm tiles only when asked; after opening or closing
+  a window, press Super+t again. Spiral, dwindle, deck and centered
+  master (y, u, i) and the master count (o) are gone.
+- Gaps (a, z, x) and the bar. Super+b shows the status line instead.
+- Moving a window to the next or previous tag (Shift+g, Shift+;), and
+  floating toggle (cwm windows are always floating).
+- The XF86 media and brightness keys. The X220's volume, mute and
+  brightness keys are handled below X (acpithinkpad), so they work without
+  a binding (to check on the machine). F4 (pulsemixer), F8-F11 (mailsync,
+  the removed mounters, webcam) are unbound.
 
 ## Installing on the X220
 
@@ -92,10 +144,11 @@ Home side: check the branch out into `$HOME` (for example as a bare repo
 with `$HOME` as its work tree), then log in on the console and run
 `~/.local/share/openbsd/check`, once on the console and once inside X.
 
-The suckless programs are separate repos. dwm, st and dmenu build on
+Optional, for Luke's dwm and st: they are separate repos. They build on
 OpenBSD once `config.mk` points at `/usr/X11R6` (their config.mk has
 OpenBSD lines). Luke's dwm sends status-bar clicks with sigqueue(3), so
-that patch needs replacing before his dwm builds here.
+that patch needs replacing before his dwm builds here. dmenu comes from
+packages.
 
 ## Not ported, or not tested
 
@@ -120,5 +173,4 @@ that patch needs replacing before his dwm builds here.
 
 ## Open
 
-- cwm or dwm. xinitrc takes whichever is installed.
 - What this fork becomes, and whether a Mac port follows.

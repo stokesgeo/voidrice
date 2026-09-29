@@ -6,10 +6,13 @@
 # Add all directories in `~/.local/bin` to $PATH
 export PATH="$PATH:$(find ~/.local/bin -type d | paste -sd ':' -)"
 
-# Default programs:
+# Default programs. OpenBSD base first: cwm and xterm ship with the system.
+# Luke's dwm and st are the opt-ins: build them into ~/.local/src, then set
+# WM="dwm" and TERMINAL="st" here.
+export WM="cwm"
 export EDITOR="nvim"
-export TERMINAL="st"
-export TERMINAL_PROG="st"
+export TERMINAL="xterm"
+export TERMINAL_PROG="$TERMINAL"
 export BROWSER="firefox"
 
 # Change the default crypto/weather monitor sites.

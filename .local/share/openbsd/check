@@ -57,6 +57,8 @@ try "sndiod is running" pgrep -x sndiod
 try "apmd is running (zzz/ZZZ need it)" pgrep -x apmd
 try "ntpd is running (otp time)" pgrep -x ntpd
 try "xlock is installed (sysact lock)" command -v xlock
+try "cwm accepts ~/.config/cwm/cwmrc" cwm -n -c "${XDG_CONFIG_HOME:-$HOME/.config}/cwm/cwmrc"
+try "xterm is installed (default TERMINAL)" command -v xterm
 [ -f /etc/doas.conf ] && pass "/etc/doas.conf exists" || fail "/etc/doas.conf exists" "see OPENBSD.md"
 [ "$(sysctl -n kern.audio.record)" = 1 ] && pass "kern.audio.record=1" ||
 	skip "kern.audio.record=0" "dmenurecord audio records silence until it is 1"
