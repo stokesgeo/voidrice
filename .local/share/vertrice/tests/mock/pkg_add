@@ -1,0 +1,17 @@
+#!/bin/sh
+
+# pkg_add(1) mock. Logs "pkg_add ARGS", prints $VT_STATE/out.pkg_add, exits
+# with $VT_STATE/rc.pkg_add (default 0). Refuses an option pkg_add does not
+# take: the option strings of OpenBSD/PkgAdd.pm, AddCreateDelete.pm and
+# AddDelete.pm (usr.sbin/pkg_add, 2026), plus -D and -v from State.pm
+# (assumed: read as the common options, not traced there).
+
+echo "pkg_add $*" >>"$VT_STATE/log"
+while getopts druUzl:A:P:iIL:mnxacqsVB:D:v o; do
+	case $o in
+	\?) exit 1 ;;
+	*) ;;
+	esac
+done
+cat "$VT_STATE/out.pkg_add" 2>/dev/null
+exit "$(cat "$VT_STATE/rc.pkg_add" 2>/dev/null || echo 0)"

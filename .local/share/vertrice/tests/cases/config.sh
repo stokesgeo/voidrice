@@ -51,7 +51,7 @@ t_cwmrc_function_names() {
 	# conf.c's table, or a program: in this repository or listed here.
 	funcs=$(sed -n 's/.*FUNC_[CS]C(\([a-z0-9-]*\),.*/\1/p' "$c")
 	[ -n "$funcs" ] || fail "no functions found in $c"
-	external="passmenu chromium"
+	external="chromium"
 	bad=
 	for w in $(awk '$1 == "bind-key" || $1 == "bind-mouse" { if ($3 !~ /^"/) print $3 }' \
 	    "$REPO/.config/cwm/cwmrc"); do
@@ -125,8 +125,41 @@ t_kshrc_loads() {
 	with_tty "$VT_KSH" -i -c 'type lfcd; alias cp; [[ -o vi ]] && echo vi-mode'
 	out=$(tr -d '\r' <"$T/tty.out")
 	has "lfcd defined" "lfcd is a function" "$out"
-	has "aliasrc loaded" "cp='cp -i'" "$out"
+	has "aliasrc loaded" "cp='cp -iv'" "$out"
 	has "vi mode" "vi-mode" "$out"
 	hasnt "no errors" "not found" "$out"
 	hasnt "no syntax errors" "syntax error" "$out"
+}
+
+# cp, mv, rm, mkdir aliases use only flags OpenBSD's tools take: the getopt
+# strings of bin/cp/cp.c, bin/mv/mv.c, bin/rm/rm.c, bin/mkdir/mkdir.c
+# (OpenBSD src, 2026).
+t_aliasrc_flags() {
+	bad=
+	for pair in cp:HLPRafiprv mv:ifv rm:dfiPRrv mkdir:pm; do
+		c=${pair%%:*} ok=${pair#*:}
+		a=$(sed -n "s/^[[:space:]]*$c=\"$c \(-[A-Za-z]*\)\".*/\1/p" "$REPO/.config/shell/aliasrc")
+		a=${a#-}
+		[ -n "$a" ] || continue
+		rest=$(printf '%s' "$a" | tr -d "$ok")
+		[ -z "$rest" ] || bad="$bad $c:-$rest"
+	done
+	eq "flags OpenBSD lacks" "" "${bad# }"
+	grep -q '^[[:space:]]*rm="rm -v"' "$REPO/.config/shell/aliasrc" || fail "rm -v alias missing"
+	grep -q 'YT=' "$REPO/.config/shell/aliasrc" && fail "YT (youtube-viewer, no port) is back"
+	return 0
+}
+
+# xinitrc's session-env block, run alone (the rest starts X programs):
+# the file it writes is private and gives a cron job the bus and display.
+t_xinitrc_session_env() {
+	awk '/^# Cron jobs run outside this session/ { on = 1 } on && /^$/ { exit } on' \
+		"$REPO/.config/x11/xinitrc" >"$T/block"
+	grep -q session-env "$T/block" || fail "no session-env block in xinitrc"
+	DBUS_SESSION_BUS_ADDRESS='unix:path=/tmp/dbus-AbC,guid=123' DISPLAY=:0 \
+		XAUTHORITY= "$VT_SH" "$T/block" || fail "block failed"
+	f=$XDG_CACHE_HOME/session-env
+	eq "private" "-rw-------" "$(ls -l "$f" | cut -c1-10)"
+	got=$(env -i HOME="$HOME" "$VT_SH" -c ". '$f'; echo \"\$DBUS_SESSION_BUS_ADDRESS \$DISPLAY \$XAUTHORITY\"")
+	eq "a cron job gets the session" "unix:path=/tmp/dbus-AbC,guid=123 :0 $HOME/.Xauthority" "$got"
 }

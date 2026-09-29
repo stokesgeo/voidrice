@@ -4,7 +4,11 @@
 #
 # Timecodes must be in format 00:00:00.
 #
-# Imagemagick and ffmpeg required.
+# Imagemagick and ffmpeg required. OpenBSD's ImageMagick package is
+# ImageMagick 6 (graphics/ImageMagick: GH_PROJECT ImageMagick6), which
+# installs convert, not ImageMagick 7's magick; the options are the same.
+
+ifinstalled ImageMagick ffmpeg || exit 1
 
 # Application cache if not stated elsewhere.
 cache="${XDG_CACHE_HOME:-$HOME/.cache}/slider"
@@ -98,10 +102,10 @@ do
 		# If images have already been made in a previous run, do not recreate
 		# them unless -r was given.
 		{ [ ! -f "$prepdir/$base" ] || [ -n "${redo+x}" ] ;} &&
-			magick -size "${res:-1920x1080}" canvas:"${bgc:-black}" -gravity center "$content" -resize 1920x1080 -composite "$prepdir/$base"
+			convert -size "${res:-1920x1080}" canvas:"${bgc:-black}" -gravity center "$content" -resize 1920x1080 -composite "$prepdir/$base"
 	else
 		{ [ ! -f "$prepdir/$base" ] || [ -n "${redo+x}" ] ;} &&
-			magick -size "${res:-1920x1080}" -background "${bgc:-black}" -fill "${fgc:-white}" -font "${font:-Sans}" -pointsize "${ppt:-150}" -gravity center label:"$content" "$prepdir/$base"
+			convert -size "${res:-1920x1080}" -background "${bgc:-black}" -fill "${fgc:-white}" -font "${font:-Sans}" -pointsize "${ppt:-150}" -gravity center label:"$content" "$prepdir/$base"
 	fi
 
 	# If the first line, do not write yet.

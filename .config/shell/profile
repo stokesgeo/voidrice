@@ -36,7 +36,6 @@ export XDG_CACHE_HOME="$HOME/.cache"
 export XINITRC="$XDG_CONFIG_HOME/x11/xinitrc"
 #export XAUTHORITY="$XDG_RUNTIME_DIR/Xauthority" # This line will break some DMs.
 export NOTMUCH_CONFIG="$XDG_CONFIG_HOME/notmuch-config"
-export WGETRC="$XDG_CONFIG_HOME/wget/wgetrc"
 export INPUTRC="$XDG_CONFIG_HOME/shell/inputrc"
 export ENV="$XDG_CONFIG_HOME/ksh/kshrc"	# ksh reads $ENV in each interactive shell
 export NEXINIT="source $XDG_CONFIG_HOME/vi/exrc"	# base vi (nvi) only; nvim ignores it
@@ -57,7 +56,6 @@ export PYTHONSTARTUP="$XDG_CONFIG_HOME/python/pythonrc"
 export SQLITE_HISTORY="$XDG_DATA_HOME/sqlite_history"
 
 # Other program settings:
-export DICS="/usr/share/stardict/dic/"
 export FZF_DEFAULT_OPTS="--layout=reverse --height 40%"
 export LESS="R"
 export LESS_TERMCAP_mb="$(printf '%b' '[1;31m')"
@@ -67,7 +65,8 @@ export LESS_TERMCAP_so="$(printf '%b' '[01;44;33m')"
 export LESS_TERMCAP_se="$(printf '%b' '[0m')"
 export LESS_TERMCAP_us="$(printf '%b' '[1;32m')"
 export LESS_TERMCAP_ue="$(printf '%b' '[0m')"
-export LESSOPEN="| /usr/local/bin/highlight -O ansi %s 2>/dev/null"
+# No LESSOPEN: OpenBSD's less has no input preprocessor (usr.bin/less:
+# nothing reads it). ccat colours a file with highlight.
 export QT_QPA_PLATFORMTHEME="gtk3"        # Have QT use gtk theme.
 export MOZ_USE_XINPUT2=1                  # Mozilla smooth scrolling/touchpads.
 export AWT_TOOLKIT="MToolkit wmname LG3D" # May have to install wmname

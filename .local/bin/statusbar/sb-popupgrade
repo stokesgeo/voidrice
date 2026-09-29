@@ -1,0 +1,38 @@
+#!/bin/sh
+
+# sb-popupgrade: update the system, in a terminal. sb-updates' left click
+# opens it; it can also be run by hand. On a release: base errata with
+# syspatch, then packages with pkg_add -u. On a snapshot there is no
+# syspatch: it says so and offers sysupgrade -s, which reboots.
+# Voidrice's version ran sudo pacman -Syu.
+#
+# Full paths after doas: doas looks commands up in your PATH, where a
+# script in ~/.local/bin could shadow a base name (see doas.conf).
+
+[ -t 0 ] || exec "$TERMINAL" -e "$0"
+
+snapshot=$(sysctl -n kern.version |
+	sed -n '1s/^OpenBSD [1-9][0-9]*\.[0-9]\([^ ]*\).*/\1/p')
+
+printf 'Update the system? [y/N] '
+read -r ans
+case $ans in [yY]*) ;; *) exit 0 ;; esac
+
+if [ -n "$snapshot" ]; then
+	echo "snapshot: sysupgrade -s (base to the newest snapshot, then a reboot)."
+	echo "Update packages now, and run sysupgrade -s yourself when ready;"
+	echo "after the reboot, pkg_add -u again."
+	doas /usr/sbin/pkg_add -u
+else
+	# Exit 2 means nothing to install (syspatch.8). When syspatch updates
+	# itself first, it stops and says to run it again: the bar keeps its
+	# count, and one more click does it.
+	doas /usr/sbin/syspatch
+	doas /usr/sbin/pkg_add -u
+fi
+
+# Count again, so the bar is right now rather than at the next cron run.
+doas /usr/local/sbin/vertrice-updates
+sb-refresh
+printf 'Done. Press Enter to close.'
+read -r ans

@@ -11,7 +11,9 @@
 mutt-wizard
 newsboat
 password-store
+pinentry-dmenu
 pass-otp
+zbar
 transmission
 yt-dlp
 xwallpaper
@@ -19,3 +21,7 @@ unclutter
 ntfs_3g
 simple-mtpfs
 7zip
+highlight
+ImageMagick
+lowdown
+groff

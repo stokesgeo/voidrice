@@ -1,0 +1,17 @@
+#!/bin/sh
+
+# syspatch(8) mock. Logs "syspatch ARGS". Takes only -c, -l, -R, -r
+# (usr.sbin/syspatch/syspatch.sh getopts clRr). -c prints
+# $VT_STATE/out.syspatch (one missing patch per line). Exits with
+# $VT_STATE/rc.syspatch (default 0). Real syspatch also refuses to run on
+# a snapshot ("Unsupported release"); a case that wants that sets rc.
+
+echo "syspatch $*" >>"$VT_STATE/log"
+while getopts clRr o; do
+	case $o in
+	\?) exit 1 ;;
+	c) cat "$VT_STATE/out.syspatch" 2>/dev/null ;;
+	*) ;;
+	esac
+done
+exit "$(cat "$VT_STATE/rc.syspatch" 2>/dev/null || echo 0)"

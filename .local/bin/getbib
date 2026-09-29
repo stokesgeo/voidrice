@@ -1,15 +1,19 @@
 #!/bin/sh
 
 BIB_FILE="${HOME}/latex/uni.bib"
+# OpenBSD find has no -quit (usr.bin/find/option.c): head keeps the first.
 [ -f "${BIB_FILE}" ] || BIB_FILE="${2:-$(find "${HOME}" -path "${HOME}/.*" \
-	-prune -o -type "f" -name "*.bib" -print -quit)}"
+	-prune -o -type "f" -name "*.bib" -print | head -n 1)}"
 
 { [ -f "${BIB_FILE}" ] || [ "${2}" ]; } || {
 	printf "%s\n" "Create a .bib file or provide as \$2." && exit "1"
 }
 
+# The first DOI in the input. Upstream ended the sed script in "T; q" (quit
+# after the first substitution); T is GNU sed only, and OpenBSD sed has no
+# such command (usr.bin/sed/compile.c), so head(1) keeps the first line.
 filter() {
-	sed -n -E 's/.*((DOI|doi)((\.(org))?\/?|:? *))([^: ]+[^ .]).*/\6/p; T; q'
+	sed -n -E 's/.*((DOI|doi)((\.(org))?\/?|:? *))([^: ]+[^ .]).*/\6/p' | head -n 1
 }
 
 fpdf() {

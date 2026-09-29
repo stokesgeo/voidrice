@@ -134,3 +134,30 @@ t_sb_music() {
 	logged '^mpc next$'
 	waitfor 2 grep -q '^sb-mpdup' "$VT_STATE/log" || fail "sb-mpdup not started"
 }
+
+# sb-doppler's pick: stock dmenu has no -r (the mock refuses it), so the
+# answer is checked against the list instead.
+t_sb_doppler_pick() {
+	for v in mpv; do ln -s "$VT_MOCKS/_log" "$T/bin/$v"; done
+	answers "NL: The Netherlands"
+	BLOCK_BUTTON=2 sb-doppler >/dev/null
+	notlogged 'refused'
+	eq "location saved" "NL,The Netherlands" "$(cat "$XDG_CACHE_HOME/radar")"
+	logged '^ftp -MV -o .*/doppler\.gif https://cdn\.knmi\.nl/'
+	logged '^detach mpv '
+	: >"$VT_STATE/log"; rm -f "$XDG_CACHE_HOME/radar" "$VT_STATE/dmenu.n"
+	answers "Atlantis"
+	BLOCK_BUTTON=2 sb-doppler >/dev/null
+	[ -e "$XDG_CACHE_HOME/radar" ] && fail "a typed name not in the list was saved"
+	notlogged '^ftp'
+	return 0
+}
+
+# sb-help-icon: the LARBS guide needs Luke's dwm; without it, keys.
+t_sb_help_icon_keys() {
+	printf '#!/bin/sh\necho "keys $*" >>"$VT_STATE/log"\n' >"$T/bin/keys"
+	chmod +x "$T/bin/keys"
+	eq "icon" "❓" "$(BLOCK_BUTTON=1 sb-help-icon)"
+	logged '^keys ?$'
+	notlogged '^groff'
+}

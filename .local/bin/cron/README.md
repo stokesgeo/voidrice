@@ -1,13 +1,26 @@
-# Important Note
+# Cron jobs that notify
 
-These cronjobs have components that require information about your current display to display notifications correctly.
+These jobs (`newsup`, and mutt-wizard's `mailsync`) send notifications and
+may drive X programs, so they need the session's D-Bus address and display.
+Cron starts them with neither.
 
-When you add them as cronjobs, I recommend you precede the command with commands as those below:
+Voidrice pointed cron at the display with `export DISPLAY=:0`, and systemd
+gave every login a fixed bus at `/run/user/UID/bus`. OpenBSD has no such
+fixed bus: the bus is the one `dbus-launch` starts in xinitrc, and its
+address changes with each session. So xinitrc writes the address, the
+display and the X authority file to `~/.cache/session-env` (mode 600) when
+the session starts. A cron line reads your profile (for PATH and the XDG
+directories) and that file, then runs the job:
 
 ```
-export DISPLAY=:0; . $HOME/.profile; then_command_goes_here
+*/30 * * * * . $HOME/.profile; . $HOME/.cache/session-env; newsup
 ```
 
-This ensures that xdotool commands will function and environmental variables will work as well.
+Add it with `crontab -e`. `crontog` switches all your cron jobs off and on.
 
-OpenBSD note: there is no /run/user session bus path to point at. notify-send needs the D-Bus session started by `dbus-launch` in xinitrc; its address is in that session's environment only. Run notifying jobs from inside the X session (a loop started in xprofile) if cron cannot reach the bus.
+When no X session is running, the file names the last session's bus, which
+is gone: notify-send then fails quietly and the job itself still runs.
+
+Root's update counter (`vertrice-updates`, added to root's crontab by
+`vertrice-install system`) does not use this: it writes a file that the
+`sb-updates` block reads, and never talks to the session.

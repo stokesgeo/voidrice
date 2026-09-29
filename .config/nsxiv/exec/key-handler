@@ -16,12 +16,14 @@ do
 				dmenu -l 20 -i -p "Move file(s) to where?")")"
 			[ ! -d "$destdir" ] && notify-send "$destdir is not a directory, cancelled." && exit
 			mv "$file" "$destdir" && notify-send -i "$(readlink -f "$file")" "$file moved to $destdir." & ;;
+		# OpenBSD's ImageMagick package is ImageMagick 6: no "magick"
+		# command; mogrify edits the file in place (PLIST: bin/mogrify).
 		"r" )
-			magick "$file" -rotate 90 "$file" ;;
+			ifinstalled ImageMagick && mogrify -rotate 90 "$file" ;;
 		"R" )
-			magick "$file" -rotate -90 "$file" ;;
+			ifinstalled ImageMagick && mogrify -rotate -90 "$file" ;;
 		"f" )
-			magick "$file" -flop "$file" ;;
+			ifinstalled ImageMagick && mogrify -flop "$file" ;;
 		"y" )
 			printf %s "${file##*/}" | xclip -selection clipboard &&
 			notify-send "$file copied to clipboard" & ;;

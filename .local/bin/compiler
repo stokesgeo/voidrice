@@ -18,17 +18,24 @@ case "${ext}" in
     mom|ms) preconv "${file}" | refer -PS -e | groff -T pdf -m"${ext}" > "${base}.pdf" ;;
     c) cc "${file}" -o "${base}" && "./${base}" ;;
     cob) cobc -x -o "$base" "$file" && "$base" ;;
-    cpp) g++ "${file}" -o "${base}" && "./${base}" ;;
+    # c++: base clang on OpenBSD/amd64, which ships no g++.
+    cpp) c++ "${file}" -o "${base}" && "./${base}" ;;
     cs) mcs "${file}" && mono "${base}.exe" ;;
     go) go run "${file}" ;;
     h) doas make install ;;
     java) javac -d classes "${file}" && java -cp classes "${base}" ;;
     m) octave "${file}" ;;
-    md) [ -x "$(command -v lowdown)" ] && \
-	    lowdown --parse-no-intraemph "${file}" -Tms | groff -mpdfmark -ms -kept -T pdf > "${base}.pdf" || \
-	    [ -x "$(command -v groffdown)" ] && \
-	    groffdown -i "${file}" | groff -T pdf > "${base}.pdf" || \
-	    pandoc -t ms --highlight-style="kate" -s -o "${base}.pdf" "${file}" ;;
+    # Markdown: lowdown into groff's ms (both in pkglist.extra), else
+    # pandoc if you installed it (in no list; its ms output also goes
+    # through groff). groffdown, voidrice's middle choice, has no port.
+    md) if command -v lowdown >/dev/null 2>&1 && command -v groff >/dev/null 2>&1; then
+	    lowdown --parse-no-intraemph "${file}" -Tms | groff -mpdfmark -ms -kept -T pdf > "${base}.pdf"
+	elif command -v pandoc >/dev/null 2>&1; then
+	    pandoc -t ms --highlight-style="kate" -s -o "${base}.pdf" "${file}"
+	else
+	    echo "compiler: markdown needs lowdown and groff (pkglist.extra), or pandoc" >&2
+	    exit 1
+	fi ;;
     org) emacs "${file}" --batch -u "${USER}" -f org-latex-export-to-pdf ;;
     py) python "${file}" ;;
     rink) rink -f "${file}" ;;

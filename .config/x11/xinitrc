@@ -12,6 +12,14 @@
 [ -z "$DBUS_SESSION_BUS_ADDRESS" ] && command -v dbus-launch >/dev/null 2>&1 &&
 	eval "$(dbus-launch --sh-syntax --exit-with-session)"
 
+# Cron jobs run outside this session. They read the bus address and the
+# display from this file (see ~/.local/bin/cron/README.md). Private (umask
+# 077): the bus address lets a process talk to this session.
+mkdir -p "${XDG_CACHE_HOME:-$HOME/.cache}" &&
+	(umask 077; printf "export DBUS_SESSION_BUS_ADDRESS='%s' DISPLAY='%s' XAUTHORITY='%s'\n" \
+	"$DBUS_SESSION_BUS_ADDRESS" "$DISPLAY" "${XAUTHORITY:-$HOME/.Xauthority}" \
+	>"${XDG_CACHE_HOME:-$HOME/.cache}/session-env")
+
 # There are some small but important commands that need to be run when we start
 # the graphical environment. There is a link to this file in ~/.xprofile
 # because that file is run automatically if someone uses a display manager

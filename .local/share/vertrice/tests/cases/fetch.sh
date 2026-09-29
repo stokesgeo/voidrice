@@ -83,6 +83,34 @@ t_fetch_getbib() {
 	has "HTTP error: no entry" "Failed to fetch bibtex entry for DOI: 10.1000/abc" "$out"
 }
 
+# getbib's DOI filter under a sed that takes only what OpenBSD sed takes. On
+# a GNU host the guard runs GNU sed with --posix, which refuses GNU-only
+# commands such as T (upstream's "T; q"); OpenBSD sed has no T at all
+# (usr.bin/sed/compile.c). The PDF's metadata has two DOIs: the first wins.
+t_fetch_getbib_posix_sed() {
+	realsed=$(PATH=$syspath command -v sed)
+	if "$realsed" --version 2>/dev/null | grep -q GNU; then
+		printf '#!/bin/sh\nexec %s --posix "$@"\n' "$realsed" >"$T/bin/sed"
+	else
+		printf '#!/bin/sh\nexec %s "$@"\n' "$realsed" >"$T/bin/sed"
+	fi
+	printf '#!/bin/sh\nprintf "Title: x\\nSubject: doi:10.1000/first\\nKeywords: DOI 10.1000/second\\n"\n' >"$T/bin/pdfinfo"
+	# find: OpenBSD's has no -quit (usr.bin/find/option.c); GNU's does.
+	realfind=$(PATH=$syspath command -v find)
+	printf '#!/bin/sh\nfor a; do [ "$a" = -quit ] && { echo "find: -quit: unknown primary" >&2; exit 1; }; done\nexec %s "$@"\n' "$realfind" >"$T/bin/find"
+	chmod +x "$T/bin/sed" "$T/bin/pdfinfo" "$T/bin/find"
+	echo x | sed -n 's/x/y/p; T; q' >/dev/null 2>&1 &&
+		fail "the guard sed took GNU's T: the case would prove nothing"
+	# No ~/latex/uni.bib: getbib finds a .bib file under $HOME.
+	mkdir -p "$HOME/refs"; : >"$HOME/refs/mine.bib"; : >"$T/paper.pdf"
+	echo '@article{A_2020, DOI={10.1000/first} }' | fx out.ftp
+	out=$(getbib "$T/paper.pdf" 2>&1)
+	logged '^ftp -MV -o - https://api\.crossref\.org/works/10\.1000/first/transform/application/x-bibtex$'
+	notlogged 'second'
+	has "added" "Added bibtex entry for DOI: 10.1000/first" "$out"
+	has "written to the .bib file found" "@article{a20," "$(cat "$HOME/refs/mine.bib")"
+}
+
 t_fetch_rssget() {
 	printf '<link rel="alternate" type="application/rss+xml" href="/feed.xml">\n' | fx out.ftp
 	out=$(rssget https://example.com/blog/post news)
@@ -120,21 +148,30 @@ t_fetch_linkhandler_image() {
 
 t_fetch_pauseallmpv() {
 	command -v python3 >/dev/null 2>&1 || skip "no python3 to make a Unix socket"
-	p=$(derived .local/bin/pauseallmpv pauseallmpv "s|/tmp/mpvSockets|$T/mpvSockets|g")
-	mkdir "$T/mpvSockets"
+	# The sockets are in the cache directory the mpvSockets script uses.
+	d=$XDG_CACHE_HOME/mpvSockets
+	mkdir "$d"
 	for s in 111 222; do
-		python3 -c 'import socket,sys; socket.socket(socket.AF_UNIX).bind(sys.argv[1])' "$T/mpvSockets/$s"
+		python3 -c 'import socket,sys; socket.socket(socket.AF_UNIX).bind(sys.argv[1])' "$d/$s"
 	done
-	: >"$T/mpvSockets/not-a-socket"
-	"$VT_SH" "$p"
+	: >"$d/not-a-socket"
+	pauseallmpv
 	eq "one nc per socket" 2 "$(nlogged '^nc ')"
-	logged "^nc -NU -w 1 $T/mpvSockets/111\$"
-	logged "^nc -NU -w 1 $T/mpvSockets/222\$"
+	logged "^nc -NU -w 1 $d/111\$"
+	logged "^nc -NU -w 1 $d/222\$"
 	notlogged 'not-a-socket'
 	eq "pause sent to each" 2 "$(nlogged '^nc< \{ "command": \["set_property", "pause", true\] \}$')"
-	"$VT_REAL_RM" -r "$T/mpvSockets"
-	"$VT_SH" "$p" || fail "no sockets: failed"
+	"$VT_REAL_RM" -r "$d"
+	pauseallmpv || fail "no sockets: failed"
 	eq "no sockets: no nc" 2 "$(nlogged '^nc ')"
+	# The script and pauseallmpv agree on the directory; nothing is in /tmp.
+	lua=$REPO/.config/mpv/scripts/mpvSockets.lua
+	grep -q '"XDG_CACHE_HOME"' "$lua" && grep -q '"mpvSockets"' "$lua" ||
+		fail "mpvSockets.lua does not use the cache directory"
+	grep -rq '/tmp/mpvSockets' "$REPO/.local/bin" "$REPO/.config" &&
+		fail "something still reads /tmp/mpvSockets"
+	[ -e "$REPO/.gitmodules" ] && fail ".gitmodules is back"
+	return 0
 }
 
 t_fetch_setbg_no_xwallpaper() {
@@ -155,10 +192,74 @@ t_fetch_setbg_no_xwallpaper() {
 	notlogged '^xsetroot'
 }
 
-t_fetch_scope_no_bat() {
-	command -v bat >/dev/null 2>&1 && skip "this host has bat"
+t_fetch_scope_no_highlight() {
+	command -v highlight >/dev/null 2>&1 && skip "this host has highlight"
 	printf 'one\ntwo\nthree\nfour\n' >"$T/notes.txt"
 	eq "first screenful" "one
 two
 three" "$("$VT_SH" "$REPO/.config/lf/scope" "$T/notes.txt" 80 3 0 0)"
+}
+
+# scope runs under set -C; ksh then refuses ">/dev/null" when /dev/null is
+# a regular file (seen on a broken Linux host), so "command -v highlight
+# >/dev/null" would fail. There, point the redirections at a scratch file.
+scope_path() {
+	if [ -c /dev/null ]; then printf '%s\n' "$REPO/.config/lf/scope"
+	else derived .config/lf/scope scope "s|/dev/null|$T/null|g"; fi
+}
+
+# With highlight: coloured (ANSI), plain for an unknown syntax, cut to
+# the pane's height ($3). lf passes file, width, height, x, y.
+t_fetch_scope_highlight() {
+	scope=$(scope_path)
+	printf '#!/bin/sh\necho "highlight $*" >>"$VT_STATE/log"\nprintf "1\\n2\\n3\\n4\\n5\\n"\n' >"$T/bin/highlight"
+	chmod +x "$T/bin/highlight"
+	printf 'one\n' >"$T/notes.txt"
+	out=$("$VT_SH" "$scope" "$T/notes.txt" 80 3 41 1)
+	logged '^highlight -O ansi --force .*/notes\.txt$'
+	eq "cut to the height" "1
+2
+3" "$out"
+}
+
+# lynx gets the pane's width ($2); upstream passed $4, the x position.
+t_fetch_scope_html_width() {
+	scope=$(scope_path)
+	printf '#!/bin/sh\necho "lynx $*" >>"$VT_STATE/log"\n' >"$T/bin/lynx"
+	printf '#!/bin/sh\necho text/html\n' >"$T/bin/file"
+	chmod +x "$T/bin/lynx" "$T/bin/file"
+	: >"$T/page.html"
+	"$VT_SH" "$scope" "$T/page.html" 80 20 41 1 >"$T/out"
+	logged '^lynx -width=80 -display_charset=utf-8 -dump .*/page\.html$'
+}
+
+# Archives list through the tool ext would use for the same name.
+t_fetch_scope_archives() {
+	for c in tar unzip bzip2 7z; do
+		printf '#!/bin/sh\necho "%s $*" >>"$VT_STATE/log"\n' "$c" >"$T/bin/$c"
+		chmod +x "$T/bin/$c"
+	done
+	for f in a.tar.gz b.tgz c.tar d.zip e.tar.bz2 f.7z; do : >"$T/$f"; done
+	for f in a.tar.gz b.tgz c.tar d.zip e.tar.bz2 f.7z; do
+		"$VT_SH" "$REPO/.config/lf/scope" "$T/$f" 80 20 41 1 >/dev/null
+	done
+	logged "^tar tzf $T/a\.tar\.gz$"
+	logged "^tar tzf $T/b\.tgz$"
+	logged "^tar tf $T/c\.tar$"
+	logged "^unzip -l $T/d\.zip$"
+	logged "^bzip2 -dc -- $T/e\.tar\.bz2$"
+	logged "^tar tf -$"
+	logged "^7z l $T/f\.7z$"
+	notlogged 'atool'
+}
+
+# No image previewer installed: a message, not a blank pane.
+t_fetch_scope_image_message() {
+	command -v mediainfo >/dev/null 2>&1 && skip "this host has mediainfo"
+	printf '#!/bin/sh\necho "image/png"\n' >"$T/bin/file"
+	chmod +x "$T/bin/file"
+	: >"$T/pic.png"
+	out=$("$VT_SH" "$REPO/.config/lf/scope" "$T/pic.png" 80 20 41 1)
+	has "names the file" "pic.png" "$out"
+	has "says why it is blank" "(no image preview installed)" "$out"
 }

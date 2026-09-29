@@ -271,6 +271,16 @@ hotplugput() {
 	install -d -o root -g wheel -m 0755 "$R/etc/hotplug" &&
 		put "$data/hotplug-attach" "$R/etc/hotplug/attach" 0755
 }
+updatesput() {	# the update counter, root's; see vertrice-updates
+	install -d -o root -g wheel -m 0755 "$R/usr/local/sbin" &&
+		put "$data/vertrice-updates" "$R/usr/local/sbin/vertrice-updates" 0755
+}
+# Root's crontab line for it: every four hours at a random minute (~), no
+# mail unless it fails (-n), one at a time (-s); crontab(5).
+updatescron='~	*/4	*	*	*	-ns /usr/local/sbin/vertrice-updates'
+addcron() {	# addcron line: append line to root's crontab through crontab(1)
+	{ crontab -u root -l 2>/dev/null; print -r -- "$1"; } | crontab -u root -
+}
 apmput() {	# apmput name: install apm-suspend as /etc/apm/name
 	install -d -o root -g wheel -m 0755 "$R/etc/apm" &&
 		put "$data/apm-suspend" "$R/etc/apm/$1" 0755
@@ -410,6 +420,19 @@ system() {
 		ok "/etc/hotplug/attach is vertrice's"
 	else
 		step "install /etc/hotplug/attach" hotplugput
+	fi
+
+	# Update counts for the bar (sb-updates): root counts, the user reads.
+	if same "$data/vertrice-updates" "$R/usr/local/sbin/vertrice-updates"; then
+		ok "/usr/local/sbin/vertrice-updates is vertrice's"
+	else
+		step "install /usr/local/sbin/vertrice-updates" updatesput
+	fi
+	if crontab -u root -l 2>/dev/null | grep -qxF -- "$updatescron"; then
+		ok "root's crontab runs vertrice-updates"
+	else
+		step "add vertrice-updates to root's crontab (every 4 hours)" \
+			addcron "$updatescron"
 	fi
 
 	# Lock X before sleeping: apmd runs these before suspend and hibernate.

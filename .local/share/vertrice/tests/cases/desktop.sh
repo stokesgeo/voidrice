@@ -194,3 +194,122 @@ t_dmenuhandler_private_tmp() {
 	private "${f%/*}"
 	rm -rf "${f%/*}"
 }
+
+# xdg-open defaults: the repository's mimeapps.list and .desktop files,
+# through mock/xdg-open (xdg-utils 1.2.1's generic lookup). Every Exec
+# program must be found on PATH; terminal programs open in $TERMINAL.
+xo_setup() {
+	command -v file >/dev/null 2>&1 || skip "no file(1) on this host"
+	mkdir -p "$XDG_CONFIG_HOME" "$HOME/.local/share"
+	ln -s "$REPO/.config/mimeapps.list" "$XDG_CONFIG_HOME/mimeapps.list"
+	ln -s "$REPO/.local/share/applications" "$HOME/.local/share/applications"
+	for v in nsxiv zathura mpv transadd rssadd; do
+		ln -s "$VT_MOCKS/_log" "$T/bin/$v"
+	done
+}
+
+t_xdgopen_defaults() {
+	xo_setup
+	printf '%%PDF-1.4\n' >"$T/doc.pdf"
+	printf '\211PNG\r\n\032\n\0\0\0\rIHDR\0\0\0\1\0\0\0\1\10\2\0\0\0' >"$T/pic.png"
+	printf 'hello\n' >"$T/notes.txt"
+	xdg-open "$T/doc.pdf" || fail "pdf did not open"
+	logged "^zathura $T/doc\.pdf$"
+	xdg-open "$T/pic.png" || fail "png did not open"
+	logged "^nsxiv -a $T/pic\.png$"
+	xdg-open "$T/notes.txt" || fail "text did not open"
+	logged "^xterm -e nvim $T/notes\.txt$"
+	xdg-open "$T" || fail "directory did not open"
+	logged "^xterm -e lfub $T$"
+	xdg-open "magnet:?xt=urn:btih:abc" || fail "magnet did not open"
+	logged '^transadd magnet:\?xt=urn:btih:abc$'
+	xdg-open "mailto:a@example.org" || fail "mailto did not open"
+	logged '^xterm -e neomutt mailto:a@example\.org$'
+}
+
+t_xdgopen_every_entry_resolves() {
+	xo_setup
+	for v in nvim lfub neomutt; do ln -s "$VT_MOCKS/_log" "$T/bin/$v"; done
+	for f in "$REPO"/.local/share/applications/*.desktop; do
+		e=$(sed -n 's/^Exec=//p' "$f")
+		case ${e%% *} in */*) fail "${f##*/}: Exec names a path: $e" ;; esac
+		command -v "${e%% *}" >/dev/null || fail "${f##*/}: ${e%% *} not found"
+	done
+	for d in $(sed -n 's/^[a-z-]*\/[^=]*=\([^;]*\).*/\1/p' "$REPO/.config/mimeapps.list"); do
+		[ -f "$REPO/.local/share/applications/$d" ] || fail "mimeapps.list names a missing $d"
+	done
+}
+
+# opout: a compiled document's PDF opens through xdg-open.
+t_opout_pdf() {
+	xo_setup
+	mkdir -p "$T/w"; cd "$T/w" || fail "no dir"
+	: >doc.md; printf '%%PDF-1.4\n' >doc.pdf
+	opout doc.md
+	logged '^detach xdg-open \./doc\.pdf$'
+	xdg-open ./doc.pdf
+	logged '^zathura \./doc\.pdf$'
+}
+
+# otp's add path: scan, insert under a temporary name, ask for the real
+# name, rename to NAME-otp. Upstream's "prinf" typo fed the name prompt
+# from a command that does not exist.
+t_otp_add() {
+	export PASSWORD_STORE_DIR="$T/store"; mkdir -p "$PASSWORD_STORE_DIR"
+	for v in pass maim xclip; do ln -s "$VT_MOCKS/_log" "$T/bin/$v"; done
+	printf '#!/bin/sh\necho "QR-Code:otpauth://totp/x?secret=ABC"\n' >"$T/bin/zbarimg"
+	printf '#!/bin/sh\nexit 0\n' >"$T/bin/pkg_info"	# ifinstalled: pass-otp, zbar
+	chmod +x "$T/bin/zbarimg" "$T/bin/pkg_info"
+	answers "🆕add" github
+	otp 2>"$T/err"
+	logged '^pass otp insert otp-test-script$'
+	logged '^pass mv otp-test-script github-otp$'
+	hasnt "no missing command" "not found" "$(cat "$T/err")"
+}
+
+# passmenu runs the package's example script, which is installed mode 444
+# (INSTALL_DATA), through bash; without the package, a notice.
+t_passmenu_wrapper() {
+	ex=$T/examples/passmenu
+	p=$(derived .local/bin/passmenu passmenu "s|/usr/local/share/examples/password-store/dmenu/passmenu|$ex|")
+	printf '#!/bin/sh\necho "bash $*" >>"$VT_STATE/log"\n' >"$T/bin/bash"
+	chmod +x "$T/bin/bash"
+	"$VT_SH" "$p" --type
+	logged '^notify-send 📦 password-store must be installed'
+	notlogged '^bash'
+	mkdir -p "$T/examples"; echo 'echo passmenu' >"$ex"; chmod 444 "$ex"
+	"$VT_SH" "$p" --type
+	logged "^bash $ex --type\$"
+}
+
+# ImageMagick 6 (the package) has convert and mogrify, no magick. The
+# host may have ImageMagick 7: mocks stand in either way.
+im_setup() {
+	for v in convert mogrify ffmpeg; do ln -s "$VT_MOCKS/_log" "$T/bin/$v"; done
+	printf '#!/bin/sh\nexit 0\n' >"$T/bin/pkg_info"
+	printf '#!/bin/sh\necho "magick $*" >>"$VT_STATE/log"; exit 127\n' >"$T/bin/magick"
+	chmod +x "$T/bin/pkg_info" "$T/bin/magick"
+}
+
+t_nsxiv_rotate_flip() {
+	im_setup
+	for k in r R f; do
+		echo "$T/pic.jpg" | "$VT_SH" "$REPO/.config/nsxiv/exec/key-handler" "$k"
+	done
+	logged "^mogrify -rotate 90 $T/pic\.jpg\$"
+	logged "^mogrify -rotate -90 $T/pic\.jpg\$"
+	logged "^mogrify -flop $T/pic\.jpg\$"
+	notlogged '^magick'
+}
+
+t_slider_convert() {
+	im_setup
+	cd "$T" || fail "no dir"
+	: >img.png
+	printf '00:00:00\timg.png\n00:00:03\tHello\n' >list
+	slider -i list >/dev/null 2>&1
+	logged '^convert -size 1920x1080 canvas:black -gravity center img\.png -resize 1920x1080 -composite '
+	logged '^convert -size 1920x1080 -background black -fill white -font Sans -pointsize 150 -gravity center label:Hello '
+	logged '^ffmpeg -hide_banner -y -f concat -safe 0 -i '
+	notlogged '^magick'
+}

@@ -71,8 +71,9 @@ The commits follow the same order.
    `.config/shell/profile`) is read by login shells and sets `ENV` to
    `.config/ksh/kshrc`, which every interactive shell reads. What zsh
    did that ksh cannot is listed at the end of the kshrc. Aliases use
-   only flags OpenBSD's tools have (POSIX, plus `ls -h`), because an
-   alias with a missing flag breaks the command it shadows.
+   only flags OpenBSD's tools have (`ls -h`, and voidrice's `-v` on cp,
+   mv and rm, which OpenBSD's take; not rm's `-I`, which it lacks),
+   because an alias with a missing flag breaks the command it shadows.
 5. **The X session.** `startx` from the first console (`ttyC0`), as
    voidrice does from tty1; or xenodm, which runs `~/.xsession` (a
    symlink to xinitrc). xinitrc starts the D-Bus session bus first, so
@@ -525,6 +526,61 @@ themselves, and the disk setup.
   `-vrPlu` (progress, partial, update). To a Linux host, which has rsync
   but not openrsync, add `--rsync-path=rsync` (not checked: openrsync's
   default remote program).
+- **Update notice.** Voidrice's `cron/checkup`, `sb-pacpackages` and
+  `sb-popupgrade` ran pacman through sudo. Here the system stage installs
+  `vertrice-updates` as /usr/local/sbin/vertrice-updates and adds
+  `~ */4 * * * -ns /usr/local/sbin/vertrice-updates` to root's crontab
+  (every four hours at a random minute, mail only on failure, one at a
+  time; crontab(5)). As root it counts, and installs nothing: base errata
+  from `syspatch -c` on a release, or `base=snapshot` on a snapshot
+  (kern.version carries `-current`; syspatch refuses to run there, and
+  the update is `sysupgrade -s`), and packages from `pkg_add -u -n -v`
+  (the distinct `old->new` names; the output format was read in
+  pkg_add's source, not run on the machine). It writes
+  /var/db/vertrice-updates, mode 644, by rename; a count that failed is
+  `?`. The `sb-updates` block (in sbar's list) reads that file: 📦 for
+  packages, 🩹 for errata. Its left click opens `sb-popupgrade` in a
+  terminal, where doas can ask for the password: it asks once, then
+  runs syspatch and `pkg_add -u` on a release, or says "snapshot:
+  sysupgrade -s" and updates only packages on a snapshot (sysupgrade
+  reboots, so it is left to you). Root never touches the X session.
+  Under cwm, clicks do not reach the bar: run `sb-popupgrade` by hand.
+- **Cron jobs that notify.** OpenBSD has no fixed per-user bus path
+  (`/run/user/UID/bus` is systemd's), so xinitrc writes the session's
+  bus address, DISPLAY and XAUTHORITY to `~/.cache/session-env` (mode
+  600). A cron line reads it after the profile:
+  `*/30 * * * * . $HOME/.profile; . $HOME/.cache/session-env; newsup`.
+  See `.local/bin/cron/README.md`.
+- **passmenu** (Super+Shift+d). The password-store package installs
+  passmenu only as an example, mode 444
+  (/usr/local/share/examples/password-store/dmenu/passmenu). A wrapper of
+  the same name in `~/.local/bin` runs it with bash. With no terminal,
+  gpg needs a graphical PIN prompt: the pinentry package's wrapper picks
+  `pinentry-dmenu` under X when it is installed (it is in pkglist.extra;
+  read in the port's files/pinentry-wrapper.in), else pinentry-curses,
+  which cannot ask without a terminal.
+- **Pausing every mpv** (Super+Shift+p, and before sysact locks). Each
+  mpv opens an IPC socket in `~/.cache/mpvSockets` through
+  `.config/mpv/scripts/mpvSockets.lua`, kept in the tree from
+  wis/mpvSockets (MIT; voidrice had it as a git submodule, which a bare
+  clone never checks out). `pauseallmpv` pauses each through base nc(1).
+- **Default programs (xdg-open).** xdg-utils comes with chromium. Its
+  generic xdg-open finds a `.desktop` file's Exec program on PATH and
+  ignores `Terminal=` (read in xdg-utils 1.2.1), so the files in
+  `.local/share/applications` name programs, not paths, and terminal
+  programs (nvim, lfub, neomutt) start through `xdg-terminal-exec`,
+  which uses `$TERMINAL`. lf's `o` and `opout` open through it; lf's `O`
+  asks which program only if p5-File-MimeInfo (mimeopen) is installed.
+- **lf previews.** Text through highlight when installed (pkglist.extra;
+  the one colourizer, also `ccat`), else the first screenful with head.
+  Archives list with the tool `ext` uses for the name (tar, bzip2, xz,
+  zstd, unzip, 7z). Images: ueberzug is not packaged and mediainfo is in
+  no list, so the pane says "(no image preview installed)".
+- **compiler** (the nvim key that builds a file). Markdown goes through
+  lowdown into groff's ms (both in pkglist.extra); if lowdown or groff is
+  missing and pandoc is installed, pandoc (in no list: install it
+  yourself); else it says what to install. C++ builds with `c++` (base
+  clang; amd64 has no g++).
 
 ## The rice: day and night, IBM Plex, fvwm frames
 
@@ -920,7 +976,16 @@ files in `~/.local/share/openbsd` and does:
   aside for them. With unwind running, resolvd(8) points
   /etc/resolv.conf at it (127.0.0.1).
 - Console: `keyboard.map+="keysym Caps_Lock = Escape"` in
-  /etc/wsconsctl.conf, read at boot.
+  /etc/wsconsctl.conf, read at boot. This maps one way: the Escape key
+  stays Escape. Voidrice's `ttymaps.kmap` (Linux loadkeys, removed)
+  swapped the two. For the other half, add after that line
+  `keyboard.map+="keycode 1 = Caps_Lock"` (keycode 1 is Escape in the
+  PC keyboard map, sys/dev/pckbc/wskbdmap_mfii.c). It must come after the
+  keysym line: `keysym A = B` gives the key that now types A the entry of
+  the key that types B, finding each by its keysym (map_parse.y in
+  sbin/wsconsctl), so it must run while only one key types Caps_Lock.
+  A second keysym line cannot do it: once both keys type Escape, no key
+  types Caps_Lock to copy from.
 - Battery charge limit: only if the machine has the sysctl
   `hw.battery.chargestop` (newer ThinkPads do; whether the X220 does is
   not known). Then `hw.battery.chargestop=80` and, if present,
@@ -1037,11 +1102,16 @@ Core (`pkglist`), and why base does not cover it:
 
 Extra (`pkglist.extra`): mutt-wizard (mail: neomutt, isync, msmtp and pass
 come with it; Super+e, sb-mailbox), newsboat (Super+Shift+n, sb-news),
-password-store and pass-otp (Super+Shift+d, otp), transmission
+password-store and pass-otp (Super+Shift+d, otp), pinentry-dmenu (the
+passphrase prompt passmenu needs without a terminal), zbar (otp: reads the
+QR code; it pulls in ImageMagick), transmission
 (torrents), yt-dlp (web video in mpv), xwallpaper (setbg; without it the
 root window takes the theme's background colour), unclutter (hides an idle pointer), ntfs_3g
 and simple-mtpfs (mounter: NTFS disks and Android phones), 7zip (ext: 7z,
-rar).
+rar), highlight (coloured text: lf previews and `ccat`), ImageMagick
+(slider, nsxiv's rotate and flip, lf's avif/djvu/xcf thumbnails;
+ImageMagick 6, so `convert` and `mogrify`, no `magick`), lowdown and groff
+(compiler: Markdown and groff documents to PDF).
 
 Left out:
 
@@ -1050,10 +1120,14 @@ Left out:
   User-Agent, `-w` for the timeouts, which limits only the connect).
   curl is still installed, because git depends on it.
 - socat: pauseallmpv talks to mpv's sockets with base nc(1) (`nc -NU`).
-- bash: rssget and sb-ticker are POSIX sh now. pywal's postrun is still
-  bash, and runs only if pywal is installed, which it is not.
-- highlight, bat: nothing runs highlight; lf's previewer uses bat when it
-  is installed and otherwise shows the start of the file with head(1).
+- bash as a list entry: rssget and sb-ticker are POSIX sh now. pywal's
+  postrun is still bash, and runs only if pywal is installed, which it is
+  not. passmenu is bash, but password-store already depends on bash.
+- bat: one colourizer is enough (the owner's pick): highlight, in extra.
+  Without it, lf shows the start of a file with head(1).
+- pandoc: compiler uses it for Markdown only when lowdown or groff is
+  missing and you installed pandoc yourself (a large Haskell build).
+- groffdown, atool, youtube-viewer, gnome-epub-thumbnailer: no port.
 - xwallpaper is extra: without it, setbg sets the root window to the
   current theme's background colour with xsetroot(1).
 - calcurse: only sb-clock's click, and sbar blocks take no clicks.
@@ -1233,6 +1307,8 @@ from it (from memory).
   release's -stable package branch, which gets security fixes (from
   memory: pkg_add looks there by itself on a release). `sysupgrade`
   without `-s` moves to the next release when it is out.
+- **Knowing when:** root's cron runs `vertrice-updates`, and the
+  `sb-updates` block shows what waits (see "Everyday conveniences").
 - **Moving from snapshots to 8.0:** a snapshot newer than 8.0 is 8.0-current
   on its way to 8.1, so there is no step back to the release without a
   reinstall or an upgrade from the 8.0 sets (from memory: sysupgrade does not
@@ -1277,13 +1353,26 @@ from it (from memory).
   sysctl(3) `KERN_PROC_CWD`. A C helper of a few dozen lines would
   close it. Until then `sd` opens a plain terminal.
 - Removed: dmenumountcifs (avahi, CIFS), dmenupass (sudo askpass), remapd
-  (udev), the pacman update blocks and cron job. mounter and unmounter
+  (udev), pinentry/preexec (the pinentry package's wrapper never reads
+  it), ttymaps.kmap (Linux loadkeys), wget/wgetrc. mounter and unmounter
   were rewritten for OpenBSD; the Linux versions' LUKS and Android (MTP)
-  support did not come over.
+  support did not come over. The pacman update blocks and cron job came
+  back as vertrice-updates, sb-updates and sb-popupgrade.
 - Untouched and untested: pywal's postrun (GNU `echo -e`, `grep` lazy
-  match), pinentry/preexec (Linux library paths), ueberzug previews
-  (not packaged; lfub falls back to plain lf), cron jobs that notify
-  (no fixed D-Bus address to point cron at).
+  match), ueberzug previews (not packaged; lfub falls back to plain lf;
+  chafa is an open pick).
+- Written against sources and mocks, not yet run on the machine: the
+  update counter's reading of `pkg_add -u -n -v` output (one `old->new`
+  name per update set, read in pkg_add's UpdateSet.pm and PkgAdd.pm);
+  that output with no terminal, where pkg_add prints headers only with
+  -v; syspatch -c's exit status when the mirror cannot be reached;
+  mpvSockets.lua's `subprocess` call (from memory of mpv's Lua API);
+  passmenu with pinentry-dmenu; the session-env cron line with a real
+  cron and dunst.
+- From memory in this round: stock dmenu 5.4's option list (the mock
+  refuses -r; the port's patches were read); `unzip -l` and `7z l` for
+  the archive previews; highlight's `-O ansi --force` were read on
+  highlight's master branch, not the 3.62 tag the package builds.
 - lf's opener trusts OpenBSD file(1)'s MIME database, which differs from
   libmagic's. A type it does not know comes back as
   application/octet-stream and opens in zathura. Try an mp3, mp4, epub

@@ -95,7 +95,7 @@ if [ -n "$live" ]; then
 	export XDG_CACHE_HOME="$RUN/cache" PATH="$wrap:$syspath"
 	mkdir -p "$XDG_CACHE_HOME"
 	for b in sb-battery sb-brightness sb-cpu sb-cpubars sb-internet \
-	    sb-memory sb-nettraf sb-volume sb-clock sb-disk; do
+	    sb-memory sb-nettraf sb-volume sb-clock sb-disk sb-updates; do
 		out=$("$b" 2>&1); rc=$?
 		printf '%-14s rc=%d  %s\n' "$b" "$rc" "$out"
 	done

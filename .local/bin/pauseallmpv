@@ -1,15 +1,15 @@
 #!/bin/sh
 
-# You might notice all mpv commands are aliased to have this input-ipc-server
-# thing. That's just for this particular command, which allows us to pause
-# every single one of them with one command! This is bound to super + shift + p
-# (with other things) by default and is used in some other places.
+# Pause every running mpv. Each mpv opens its own IPC socket through the
+# mpvSockets script (~/.config/mpv/scripts/mpvSockets.lua), one per process,
+# in ${XDG_CACHE_HOME:-$HOME/.cache}/mpvSockets. Bound to Super+Shift+p
+# (with mpc pause) and run by sysact before the screen locks.
 #
 # Base nc(1) talks to each socket: -U for a Unix socket, -N to shut down
 # its sending side after the command so mpv closes and nc exits, -w 1 as a
 # stop if mpv does not answer.
 
-for s in /tmp/mpvSockets/*; do
+for s in "${XDG_CACHE_HOME:-$HOME/.cache}"/mpvSockets/*; do
 	[ -S "$s" ] || continue
 	echo '{ "command": ["set_property", "pause", true] }' |
 		nc -NU -w 1 "$s" >/dev/null 2>&1
