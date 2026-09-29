@@ -104,3 +104,41 @@ t_apm_suspend_no_x() {
 	sh "$REPO/.local/share/openbsd/apm-suspend" || fail "exit status not 0 without xidle"
 	logged '^pkill -USR1 -x xidle$'
 }
+
+# vertrice-install system keeps the agent doas rules: /etc/doas.conf is
+# doas.conf followed by doas-agent.conf. The case runs a copy of the
+# installer beside a copy of its data, so doas-agent.conf can hold a rule;
+# root is faked as in pf_setup, and the package, rc and user commands are
+# logging mocks.
+doas_setup() {
+	pf_setup
+	mkdir -p "$T/x/bin" "$T/x/share" "$ROOT/etc" "$ROOT/root"
+	cp "$REPO/.local/bin/vertrice-install" "$T/x/bin/"
+	cp -R "$REPO/.local/share/openbsd" "$T/x/share/"
+	echo 'permit nopass :wheel as root cmd /usr/sbin/rcctl args restart sndiod' \
+		>>"$T/x/share/openbsd/doas-agent.conf"
+	echo 'wheel:*:0:root,geo' >"$ROOT/etc/group"
+	echo 'geo:*:1000:1000:staff:0:0:Geo:/home/geo:/bin/ksh' >"$ROOT/etc/master.passwd"
+	for c in pkg_add pkg_info rcctl usermod cap_mkdb; do ln -s "$VT_MOCKS/_log" "$T/bin/$c"; done
+	export VERTRICE_USER=geo
+	joined=$T/joined
+	cat "$T/x/share/openbsd/doas.conf" "$T/x/share/openbsd/doas-agent.conf" >"$joined"
+}
+
+t_install_doas_keeps_agent_rules() {
+	doas_setup
+	cp "$joined" "$ROOT/etc/doas.conf"
+	out=$("$VT_KSH" "$T/x/bin/vertrice-install" system 2>&1)
+	has "plan: already vertrice's" "ok      /etc/doas.conf is vertrice's" "$out"
+	"$VT_KSH" "$T/x/bin/vertrice-install" -y system >"$T/out" 2>&1
+	cmp -s "$joined" "$ROOT/etc/doas.conf" ||
+		fail "the agent rules were dropped: $(cat "$ROOT/etc/doas.conf")"
+	notlogged '^doas -C'
+	# An /etc/doas.conf without the agent rules gets them, after doas -C.
+	cp "$T/x/share/openbsd/doas.conf" "$ROOT/etc/doas.conf"
+	"$VT_KSH" "$T/x/bin/vertrice-install" -y system >"$T/out" 2>&1
+	cmp -s "$joined" "$ROOT/etc/doas.conf" || fail "not installed joined: $(cat "$T/out")"
+	logged "^doas -C $ROOT/etc/doas.conf.vertrice\$"
+	[ -e "$ROOT/etc/doas.conf.vertrice" ] && fail "temporary file left"
+	return 0
+}
