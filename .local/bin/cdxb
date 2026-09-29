@@ -16,9 +16,9 @@
 # and all it runs see only the system (read and run), ~/.codex, dir, the
 # paths in ~/.config/cdxb/grants and those from -r, -w and add. The deny
 # list hides its paths even then; the protected paths (Codex's and cdxb's
-# settings, your dotfiles) stay read-only. A
-# session's walls: ~/.cache/cdxb/PID/walls. Codex proposes a settings file
-# by writing it whole to $CDXB_OUTBOX; you see the diff and apply it with y.
+# settings, your dotfiles) stay read-only. A session's walls are in
+# ~/.cache/cdxb/PID/walls. Codex proposes a settings file by writing it
+# whole to $CDXB_OUTBOX; you see the diff and apply it with y.
 # Setuid programs cannot run in the box: `cdxb doas` asks a relay outside
 # it to run `doas -n`, so only nopass rules work (openbsd/doas-agent.conf).
 # TMPDIR is the session's own; no X display (/copy uses OSC 52).
@@ -57,9 +57,11 @@ path() {
 # list FILE: a grants or deny file without its comments and blank lines.
 list() { [ -r "$1" ] && grep -v -e '^[[:space:]]*#' -e '^[[:space:]]*$' -- "$1"; }
 
-# anc P: P and each folder above it. With a LIST of paths, one per line:
-# under P LIST: P is, or is inside, a path in LIST. holds P LIST: a path
-# in LIST is P, or inside it. deep D LIST: one is in a folder in D (D/a/b).
+# anc P: P and each folder above it. Three tests take a path and a LIST of
+# paths, one per line:
+#	under P LIST	P is, or is inside, a path in LIST
+#	holds P LIST	a path in LIST is P, or inside it
+#	deep D LIST	a path in LIST is two or more folders below D (D/a/b)
 anc() { typeset p=$1; while [ -n "$p" ]; do print -r -- "$p"; p=${p%/*}; done; }
 under() { anc "$1" | grep -qxF -e "$2"; }
 holds() { print -r -- "$2" | while read -r q; do anc "$q"; done | grep -qxF -- "$1"; }
@@ -257,8 +259,8 @@ unset DISPLAY XAUTHORITY SSH_AUTH_SOCK WINDOWID
 export CDXB_OUTBOX=$outbox
 [ -z "$dflag" ] || { "$box" -D "$S/doas.sock" & relay=$!; export CDXB_DOAS=$S/doas.sock; }
 
-# A trusted (with -a, untrusted) project also skips Codex's question,
-# which would write to config.toml.
+# Marking the project trusted (with -a, untrusted) also skips Codex's
+# trust question, whose answer Codex would write to config.toml.
 [ -n "$aflag" ] && trust=untrusted || trust=trusted
 project="projects={\"$dir\"={trust_level=\"$trust\"}}"
 while :; do
