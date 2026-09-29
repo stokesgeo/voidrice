@@ -36,7 +36,7 @@ case "${ext}" in
     rs) cargo build ;;
     sass) sassc -a "${file}" "${base}.css" ;;
     scad) openscad -o "${base}.stl" "${file}" ;;
-    sent) setsid -f sent "${file}" 2> "/dev/null" ;;
+    sent) detach sent "${file}" 2> "/dev/null" ;;
     tex) latexmk ;;
     *) sed -n '/^#!/s/^#!//p; q' "${file}" | xargs -r -I % "${file}" ;;
 esac

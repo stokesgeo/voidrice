@@ -1,7 +1,7 @@
 #!/bin/sh
 
 case $BLOCK_BUTTON in
-	1) setsid -f "$TERMINAL" -e stig ;;
+	1) detach "$TERMINAL" -e stig ;;
 	2) td-toggle ;;
 	3) notify-send "🌱 Torrent module" "\- Left click to open stig.
 - Middle click to toggle transmission.
@@ -13,7 +13,7 @@ Module shows number of torrents:
 🔽: downloading
 ✅: done
 🌱: done and seeding" ;;
-	6) setsid -f "$TERMINAL" -e "$EDITOR" "$0" ;;
+	6) detach "$TERMINAL" -e "$EDITOR" "$0" ;;
 esac
 
 transmission-remote -l | {

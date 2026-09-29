@@ -11,8 +11,8 @@ case "${*}" in
 		target="$(getcomproot "$1" || echo "$1")"
 		target="${target##*/}"
 		target="$(find . -name "${target%.*}".pdf | head -n 1)"
-		setsid -f xdg-open "$target" >/dev/null 2>&1
+		detach xdg-open "$target" >/dev/null 2>&1
 		;;
-	*.html) setsid -f "$BROWSER" "$basename".html >/dev/null 2>&1 ;;
-	*.sent) setsid -f sent "$1" >/dev/null 2>&1 ;;
+	*.html) detach "$BROWSER" "$basename".html >/dev/null 2>&1 ;;
+	*.sent) detach sent "$1" >/dev/null 2>&1 ;;
 esac

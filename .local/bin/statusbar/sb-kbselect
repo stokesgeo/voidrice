@@ -20,7 +20,7 @@ case $BLOCK_BUTTON in
 	pkill -RTMIN+30 "${STATUSBAR:-dwmblocks}" ;;
 	3) notify-send "⌨  Keyboard/language module" "Current layout: $kb
 - Left click to change keyboard." ;;
-	6) setsid -f "$TERMINAL" -e "$EDITOR" "$0" ;;
+	6) detach "$TERMINAL" -e "$EDITOR" "$0" ;;
 esac
 
 printf "%s\n" "$kb"

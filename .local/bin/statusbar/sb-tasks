@@ -8,10 +8,10 @@
 # Requires tsp.
 
 case $BLOCK_BUTTON in
-	1) setsid -f "$TERMINAL" -e tsp -l ;;
+	1) detach "$TERMINAL" -e tsp -l ;;
 	3) notify-send "Tasks module" "🤖: number of running/queued background tasks
 - Left click opens tsp" ;; # Right click
-	6) setsid -f "$TERMINAL" -e "$EDITOR" "$0" ;;
+	6) detach "$TERMINAL" -e "$EDITOR" "$0" ;;
 esac
 
 tsp -l | {

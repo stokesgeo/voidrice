@@ -2,7 +2,7 @@
 
 case $BLOCK_BUTTON in
 	3) notify-send "💡 Brightness module" "\- Shows current brightness level ☀️." ;;
-	6) setsid -f "$TERMINAL" -e "$EDITOR" "$0" ;;
+	6) detach "$TERMINAL" -e "$EDITOR" "$0" ;;
 esac
 
 set -- /sys/class/backlight/*/
