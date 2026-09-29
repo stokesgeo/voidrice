@@ -304,10 +304,14 @@ cannot beat wear levelling); `hotplug-watch` with a real attach.
 - Every device a thin client, the X220 included: "everything is a thin
   client, with a gradient of local capabilities." And: "(everything has
   a local agent harness that can have one). but the Mac mini is the hub
-  and what can run fully local models well." So the X220 keeps a local
-  harness; the model runs on the hub or in the cloud, but the harness
-  runs its tools on the X220, so it needs a box: cdxb's job stands until
-  something better replaces it. What else runs on the X220 is open.
+  and what can run fully local models well." Where work runs is not
+  fixed: "Depends on latency and workflow expectations and whatnot where
+  the work is running and gets done." On the X220: "The x220 is old, but
+  16gb and such keep it viable, it's not worth running local models on,
+  perhaps except for things like qmd, which we will have to trial for
+  performance. It might be practically limited." A harness on the X220
+  runs its tools there, which is what cdxb boxes.
+- qmd on the X220: a performance trial, once it is installed.
 - Held by the owner, in his words: a console writing session
   ("interesting, but too much for now, note as a future feature idea");
   word-level diffs for prose ("it might be great, but id want to
