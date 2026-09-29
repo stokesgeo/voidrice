@@ -135,6 +135,23 @@ if (cd "$src" && make) >/dev/null 2>&1; then
 	# shellcheck disable=SC2086
 	try "box: pseudo-terminals work (/dev/ptm, script -c)" \
 	    "$box" $sys -u rw:/dev/ptm -u rw:/dev/tty -- /usr/bin/script -c true /dev/null
+	# cdxb -H and the git walls rely on these two rules of unveil: a
+	# folder cannot be renamed into a place without c, and a child with
+	# its own rule without c cannot be renamed away.
+	d=$(mktemp -d) && mkdir -p "$d/a/p"
+	try "box: nothing renamed into a folder without c (-H)" \
+	    eval "! $box $sys -u rx:$d -u rwxc:$d/a -- /bin/mv $d/a $d/b"
+	try "box: a read-only child keeps its place" \
+	    eval "! $box $sys -u rwxc:$d/a -u r:$d/a/p -- /bin/mv $d/a/p $d/a/q"
+	# cdxb doas: the client in a box reaches a relay outside it. With no
+	# nopass rule for true, doas -n refuses, but the answer comes back;
+	# the client's own errors start with "codex-box:".
+	"$box" -D "$d/s" & r=$!
+	sleep 1
+	try "box: cdxb doas reaches the relay (codex-box -C)" \
+	    eval "! $box $sys -u rw:$d/s -u rx:$box -- $box -C $d/s -- /usr/bin/true 2>&1 | grep -q codex-box:"
+	kill "$r" 2>/dev/null
+	rm -rf "$d"
 	try "cdxb -n shows the walls" eval '(cd /tmp && cdxb -n) </dev/null'
 else
 	fail "codex-box builds with base cc and make" "cd $src && make"

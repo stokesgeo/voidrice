@@ -10,12 +10,12 @@
 #	cdxb [-adHnsX] [-r path] [-w path] [dir] [-- codex-arg ...]
 #		start Codex in dir (default: here); it may change dir
 #		-w path	it may also change path	-r path	it may also read path
-#		-H	it may change your whole home (minus the deny list)
+#		-H	it may change your home's folders (not ~/.config, ~/.local)
 #		-X	drop the deny list for this session
 #		-d	it may run your nopass doas rules, through `cdxb doas`
 #		-a	Codex asks before every command
 #		-s	a shell in the box instead of Codex, to try the walls
-#		-n	show the walls and the command; run nothing
+#		-n	show what it would do, the walls and the command; do nothing
 #	cdxb add [-r] path [session]	give a running session one more path
 #	cdxb review			affirm or discard Codex's proposals
 #	cdxb ls				list running sessions
@@ -24,7 +24,8 @@
 # Files: ~/.config/cdxb/grants (paths every session gets), ~/.config/cdxb/deny
 # (paths no session sees), ~/.cache/cdxb (sessions, proposals, log).
 
-cfg=${XDG_CONFIG_HOME:-$HOME/.config}/cdxb
+conf=${XDG_CONFIG_HOME:-$HOME/.config}
+cfg=$conf/cdxb
 state=${XDG_CACHE_HOME:-$HOME/.cache}/cdxb
 outbox=$state/proposals
 src=${CDXB_SRC:-$HOME/.local/src/codex-box}
@@ -34,6 +35,23 @@ share=${XDG_DATA_HOME:-$HOME/.local/share}/openbsd
 
 die() { print -ru2 -- "cdxb: $*"; exit 1; }
 say() { print -r -- "cdxb: $*"; }
+
+# Inside a -d box, `cdxb doas` is all that runs: it touches nothing of
+# cdxb's state (hidden in the box) and talks to the relay through
+# codex-box's client, which the box lets it run (see walls).
+if [ "$1" = doas ]; then
+	shift
+	[ -n "$CDXB_DOAS" ] || die "no doas relay: start the session with cdxb -d"
+	[ $# -ge 1 ] || die "usage: cdxb doas command [arg ...]"
+	exec "$box" -C "$CDXB_DOAS" -- "$@"
+fi
+
+# hasctl TEXT: true if TEXT holds a control character. A newline in a
+# path would start a new unveil line; other control characters could
+# rewrite what the terminal shows.
+hasctl() { [ "$(print -rn -- "$1" | LC_ALL=C tr -d '\001-\037\177')" != "$1" ]; }
+# plain WHAT PATH: refuse a path with a control character in it.
+plain() { ! hasctl "$2" || die "$1: a control character (a newline?) in the path; refused"; }
 
 # real PATH: the path with symbolic links resolved, as unveil sees it.
 # A path that does not exist yet is kept as written.
@@ -77,7 +95,30 @@ denylist() {
 under() {
 	typeset p q
 	while read -r p q; do
+		[ -n "$q" ] || continue
 		case $1/ in "$q"/*) return 0 ;; esac
+	done <<-EOF
+	$2
+	EOF
+	return 1
+}
+# holds PATH LIST: true if a path in LIST is PATH or inside it.
+holds() {
+	typeset p q
+	while read -r p q; do
+		[ -n "$q" ] || continue
+		case $q/ in "$1"/*) return 0 ;; esac
+	done <<-EOF
+	$2
+	EOF
+	return 1
+}
+# deep DIR LIST: true if a path in LIST is inside DIR below a child of
+# it (DIR/a/b), not only a child (DIR/a).
+deep() {
+	typeset p q
+	while read -r p q; do
+		case $q in "$1"/*/*) return 0 ;; esac
 	done <<-EOF
 	$2
 	EOF
@@ -86,31 +127,58 @@ under() {
 
 # The protected files: never writable in the box, whatever the flags and
 # files say. Codex reads them and proposes changes through the outbox.
+# In ~/.codex: what Codex 0.157.0 reads as settings or instructions
+# (checked in its source: codex-home/src/instructions, arg0 load_dotenv,
+# core/src/exec_policy.rs, hooks/src/engine/discovery.rs, skills,
+# core-plugins). AGENTS.override.md would replace AGENTS.md; rules/ can
+# allow commands without asking; hooks.json runs commands; .env sets
+# Codex's environment. Under -H, all of ~/.config (nvim, cwm, lf, git
+# and more run from there outside the box) and the dotfiles repository
+# (its hooks and config run on every `config` command) are added.
 protected() {
+	typeset f
 	cat <<-EOF
 	r $cfg
 	rx $HOME/.local/bin
 	r $HOME/.local/src
 	r $share
-	r $HOME/.codex/config.toml
-	r $HOME/.codex/AGENTS.md
 	r $HOME/.profile
 	r $HOME/.xsession
 	r $HOME/.xprofile
-	r ${XDG_CONFIG_HOME:-$HOME/.config}/shell
-	r ${XDG_CONFIG_HOME:-$HOME/.config}/ksh
-	r ${XDG_CONFIG_HOME:-$HOME/.config}/x11
+	r $conf/shell
+	r $conf/ksh
+	r $conf/x11
 	- $state
 	EOF
+	for f in config.toml AGENTS.md AGENTS.override.md .env hooks.json \
+	    rules skills plugins; do
+		print -r -- "r $HOME/.codex/$f"
+	done
+	[ -z "$Hflag" ] || print -r -- "r $conf
+r $HOME/.local/share/vertrice.git"
+}
+# protreal: the protected paths with links resolved, for comparing.
+# ~/.profile, for one, is a link into ~/.config/shell.
+protreal() {
+	typeset perms p
+	protected | while read -r perms p; do
+		print -r -- "$perms $(real "$p")"
+	done
 }
 
-# check PERMS PATH: refuse a grant inside a denied path, or a write grant
-# inside a protected one.
+# check PERMS PATH: refuse a grant inside a denied path, a write grant
+# inside a protected one, and a write grant that holds a protected one.
+# The last: a directory the box may change can be renamed, and a new one
+# made under the old name; the protected path inside would move with the
+# old one (unveil remembers directories, not names), and the new name
+# would be the box's to fill.
 check() {
 	[ -n "$Xflag" ] || ! under "$2" "$deny" ||
 		die "$2 is on the deny list ($cfg/deny); -X drops the list"
-	[ "$1" = r ] || ! under "$2" "$(protected)" ||
+	[ "$1" = r ] || ! under "$2" "$prot" ||
 		die "$2 is protected; propose a change instead (cdxb review)"
+	[ "$1" = r ] || ! holds "$2" "$prot" ||
+		die "$2 holds protected files; grant a folder inside it, or -r"
 }
 
 # wall PERMS PATH: one unveil line; "-" hides. A path that does not
@@ -125,9 +193,50 @@ wall() {
 
 # mine WORD PATH: a grant in the words of the grants file. rw means
 # read, change, create and run (rwxc); r means read.
-mine() { if [ "$1" = rw ]; then wall rwxc "$2"; else wall r "$2"; fi; }
+mine() { if [ "$1" = rw ]; then wall rwxc "$2"; gitwalls "$2"; else wall r "$2"; fi; }
 
-# walls: every unveil line for this session, most general first.
+# gitwalls DIR: in a git work tree the box may change, git's hooks,
+# config and commondir stay read-only. Git runs hooks, and commands the
+# config names (core.fsmonitor, core.hooksPath, filters, aliases), when
+# you run git there later, outside the box; commondir would point git at
+# another config. A .git that is a file (a worktree) names the real one:
+# read-only too.
+gitwalls() {
+	if [ -f "$1/.git" ]; then
+		wall r "$1/.git"
+	elif [ -d "$1/.git" ]; then
+		wall r "$1/.git/config"
+		wall r "$1/.git/hooks"
+		wall r "$1/.git/commondir"
+	fi
+}
+
+# homewalls: -H. Your home to read and run, but nothing made, removed or
+# renamed at its top, so no folder there can be swapped for a new one;
+# each folder in it may be changed, except ~/.config and ~/.local, which
+# stay read-only (they hold protected paths more than one level down,
+# which only a read-only parent keeps in place), and protected ones.
+# Links at the top are not followed: grant their targets with -w.
+homewalls() {
+	typeset e
+	wall rx "$H"
+	for e in "$H"/* "$H"/.[!.]* "$H"/..?*; do
+		[ -d "$e" ] && [ ! -L "$e" ] || continue
+		under "$e" "$prot" && continue		# its own rule, later
+		if deep "$e" "$prot"; then wall r "$e"; else wall rwxc "$e"; fi
+	done
+}
+
+# added: the -w/-r paths and those `cdxb add` gave, as "perms path".
+added() {
+	typeset g
+	if [ -f "$S/added" ]; then cat -- "$S/added"
+	else for g in "${extra[@]}"; do print -r -- "$g"; done; fi
+}
+
+# walls: every unveil line for this session, most general first. The
+# kernel keeps the last rule given for a directory, so the protected
+# paths come last.
 walls() {
 	typeset perms p
 	# The system, read and run only: programs and libraries, /etc for
@@ -147,35 +256,58 @@ walls() {
 	r /dev/random
 	r /dev/urandom
 	EOF
+	[ -n "$Hflag" ] && homewalls
 	wall rwc "$HOME/.codex"
 	wall r "$HOME/.gitconfig"
-	wall r "${XDG_CONFIG_HOME:-$HOME/.config}/git"
-	[ -n "$Hflag" ] && mine rw "$HOME"
+	wall r "$conf/git"
+	# git's credential store, hidden always: git config stays readable.
+	wall - "$HOME/.git-credentials"
+	wall - "$conf/git/credentials"
 	paths "$cfg/grants" | while read -r perms p; do
 		[ -e "$p" ] || continue
+		if hasctl "$p"; then
+			print -ru2 -- "cdxb: grants: a path with a control character, skipped"
+			continue
+		fi
 		p=$(real "$p")
 		if [ -z "$Xflag" ] && under "$p" "$deny"; then
 			print -ru2 -- "cdxb: grants: $p is on the deny list, skipped"
-		elif [ "$perms" != r ] && under "$p" "$(protected)"; then
+		elif [ "$perms" != r ] && under "$p" "$prot"; then
 			print -ru2 -- "cdxb: grants: $p is protected, skipped"
+		elif [ "$perms" != r ] && holds "$p" "$prot"; then
+			print -ru2 -- "cdxb: grants: $p holds protected files, skipped"
 		else
 			mine "$perms" "$p"
 		fi
 	done
-	mine rw "$dir"
-	while read -r perms p; do mine "$perms" "$p"; done < "$S/added"
+	[ "$dir" = "$H" ] || mine rw "$dir"	# with -H, home is homewalls
+	added | while read -r perms p; do mine "$perms" "$p"; done
 	[ -n "$Xflag" ] || print -r -- "$deny" | while read -r perms p; do
 		wall - "$p"
 	done
 	protected | while read -r perms p; do wall "$perms" "$p"; done
-	wall rwc "$S/tmp"
-	wall rwc "$outbox"
-	[ -n "$dflag" ] && wall rw "$S/doas.sock"
+	# The session's own paths, which cdxb makes before the box starts.
+	print -r -- "rwc:$S/tmp"
+	print -r -- "rwc:$outbox"
+	if [ -n "$dflag" ]; then
+		print -r -- "rw:$S/doas.sock"
+		print -r -- "rx:$box"		# the client, for `cdxb doas`
+	fi
+}
+
+# priv: cdxb's own scratch directory, inside $state, which no box can
+# see (the "- $state" wall). Proposals are reviewed and applied from
+# here; the box's TMPDIR and outbox are never used for that.
+priv=
+private() {
+	[ -n "$priv" ] && [ -d "$priv" ] && return 0
+	priv=$(mktemp -d "$state/review.XXXXXXXXXX") ||
+		die "cannot make a private directory in $state"
 }
 
 # review: show each proposal in the outbox, apply it only on a typed y.
 review() {
-	typeset key target copy why answer strict=$1
+	typeset key target copy why answer strict=$1 bad
 	for key in grants deny codex agents doas; do
 		[ -e "$outbox/$key" ] || [ -L "$outbox/$key" ] || continue
 		if [ ! -t 0 ] || [ ! -t 1 ]; then
@@ -190,24 +322,41 @@ review() {
 		agents) target=$HOME/.codex/AGENTS.md ;;
 		doas) target=$share/doas-agent.conf ;;
 		esac
-		# Review a private copy, so what is shown is what is applied.
-		# Only plain files: a link could point at a secret, and a
-		# FIFO would make cdxb wait forever.
+		# First take the proposal out of the box's reach: a rename
+		# moves the name without opening it, so a link or a FIFO is
+		# moved, not followed. Then copy its bytes into a new file in
+		# the private directory: a process that still holds the old
+		# file open cannot change the copy, and nothing in the box can
+		# name it. What is shown below is this copy, and what is
+		# applied is this copy.
+		private
+		copy=$priv/$key
+		rm -rf -- "$copy" "$copy.in" "$copy.why"
+		if ! mv -f -- "$outbox/$key" "$copy.in"; then
+			decide "$key" rejected "could not move it out of the outbox"
+			continue
+		fi
+		{ [ -e "$outbox/$key.why" ] || [ -L "$outbox/$key.why" ]; } &&
+			mv -f -- "$outbox/$key.why" "$copy.why"
 		why=
-		[ -f "$outbox/$key.why" ] && [ ! -L "$outbox/$key.why" ] &&
-		    why=$(head -n 1 "$outbox/$key.why" | tr -d '\000-\037\177')
-		copy=$(mktemp) || die "mktemp failed"
-		if [ -L "$outbox/$key" ] || [ ! -f "$outbox/$key" ] ||
-		    ! cp -P -- "$outbox/$key" "$copy.l" ||
-		    ! mv -f -- "$copy.l" "$copy" ||
-		    [ -L "$copy" ] || [ ! -f "$copy" ]; then
-			rm -f -- "$outbox/$key" "$outbox/$key.why" "$copy" "$copy.l"
+		# Only plain files: a link could point at a secret, and a
+		# FIFO would make cdxb wait forever. The reason is one line
+		# of printable ASCII.
+		[ -f "$copy.why" ] && [ ! -L "$copy.why" ] &&
+		    why=$(head -n 1 -- "$copy.why" | LC_ALL=C tr -cd '\040-\176')
+		if [ -L "$copy.in" ] || [ ! -f "$copy.in" ] ||
+		    ! cp -- "$copy.in" "$copy"; then
+			rm -rf -- "$copy" "$copy.in" "$copy.why"
 			decide "$key" rejected "not a plain file"; continue
 		fi
-		rm -f -- "$outbox/$key" "$outbox/$key.why"
-		# shellcheck disable=SC2094	# both only read the copy
-		if ! tr -d '\000-\010\013-\037\177' < "$copy" | cmp -s - "$copy"; then
-			decide "$key" rejected "control characters"; rm -f -- "$copy"; continue
+		rm -rf -- "$copy.in" "$copy.why"
+		# Printable ASCII, tabs and newlines only. Other control
+		# characters, and bytes of 0x80 and up (C1 controls, bidi
+		# overrides in UTF-8), could hide lines of the diff below.
+		bad=$(LC_ALL=C tr -d '\011\012\040-\176' < "$copy" | wc -c)
+		if [ $((bad)) -ne 0 ]; then
+			decide "$key" rejected "control characters or bytes outside ASCII"
+			rm -f -- "$copy"; continue
 		fi
 		print -r -- "== Codex proposes a new $target"
 		print -r -- "== reason: ${why:-(none given)}"
@@ -225,6 +374,8 @@ review() {
 		fi
 		rm -f -- "$copy"
 	done
+	[ -n "$priv" ] && rm -rf -- "$priv"
+	priv=
 }
 decide() {
 	say "$1 $2"
@@ -233,11 +384,14 @@ decide() {
 
 # doasapply NEW FRAGMENT: /etc/doas.conf is doas.conf followed by the
 # doas-agent.conf fragment. Check the result, then install it as root:
-# doas asks for your password, which is the second affirm.
+# doas asks for your password, which is the second affirm. The joined
+# file is built in the private directory from the copy just shown, and
+# FRAGMENT is written only once /etc/doas.conf holds it: so
+# doas-agent.conf is the record of the rules installed, which
+# `vertrice-install system` puts back when it reinstalls /etc/doas.conf.
 doasapply() {
-	typeset tmp
-	tmp=$(mktemp) || return 1
-	cat -- "$share/doas.conf" "$1" > "$tmp"
+	typeset tmp=$priv/doas.conf
+	cat -- "$share/doas.conf" "$1" > "$tmp" || return 1
 	if ! doas -C "$tmp"; then
 		decide doas rejected "doas -C found errors"; rm -f -- "$tmp"; return 1
 	fi
@@ -258,49 +412,57 @@ live() {
 	done
 }
 
-{ mkdir -p -- "$state" "$outbox" && chmod 700 "$state"; } || die "cannot make $state"
+# setup: cdxb's state directory, and the cleanup when cdxb ends.
+S='' relay=''
+cleanup() {
+	[ -n "$priv" ] && rm -rf -- "$priv"
+	[ -n "$S" ] && [ -d "$S" ] && rm -rf -- "$S"
+	[ -n "$relay" ] && kill "$relay" 2>/dev/null
+}
+setup() {
+	{ mkdir -p -- "$state" "$outbox" && chmod 700 "$state"; } ||
+		die "cannot make $state"
+	trap cleanup EXIT
+	trap 'exit 1' HUP TERM
+}
 
+H=$(real "$HOME")
 case $1 in
 ls)
+	setup
 	for id in $(live); do
 		print -r -- "$id	$(cat "$state/$id/dir")"
 		sed 's/^/	+ /' "$state/$id/added"
 	done
 	exit 0 ;;
 review)
-	review strict; exit 0 ;;
+	setup; review strict; exit 0 ;;
 add)
+	setup
 	shift; perms=rw
 	[ "$1" = -r ] && { perms=r; shift; }
 	[ $# -ge 1 ] || die "usage: cdxb add [-r] path [session]"
+	plain "add" "$1"
 	[ -e "$1" ] || die "$1: no such file or directory"
 	p=$(real "$1")
+	plain "add" "$p"
 	ids=$(live)
 	if [ -n "$2" ]; then id=$2
 	elif [ "$(print -r -- "$ids" | wc -l)" -eq 1 ] && [ -n "$ids" ]; then id=$ids
 	else die "name a session: $(print -r -- "${ids:-none running}" | paste -sd ' ' -)"
 	fi
+	case $id in +([0-9])) ;; *) die "a session is a number: cdxb ls" ;; esac
 	[ -d "$state/$id" ] || die "no session $id"
 	deny=$(denylist)
 	Xflag=$(cat "$state/$id/X")
+	Hflag=$(cat "$state/$id/H" 2>/dev/null)
+	prot=$(protreal)
 	check "$perms" "$p"
 	print -r -- "$perms $p" >> "$state/$id/added"
 	: > "$state/$id/restart"
 	say "$p added to session $id ($perms). Type /quit in that Codex:"
 	say "it starts again with the new path and resumes the conversation."
 	review; exit 0 ;;
-doas)
-	shift
-	[ -n "$CDXB_DOAS" ] || die "no doas relay: start the session with cdxb -d"
-	out=$(print -r -- "$*" | nc -NU "$CDXB_DOAS") || die "the relay did not answer"
-	code=${out##*cdxb: exit }
-	case $code in
-	+([0-9])) ;;
-	*) print -r -- "$out"; exit 1 ;;
-	esac
-	out=${out%cdxb: exit *}
-	[ -n "$out" ] && print -rn -- "$out"
-	exit "$code" ;;
 esac
 
 aflag='' dflag='' Hflag='' nflag='' sflag='' Xflag=''
@@ -309,9 +471,11 @@ while getopts adHnsXr:w: o; do
 	case $o in
 	a) aflag=1 ;; d) dflag=1 ;; H) Hflag=1 ;; n) nflag=1 ;;
 	s) sflag=1 ;; X) Xflag=1 ;;
-	r|w) [ -e "$OPTARG" ] || die "$OPTARG: no such file or directory"
+	r|w) plain "-$o" "$OPTARG"
+	     [ -e "$OPTARG" ] || die "$OPTARG: no such file or directory"
 	     perms=r; [ "$o" = w ] && perms=rw
-	     extra[${#extra[*]}]="$perms $(real "$OPTARG")" ;;
+	     p=$(real "$OPTARG"); plain "-$o" "$p"
+	     extra[${#extra[*]}]="$perms $p" ;;
 	*) sed -n '10,22s/^#//p' "$0" >&2; exit 1 ;;
 	esac
 done
@@ -322,25 +486,69 @@ shift $((OPTIND - 1))
 dir=.
 [ $# -gt 0 ] && [ "$last" != -- ] && [ "$1" != -- ] && { dir=$1; shift; }
 [ "$1" = -- ] && shift
+plain "the directory" "$dir"
 [ -d "$dir" ] || die "$dir: not a directory"
 dir=$(real "$dir")
+plain "the directory" "$dir"
 
 [ -r "$cfg/deny" ] || die "no deny list at $cfg/deny: restore it from the dotfiles"
 deny=$(denylist)
+prot=$(protreal)
 [ "$dir" = / ] && die "not the whole file system"
-case $HOME/ in "$dir"/*) [ -n "$Hflag" ] || die "$dir holds your home: add -H to mean it" ;; esac
 case $dir in *[\"\\]*) die "$dir: a quote or backslash in the path" ;; esac
-check rw "$dir"
+if [ "$dir" = "$H" ]; then
+	[ -n "$Hflag" ] || die "$dir is your home: add -H to mean it"
+else
+	case $H/ in "$dir"/*) die "$dir holds your home: start in your home, with -H" ;; esac
+	check rw "$dir"
+fi
 for g in "${extra[@]}"; do check "${g%% *}" "${g#* }"; done
+S=$state/$$
+
+# cmd: what runs in the box.
+[ -n "$aflag" ] && trust=untrusted || trust=trusted
+first=1
+mkcmd() {
+	if [ -n "$sflag" ]; then
+		set -A cmd -- /bin/ksh -i
+	else
+		# Marking the project trusted (or untrusted, -a) also skips
+		# Codex's trust question, which would write to config.toml.
+		set -A cmd -- "$codex" -c "projects={\"$dir\"={trust_level=\"$trust\"}}"
+		if [ -n "$first" ]; then set -A cmd -- "${cmd[@]}" "$@"
+		else cmd[${#cmd[*]}]=resume; cmd[${#cmd[*]}]=--last; fi
+	fi
+}
+
+# -n: say what would happen, and change nothing: no build, no copy, no
+# review, no session directory.
+if [ -n "$nflag" ]; then
+	if [ ! -x "$box" ] || [ "$src/codex-box.c" -nt "$box" ]; then
+		print -r -- "would build codex-box in $src"
+	fi
+	for f in config.toml AGENTS.md; do
+		[ -e "$HOME/.codex/$f" ] ||
+			print -r -- "would copy $share/codex/$f to $HOME/.codex"
+	done
+	for key in grants deny codex agents doas; do
+		{ [ -e "$outbox/$key" ] || [ -L "$outbox/$key" ]; } &&
+			print -r -- "would review the waiting proposal: $key"
+	done
+	[ -n "$dflag" ] && print -r -- "would start the doas relay at $S/doas.sock"
+	print "walls (r read, w write, x run, c create/remove; nothing: hidden):"
+	walls | sed 's/^/	/'
+	mkcmd "$@"
+	print -r -- "command: ${cmd[*]}"
+	exit 0
+fi
 
 # The session: its own directory, removed when cdxb ends.
-S=$state/$$
+setup
 mkdir -p -- "$S/tmp" || die "cannot make $S"
-trap 'rm -rf -- "$S"; [ -n "$relay" ] && kill "$relay" 2>/dev/null' EXIT
-trap 'exit 1' HUP TERM
 trap ':' INT QUIT		# Codex gets them; cdxb keeps running
 print -r -- "$dir" > "$S/dir"
 print -r -- "$Xflag" > "$S/X"
+print -r -- "$Hflag" > "$S/H"
 : > "$S/added"
 for g in "${extra[@]}"; do print -r -- "$g" >> "$S/added"; done
 
@@ -352,20 +560,19 @@ mkdir -p -- "$HOME/.codex"
 [ -e "$HOME/.codex/config.toml" ] || cp -- "$share/codex/config.toml" "$HOME/.codex/" 2>/dev/null
 [ -e "$HOME/.codex/AGENTS.md" ] || cp -- "$share/codex/AGENTS.md" "$HOME/.codex/" 2>/dev/null
 
-# What the box inherits: no X display or ssh-agent, a private /tmp.
+# What the box inherits: no X display or ssh-agent. TMPDIR is set for
+# the box alone (below), never for cdxb: cdxb's own temporary files go
+# in the private directory, which the box cannot reach.
 unset DISPLAY XAUTHORITY SSH_AUTH_SOCK WINDOWID
-export TMPDIR=$S/tmp CDXB_OUTBOX=$outbox CDXB_SESSION=$$
+export CDXB_OUTBOX=$outbox CDXB_SESSION=$$
 
-relay=
-if [ -n "$dflag" ] && [ -z "$nflag" ]; then
+if [ -n "$dflag" ]; then
 	"$box" -D "$S/doas.sock" & relay=$!
 	i=0; while [ ! -S "$S/doas.sock" ] && [ $i -lt 50 ]; do sleep 0.1; i=$((i + 1)); done
 	[ -S "$S/doas.sock" ] || die "the doas relay did not start"
 	export CDXB_DOAS=$S/doas.sock
 fi
 
-[ -n "$aflag" ] && trust=untrusted || trust=trusted
-first=1
 while :; do
 	review
 	rm -f -- "$S/restart"
@@ -374,22 +581,9 @@ while :; do
 	while read -r g; do
 		argv[${#argv[*]}]=-u; argv[${#argv[*]}]=$g
 	done < "$S/walls"
-	if [ -n "$sflag" ]; then
-		set -A cmd -- /bin/ksh -i
-	else
-		# Marking the project trusted (or untrusted, -a) also skips
-		# Codex's trust question, which would write to config.toml.
-		set -A cmd -- "$codex" -c "projects={\"$dir\"={trust_level=\"$trust\"}}"
-		if [ -n "$first" ]; then set -A cmd -- "${cmd[@]}" "$@"
-		else cmd[${#cmd[*]}]=resume; cmd[${#cmd[*]}]=--last; fi
-	fi
-	if [ -n "$nflag" ]; then
-		print "walls (r read, w write, x run, c create/remove; nothing: hidden):"
-		sed 's/^/	/' "$S/walls"
-		print -r -- "command: ${cmd[*]}"
-		exit 0
-	fi
-	(cd -- "$dir" && exec "$box" -p "$S/pid" "${argv[@]}" -- "${cmd[@]}")
+	mkcmd "$@"
+	(cd -- "$dir" && export TMPDIR="$S/tmp" &&
+	    exec "$box" -p "$S/pid" "${argv[@]}" -- "${cmd[@]}")
 	[ -e "$S/restart" ] || break
 	first=
 	say "starting again with the new paths; resuming the conversation"

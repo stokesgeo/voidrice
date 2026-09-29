@@ -285,11 +285,25 @@ apmput() {	# apmput name: install apm-suspend as /etc/apm/name
 	install -d -o root -g wheel -m 0755 "$R/etc/apm" &&
 		put "$data/apm-suspend" "$R/etc/apm/$1" 0755
 }
-newdoas() {	# install doas.conf only if doas -C accepts it; never leave none
-	typeset new=$R/etc/doas.conf.vertrice
-	install -o root -g wheel -m 0640 "$data/doas.conf" "$new" || return
+# /etc/doas.conf is doas.conf followed by doas-agent.conf, the nopass
+# rules for Codex's `cdxb doas`. `cdxb review` writes doas-agent.conf only
+# after /etc/doas.conf holds it, so that file is the record of the agent
+# rules installed; comparing with doas.conf alone would drop them on every
+# run. With no doas-agent.conf, doas.conf alone.
+wantdoas() {	# wantdoas: what /etc/doas.conf should hold
+	cat "$data/doas.conf" || return
+	[ ! -e "$data/doas-agent.conf" ] || cat "$data/doas-agent.conf"
+}
+samedoas() { [ -e "$R/etc/doas.conf" ] && wantdoas | cmp -s - "$R/etc/doas.conf"; }
+newdoas() {	# install it only if doas -C accepts it; never leave none
+	typeset new=$R/etc/doas.conf.vertrice tmp
+	tmp=$(mktemp) || return
+	if ! wantdoas >"$tmp" || ! install -o root -g wheel -m 0640 "$tmp" "$new"; then
+		rm -f "$tmp" "$new"; return 1
+	fi
+	rm -f "$tmp"
 	if ! doas -C "$new"; then
-		print "  doas -C rejects $data/doas.conf; /etc/doas.conf unchanged"
+		print "  doas -C rejects doas.conf + doas-agent.conf; /etc/doas.conf unchanged"
 		rm -f "$new"; return 1
 	fi
 	keep_orig "$R/etc/doas.conf" && mv -f "$new" "$R/etc/doas.conf"
@@ -392,8 +406,8 @@ system() {
 
 	# doas. The rule permits group wheel, so a user outside wheel would be
 	# locked out by it: refuse rather than install that.
-	if same "$data/doas.conf" "$R/etc/doas.conf"; then
-		ok "/etc/doas.conf is vertrice's"
+	if samedoas; then
+		ok "/etc/doas.conf is vertrice's (doas.conf + doas-agent.conf)"
 	elif ! awk -F: -v u="$user" '$1 == "wheel" { n = split($4, m, ","); for (i = 1; i <= n; i++) if (m[i] == u) f = 1 } END { exit !f }' "$R/etc/group"; then
 		print "  FAILED  $user is not in group wheel, so the doas rule would not"
 		print "          let $user in. First: usermod -G wheel $user"

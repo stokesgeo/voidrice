@@ -30,16 +30,21 @@ the box; ask the owner instead.
 
 These files are read-only for you: ~/.config/cdxb/grants,
 ~/.config/cdxb/deny, ~/.codex/config.toml, ~/.codex/AGENTS.md and
-~/.local/share/openbsd/doas-agent.conf. To propose a change, write the
+~/.local/share/openbsd/doas-agent.conf. So are ~/.codex/AGENTS.override.md,
+.env, hooks.json, rules, skills and plugins, and in the project the
+git config, hooks and commondir: `git config`, `git remote add` and
+`git push -u` fail there; print the command for the owner instead.
+To propose a change to one of the first five, write the
 FULL new file to the outbox, `$CDXB_OUTBOX`, under one of these names,
 plus a one-line reason in the same name with `.why` added:
 
     grants  deny  codex (config.toml)  agents (AGENTS.md)  doas
 
 Example: `$CDXB_OUTBOX/grants` and `$CDXB_OUTBOX/grants.why`. The owner
-sees a diff and types y or n when cdxb next starts or restarts. Plain text
-only: links, directories and control characters are rejected. Then tell
-the owner a proposal is waiting.
+sees a diff and types y or n when cdxb next starts or restarts. Plain
+ASCII text only (tabs and newlines allowed): links, directories, control
+characters and any byte above 0x7f, UTF-8 included, are rejected. Then
+tell the owner a proposal is waiting.
 
 ## OpenBSD habits
 
