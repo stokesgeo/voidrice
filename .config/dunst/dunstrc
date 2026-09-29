@@ -11,8 +11,7 @@
     font = IBM Plex Mono 10
     format = "<b>%s</b>\n%b"
 
-# Framed in cwm's border colours. `theme` puts the current palette's
-# colours in dunstrc.d/theme.conf, read after this file.
+# Frames in cwm's colours; `theme` writes dunstrc.d/theme.conf, read after this.
 [urgency_low]
     background = "#24232e"
     foreground = "#c7c0b4"

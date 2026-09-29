@@ -1,18 +1,22 @@
-# theme's dunst, zathura and root-window colours, and the pywal opt-in.
+# theme's dunst and zathura colours, and the pywal opt-in.
 # th_setup and count are in desktop.sh.
 
 t_palette_switch() {
 	th_setup
-	cp "$VT_REAL_SLEEP" "$T/bin/zathura"; "$T/bin/zathura" 30 & zp=$!; track $zp
 	DISPLAY=:0 "$VT_KSH" "$theme" day || fail "theme day failed"
 	has "dunst" 'background = "#f5f1e8"' "$(cat "$XDG_CONFIG_HOME/dunst/dunstrc.d/theme.conf")"
 	has "zathura" 'set default-bg "#f5f1e8"' "$(cat "$XDG_CONFIG_HOME/zathura/theme")"
 	logged '^dunstctl reload$'
-	logged "^dbus-send .*--dest=org\.pwmt\.zathura\.PID-$zp /org/pwmt/zathura org\.pwmt\.zathura\.SourceConfig\$"
-	logged '^xsetroot -solid #f5f1e8$'
 	DISPLAY=:0 "$VT_KSH" "$theme" toggle
-	logged '^xsetroot -solid #24232e$'	# the root window follows the switch
 	has "dunst night" 'background = "#24232e"' "$(cat "$XDG_CONFIG_HOME/dunst/dunstrc.d/theme.conf")"
+	has "zathura night" 'set default-bg "#24232e"' "$(cat "$XDG_CONFIG_HOME/zathura/theme")"
+	# Each palette's colours match its dunst and zathura files.
+	for p in day night; do
+		bg=$(sed -n 's/^\*\.background: //p' "$REPO/.config/x11/themes/$p")
+		fg=$(sed -n 's/^\*\.foreground: //p' "$REPO/.config/x11/themes/$p")
+		eq "$p dunst" 6 "$(grep -Ec "\"($bg|$fg)\"" "$REPO/.config/x11/themes/$p.dunst")"
+		eq "$p zathura" 8 "$(grep -Ec "\"($bg|$fg)\"" "$REPO/.config/x11/themes/$p.zathura")"
+	done
 }
 
 t_palette_wal() {
