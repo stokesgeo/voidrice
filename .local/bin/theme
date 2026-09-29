@@ -2,13 +2,18 @@
 
 # theme day|night|toggle|auto|clock|wal: the terminals' palette, and dunst's
 # and zathura's colours (x11/themes/NAME.dunst, NAME.zathura; wal's own).
+# Day and night also set gtk-theme-name in gtk-3.0/settings.ini (wal leaves it).
 # Super+F8 toggles; xprofile runs `theme clock`: day from 07:00, night from 19:00.
-# Open terminals are recoloured with OSC sequences; zathura on its next start.
+# Open terminals are recoloured with OSC sequences; zathura and GTK
+# programs on their next start.
 
 conf=${XDG_CONFIG_HOME:-$HOME/.config}
 dir=$conf/x11/themes
 wal=${XDG_CACHE_HOME:-$HOME/.cache}/wal
 state=${XDG_CACHE_HOME:-$HOME/.cache}/theme
+# The GTK themes for day and night. Placeholders, pending the owner's pick;
+# both ship with gtk+3.
+gtkday=Adwaita gtknight=Adwaita-dark
 
 auto() { h=$(date +%H); [ "$h" -ge 7 ] && [ "$h" -lt 19 ] && print day || print night; }
 
@@ -31,6 +36,10 @@ apply() {
 	mkdir -p "$conf/dunst/dunstrc.d" "$conf/zathura"
 	cp "$d" "$conf/dunst/dunstrc.d/theme.conf"; cp "$z" "$conf/zathura/theme"
 	dunstctl reload >/dev/null 2>&1
+	typeset g=$conf/gtk-3.0/settings.ini gt=
+	case $1 in day) gt=$gtkday ;; night) gt=$gtknight ;; esac
+	[ -n "$gt" ] && [ -f "$g" ] &&
+		sed "s/^gtk-theme-name=.*/gtk-theme-name=$gt/" "$g" > "$g.new" && mv "$g.new" "$g"
 	print "$1" > "$state"
 }
 
