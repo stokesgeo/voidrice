@@ -27,6 +27,7 @@ export NOTMUCH_CONFIG="$XDG_CONFIG_HOME/notmuch-config"
 export INPUTRC="$XDG_CONFIG_HOME/shell/inputrc"
 export ENV="$XDG_CONFIG_HOME/ksh/kshrc"	# ksh reads $ENV in each interactive shell
 export NEXINIT="source $XDG_CONFIG_HOME/vi/exrc"	# base vi (nvi) only; nvim ignores it
+export MANPATH=":$XDG_DATA_HOME/man"	# man vertrice; the leading colon searches the standard path first
 #export GNUPGHOME="$XDG_DATA_HOME/gnupg"
 export WINEPREFIX="$XDG_DATA_HOME/wineprefixes/default"
 export KODI_DATA="$XDG_DATA_HOME/kodi"
