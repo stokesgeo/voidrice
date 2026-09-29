@@ -312,3 +312,60 @@ t_slider_convert() {
 	logged '^ffmpeg -hide_banner -y -f concat -safe 0 -i '
 	notlogged '^magick'
 }
+
+# No audio: the last slide shows for -e seconds, else 5.
+t_slider_last_slide() {
+	im_setup
+	cd "$T" || fail "no dir"
+	printf '00:00:00\tOne\n00:00:03\tTwo\n' >list
+	prep=$XDG_CACHE_HOME/slider/list/list.prep
+	slider -i list >/dev/null 2>&1
+	eq "default" "duration 5" "$(grep '^duration' "$prep" | tail -n 1)"
+	slider -i list -e 10 >/dev/null 2>&1
+	eq "-e 10" "duration 10" "$(grep '^duration' "$prep" | tail -n 1)"
+}
+
+# Mirroring onto DP-1 keeps eDP-1 as the other display: one name inside
+# another is not the same name.
+t_displayselect_mirror_names() {
+	for v in xrandr setbg; do ln -s "$VT_MOCKS/_log" "$T/bin/$v"; done
+	fx out.xrandr <<'EOF'
+eDP-1 connected primary 1920x1080+0+0 (normal left inverted right x axis y axis) 309mm x 174mm
+   1920x1080     60.00*+
+DP-1 connected (normal left inverted right x axis y axis)
+   2560x1440     59.95 +
+EOF
+	answers multi-monitor yes DP-1
+	displayselect >/dev/null 2>&1
+	logged '^xrandr --output DP-1 --auto --scale 1\.0x1\.0 --output eDP-1 --auto --same-as DP-1 '
+}
+
+# A selected area is grabbed from $DISPLAY, as the whole screen is.
+t_dmenurecord_selected_display() {
+	ln -s "$VT_MOCKS/_log" "$T/bin/ffmpeg"
+	printf '#!/bin/sh\necho "10 20 300 200"\n' >"$T/bin/slop"; chmod +x "$T/bin/slop"
+	DISPLAY=:1 dmenurecord selected
+	waitfor 5 grep -q '^ffmpeg' "$VT_STATE/log" || fail "ffmpeg never ran"
+	logged '^ffmpeg -f x11grab -framerate 30 -video_size 300x200 -i :1\+10,20 '
+}
+
+# noisereduce names the tool that is missing, and its errors exit 1.
+t_noisereduce_errors() {
+	ln -s "$VT_MOCKS/_log" "$T/bin/ffmpeg"
+	printf '#!/bin/sh\nexit 1\n' >"$T/bin/pkg_info"; chmod +x "$T/bin/pkg_info"
+	noisereduce in out 2>"$T/err"; eq "no sox: exit" 1 "$?"
+	eq "no sox: message" "We require 'sox' but it's not installed." "$(cat "$T/err")"
+	ln -s "$VT_MOCKS/_log" "$T/bin/sox"
+	noisereduce >/dev/null; eq "no arguments: exit" 1 "$?"
+	noisereduce missing out >/dev/null; eq "no input file: exit" 1 "$?"
+}
+
+# booksplit tags every track with the total, the last one too.
+t_booksplit_total() {
+	ln -s "$VT_MOCKS/_log" "$T/bin/ffmpeg"
+	: >book.mp3
+	printf '00:00:00\tOne\n00:10:00\tTwo\n' >tc
+	printf 'Book\nMe\n2020\n' | booksplit book.mp3 tc >/dev/null
+	logged 'track=1 -metadata total=2 '
+	logged 'track=2 -metadata total=2 '
+}

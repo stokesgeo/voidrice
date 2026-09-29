@@ -8,10 +8,10 @@ if echo "$1" | grep -qE "https?://[^[:space:]]+\.[A-Za-z]+[^[:space:]]*" ; then
 	url="$1"
 else
 	url="$(grep -Eom1 '<[^>]+(rel="self"|application/[a-z]+\+xml)[^>]+>' "$1" |
-		grep -o "https?://[^\" ]")"
+		grep -Eo "https?://[^\" ]+")"
 
 	echo "$url" | grep -qE "https?://[^[:space:]]+\.[A-Za-z]+[^[:space:]]*" ||
-		notify-send "That doesn't look like a full URL." && exit 1
+		{ notify-send "That doesn't look like a full URL." ; exit 1 ;}
 fi
 
 RSSFILE="${XDG_CONFIG_HOME:-$HOME/.config}/newsboat/urls"
