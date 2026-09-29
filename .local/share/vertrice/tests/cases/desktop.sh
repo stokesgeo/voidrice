@@ -348,3 +348,14 @@ t_dmenurecord_selected_display() {
 	waitfor 5 grep -q '^ffmpeg' "$VT_STATE/log" || fail "ffmpeg never ran"
 	logged '^ffmpeg -f x11grab -framerate 30 -video_size 300x200 -i :1\+10,20 '
 }
+
+# noisereduce names the tool that is missing, and its errors exit 1.
+t_noisereduce_errors() {
+	ln -s "$VT_MOCKS/_log" "$T/bin/ffmpeg"
+	printf '#!/bin/sh\nexit 1\n' >"$T/bin/pkg_info"; chmod +x "$T/bin/pkg_info"
+	noisereduce in out 2>"$T/err"; eq "no sox: exit" 1 "$?"
+	eq "no sox: message" "We require 'sox' but it's not installed." "$(cat "$T/err")"
+	ln -s "$VT_MOCKS/_log" "$T/bin/sox"
+	noisereduce >/dev/null; eq "no arguments: exit" 1 "$?"
+	noisereduce missing out >/dev/null; eq "no input file: exit" 1 "$?"
+}
