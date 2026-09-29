@@ -303,9 +303,11 @@ cannot beat wear levelling); `hotplug-watch` with a real attach.
   travel/coffeeshop/bookbag device."
 - Every device a thin client, the X220 included: "everything is a thin
   client, with a gradient of local capabilities." And: "(everything has
-  a local agent that can have one)." So the X220 keeps a local agent,
-  and a local agent needs a box: cdxb's job stands until something
-  better replaces it. What runs on the X220 and what on the hub is open.
+  a local agent harness that can have one). but the Mac mini is the hub
+  and what can run fully local models well." So the X220 keeps a local
+  harness; the model runs on the hub or in the cloud, but the harness
+  runs its tools on the X220, so it needs a box: cdxb's job stands until
+  something better replaces it. What else runs on the X220 is open.
 - Held by the owner, in his words: a console writing session
   ("interesting, but too much for now, note as a future feature idea");
   word-level diffs for prose ("it might be great, but id want to
