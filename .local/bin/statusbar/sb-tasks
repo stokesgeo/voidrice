@@ -4,8 +4,9 @@
 # parentheses, e.g. 3(2). A job is a file ,TIME.PID in the queue directory (nq(1));
 # it is executable while it runs, and done when its PID is gone.
 #
-# Originally by Andr3as07 <https://github.com/Andr3as07>.
-# Some changes by Luke. Rebuilt by Tenyun.
+# Originally by Andr3as07 <https://github.com/Andr3as07>
+# Some changes by Luke
+# Rebuild by Tenyun
 
 # Displays the number of running/queued qndl jobs (nq: ,TIME.PID, x while running).
 

@@ -1,7 +1,8 @@
 #!/bin/sh
 
-# sb-mailbox: number of unread mail, and a sync mark while mbsync(1) runs.
-# Left click opens neomutt; middle click syncs.
+# Displays number of unread mail and an loading icon if updating.
+# When clicked, brings up `neomutt`.
+# Middle click syncs.
 
 case $BLOCK_BUTTON in
 	1) "$TERMINAL" -e neomutt; sb-refresh ;;

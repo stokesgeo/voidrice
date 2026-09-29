@@ -1,6 +1,7 @@
 #!/bin/sh
 
-# sb-moonphase: the moon phase as an emoji, from wttr.in, fetched once a day.
+# Shows the current moon phase.
+# It is an emoji from wttr.in, fetched once a day.
 
 moonfile="${XDG_DATA_HOME:-$HOME/.local/share}/moonphase"
 

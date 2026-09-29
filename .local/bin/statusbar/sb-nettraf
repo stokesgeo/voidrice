@@ -1,9 +1,10 @@
 #!/bin/sh
 
-# sb-nettraf: network traffic. Shows the bytes received and sent since the
-# previous run, so a run every second gives bytes per second. It sums every
-# interface but lo(4): the counts are the last two columns of the <Link> rows
-# of netstat -ibn.
+# Module showing network traffic. Shows how much data has been received (RX) or
+# transmitted (TX) since the previous time this script ran. So if run every
+# second, gives network traffic per second.
+# It sums every interface but lo(4): the counts are the last two columns of the
+# <Link> rows of netstat -ibn.
 
 case $BLOCK_BUTTON in
 	1) detach "$TERMINAL" -e systat ifstat ;;

@@ -1,7 +1,10 @@
 #!/bin/sh
 
-# sb-iplocate: flag and name of the country your public IP address is in.
+# Gets your public ip address checks which country you are in and
+# displays that information in the statusbar
 # Needs geoiplookup. The address comes from api.ipify.org.
+#
+# https://www.maketecheasier.com/ip-address-geolocation-lookups-linux/
 
 ifinstalled geoiplookup || exit 1
 

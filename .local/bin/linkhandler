@@ -1,8 +1,12 @@
 #!/bin/sh
 
-# linkhandler [URL|FILE]: open a link by its type; with no argument, use the
-# clipboard. Video: mpv. Image: nsxiv. PDF or comic: zathura. Music: queued for
-# download (qndl). Anything else: a local file in $EDITOR, a URL in $BROWSER.
+# Feed script a url or file location.
+# If an image, it will view in nsxiv,
+# if a video or gif, it will view in mpv
+# if a music file, it will download,
+# if a pdf, it will view in zathura,
+# otherwise it opens link in browser.
+# With no argument, the clipboard is used.
 
 url="${1:-$(xclip -o)}"
 

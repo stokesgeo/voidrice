@@ -1,11 +1,16 @@
 #!/bin/sh
 
-# sb-ticker: percent change of stock quotes, one line per ticker:
-# 	^DJI: 0.09%
-# 	CL=F: -1.88%
-# The tickers are the comma-separated list in $XDG_CONFIG_HOME/tickers; the
-# default is ^GSPC (S&P 500), ^DJI (Dow Jones) and XIC. Prices come from
-# terminal-stocks.dev and are kept in a cache file.
+# Usage
+#   sb-ticker
+# Sample output
+#   ^DJI: 0.09%
+#   CL=F: -1.88%
+# Description
+#   displays/retrieves the latest percent-change in stock market quotes listed in $XDG_CONFIG_HOME/tickers.
+#       defaults to S&P 500, Dow Jones Industrial, and the Nasdaq
+#
+#   intended to be used in the statusbar, which will display the first quote price in the output
+#   Prices come from terminal-stocks.dev and are kept in a cache file.
 
 url="terminal-stocks.dev"
 pricefile="${XDG_CACHE_HOME:-$HOME/.cache}/stock-prices"

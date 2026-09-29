@@ -1,7 +1,6 @@
 #!/bin/sh
 
-# crontog: switch all cron jobs off, or back on.
-# Off saves the crontab to $XDG_CONFIG_HOME/cronsaved (default
-# ~/.config/cronsaved) and removes it. On restores it from there.
+# Toggles all cronjobs off/on.
+# Stores disabled crontabs in ~/.config/cronsaved until restored.
 
 ([ -f "${XDG_CONFIG_HOME:-$HOME/.config}"/cronsaved ] && crontab - < "${XDG_CONFIG_HOME:-$HOME/.config}"/cronsaved  && rm "${XDG_CONFIG_HOME:-$HOME/.config}"/cronsaved && notify-send "🕓 Cronjobs re-enabled.") || ( crontab -l > "${XDG_CONFIG_HOME:-$HOME/.config}"/cronsaved && crontab -r && notify-send "🕓 Cronjobs saved and disabled.")

@@ -1,7 +1,8 @@
 #!/bin/sh
 
-# sb-kbselect: current keyboard layout. Left click picks another with
-# dmenu(1). Needs setxkbmap(1).
+# Displays current keyboard layout.
+# Requires setxkbmap.
+# Left click picks another with dmenu(1).
 
 kb="$(setxkbmap -query | while read -r key value; do
 	[ "$key" = "layout:" ] && { echo "$value"; break ;}

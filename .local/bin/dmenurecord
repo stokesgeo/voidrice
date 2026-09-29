@@ -1,11 +1,13 @@
 #!/bin/sh
 
-# dmenurecord [screencast|video|audio|kill]
-#   (none)      pick a recording type in dmenu; if one is running, offer to end it
-#   screencast  screen and sound
-#   video       screen only
-#   audio       sound only
-#   kill        end the running recording
+# Usage:
+# `$0`: Ask for recording type via dmenu
+# `$0 screencast`: Record both audio and screen
+# `$0 video`: Record only screen
+# `$0 audio`: Record only audio
+# `$0 kill`: Kill existing recording
+#
+# If there is already a running instance, user will be prompted to end it.
 #
 # Each recorder starts ffmpeg in the background, saves its pid in recordingpid
 # for killrecording, and sets the status bar icon. Video is lossless: the

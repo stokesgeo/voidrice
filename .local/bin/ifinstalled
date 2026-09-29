@@ -1,9 +1,11 @@
 #!/bin/sh
 
-# ifinstalled PROGRAM...: succeed if each PROGRAM is a command or an installed
-# package. Otherwise notify which one is missing and exit 1. Scripts call it
-# before they use an optional program. Some optional functions in LARBS require
-# programs not installed by default; I use this little script to check for them.
+# Some optional functions in LARBS require programs not installed by default. I
+# use this little script to check to see if a command exists and if it doesn't
+# it informs the user that they need that command to continue. This is used in
+# various other scripts for clarity's sake.
+#
+# Usage: ifinstalled PROGRAM... Each may be a command or an installed package.
 
 for x in "$@"; do
 	if ! command -v "$x" >/dev/null 2>&1 && ! pkg_info -qe "$x-*"; then

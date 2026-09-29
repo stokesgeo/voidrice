@@ -116,9 +116,9 @@ colorscheme vim
  	autocmd BufWritePre * let currPos = getpos(".")
 	autocmd BufWritePre * %s/\s\+$//e
 	autocmd BufWritePre * %s/\n\+\%$//e
-" Add trailing newline for ANSI C standard:
+" add trailing newline for ANSI C standard
   autocmd BufWritePre *.[ch] %s/\%$/\r/e
-" Dash-dash-space signature delimiter in emails:
+" dash-dash-space signature delimiter in emails
   autocmd BufWritePre *neomutt* %s/^--$/-- /e
   	autocmd BufWritePre * cal cursor(currPos[1], currPos[2])
 

@@ -1,7 +1,8 @@
 #!/bin/sh
 
-# dmenuhandler [URL|FILE]: pick in dmenu how to open a link or file. With no
-# argument, dmenu asks for one.
+# Feed this script a link and it will give dmenu
+# some choice programs to use to open it.
+# With no argument, dmenu asks for one.
 
 url="${1:-$(true | dmenu -p "Paste URL or file path")}"
 
