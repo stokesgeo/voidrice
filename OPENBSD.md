@@ -11,15 +11,18 @@ cwm and xterm. voidrice's tiling keys are carried into cwm (see "Keys"
 below). Luke's dwm and st are opt-ins: build them into `~/.local/src`, then
 set `WM="dwm"` and `TERMINAL="st"` in `.config/shell/profile`.
 
-**Release target.** vertrice targets OpenBSD 8.0 release. Until 8.0 ships,
-it tracks -current (snapshots): update with `sysupgrade -s` then
-`pkg_add -u`; there is no syspatch on snapshots. On 8.0 release: `syspatch`
-for base errata and `pkg_add -u` for package updates. Moving from
-snapshots to the release: when 8.0 ships, snapshots move on to 8.1-current,
-and going back from there to 8.0 is a downgrade OpenBSD does not support.
-So either `sysupgrade` to the 8.0 release as soon as it is out (while the
-snapshot still says 8.0), or reinstall 8.0 (from memory; check the 8.0
-upgrade guide). Take a level 0 `bk full` first either way.
+**Which OpenBSD.** vertrice tracks the latest OpenBSD release, or
+-current (snapshots); it is not pinned to a version. (As written, in late
+2026, the X220 install is expected to land about when 8.0 is released.)
+- On a release: `syspatch` for base errata, `pkg_add -u` for packages, and
+  `sysupgrade` to move to the next release when it ships.
+- On -current: `sysupgrade -s` then `pkg_add -u`; snapshots get no syspatch.
+- From -current to a release: once a release ships, snapshots move on to
+  the next -current, and going back is a downgrade OpenBSD does not
+  support. So upgrade to the release as soon as it is out (while the
+  snapshot still carries its number), or reinstall (from memory; check
+  that release's upgrade guide).
+Take a level 0 `bk full` before any upgrade.
 
 **State.** Written and tested off the machine: every shell file parses under
 oksh (the portable OpenBSD ksh), the status blocks run against mocked
