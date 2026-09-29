@@ -1,7 +1,6 @@
 #!/bin/sh
 
 BIB_FILE="${HOME}/latex/uni.bib"
-# OpenBSD find has no -quit (usr.bin/find/option.c): head keeps the first.
 [ -f "${BIB_FILE}" ] || BIB_FILE="${2:-$(find "${HOME}" -path "${HOME}/.*" \
 	-prune -o -type "f" -name "*.bib" -print | head -n 1)}"
 
@@ -9,10 +8,7 @@ BIB_FILE="${HOME}/latex/uni.bib"
 	printf "%s\n" "Create a .bib file or provide as \$2." && exit "1"
 }
 
-# The first DOI in the input. Upstream ended the sed script in "T; q" (quit
-# after the first substitution); T is GNU sed only, and OpenBSD sed has no
-# such command (usr.bin/sed/compile.c), so head(1) keeps the first line.
-filter() {
+filter() {	# the first DOI; head, as OpenBSD's sed has no T
 	sed -n -E 's/.*((DOI|doi)((\.(org))?\/?|:? *))([^: ]+[^ .]).*/\6/p' | head -n 1
 }
 
@@ -27,9 +23,7 @@ fpdf() {
 	printf "%s\n" "${doi}"
 }
 
-# One awk pass does what two GNU sed passes did. \L (lowercase) and \s are
-# GNU sed only, and \t or \n in a replacement is not portable. The output
-# was checked identical to the sed version on sample BibTeX.
+# awk in place of upstream's two GNU sed passes (\L, \s, \n in replacements).
 arrange() {
 	awk '{
 		s = $0
@@ -59,12 +53,6 @@ arrange() {
 doi2bib() {
         doi="${1#doi:}"
 	url="https://api.crossref.org/works/${doi}/transform/application/x-bibtex"
-	# Base ftp(1): -o - to stdout, -M -V quiet; errors still print, as
-	# curl -sS did. Upstream's curl -k (no certificate check) is dropped:
-	# voidrice gave no reason for it and Crossref's certificate is valid.
-	# curl's --no-fail printed the error page, which then failed the "@"
-	# test below; ftp prints nothing on an HTTP error, and the same test
-	# catches the empty entry.
 	entry="$(ftp -MV -o - "${url}" | arrange)"
         red='\033[0;31m'
         reset='\033[0m'

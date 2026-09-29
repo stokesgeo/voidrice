@@ -207,8 +207,8 @@ t_mounter_phone() {
 t_mounter_reopens_in_terminal() {
 	mounter </dev/null
 	logged "^xterm -name floatterm -geometry 64x4 -e $REPO/.local/bin/mounter\$"
-	TERMINAL=st mounter </dev/null
-	logged "^st -n floatterm -g 64x4 -e $REPO/.local/bin/mounter\$"
+	unmounter </dev/null
+	logged "^xterm -name floatterm -geometry 64x4 -e $REPO/.local/bin/unmounter\$"
 	notlogged '^doas'
 }
 

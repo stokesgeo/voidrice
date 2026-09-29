@@ -1,17 +1,3 @@
 #!/bin/sh
-
-# passmenu: pick a password from pass(1) in dmenu and copy it (--type types
-# it with xdotool). Super+Shift+d. The script is password-store's own; the
-# OpenBSD package installs it only as an example, mode 444 and off PATH
-# (security/password-store: PLIST and the post-install INSTALL_DATA), so
-# this runs it with bash, which the package depends on.
-#
-# The passphrase prompt has no terminal here: gpg's pinentry, the package's
-# wrapper script, picks pinentry-dmenu under X when it is installed
-# (pinentry-dmenu is in pkglist.extra; read in security/pinentry,
-# files/pinentry-wrapper.in), else it falls back to pinentry-curses, which
-# cannot ask without a terminal.
-
-pm=/usr/local/share/examples/password-store/dmenu/passmenu
-[ -r "$pm" ] || { notify-send "📦 password-store" "must be installed for this function."; exit 1; }
-exec bash "$pm" "$@"
+# passmenu: password-store's dmenu script, which the package installs only as an example.
+exec bash /usr/local/share/examples/password-store/dmenu/passmenu "$@"

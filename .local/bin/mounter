@@ -1,45 +1,21 @@
 #!/bin/ksh
 
-# mounter: mount USB drives, encrypted drives and Android phones, picked with
-# dmenu. Luke Smith's voidrice mounter, same flow, on OpenBSD's own tools:
-#	💾 partitions	disklabel(8): FAT, exFAT, NTFS, FFS, ext2, ISO9660
-#	🔒 encrypted	softraid CRYPTO volumes, bioctl(8): OpenBSD's LUKS
-#	📱 phones	simple-mtpfs (package), as in voidrice
-# As in voidrice, an fstab entry wins: list the stick by its DUID (the id in
-# `sysctl hw.disknames`) with noauto, and it always lands in the same place.
-# Otherwise dmenu asks where, and offers to create the directory.
-#
-# Root: voidrice used `sudo -A` with a dmenu password prompt. doas has no
-# askpass; it needs a terminal. So, started without one (from a key or lf),
-# mounter reopens itself in a small floating terminal, as voidrice already
-# did to ask for the LUKS passphrase. The terminal closes when it is done.
-#
-# Every mount is nosuid,nodev: a setuid program on a found stick must not
-# become root. FAT, exFAT and NTFS have no owners, so they mount owned by you.
+# mounter: voidrice's mounter on OpenBSD's tools: 💾 disklabel partitions,
+# 🔒 softraid CRYPTO volumes (bioctl), 📱 phones (simple-mtpfs). An fstab
+# line for the disk's DUID wins. doas asks in a terminal: it has no askpass.
 
-if [ ! -t 0 ]; then
-	case $TERMINAL in
-		st) exec "$TERMINAL" -n floatterm -g 64x4 -e "$0" ;;
-		*) exec "$TERMINAL" -name floatterm -geometry 64x4 -e "$0" ;;
-	esac
-fi
-
-doas true || exit 1	# one password; persist covers the rest of this run
+[ -t 0 ] || exec xterm -name floatterm -geometry 64x4 -e "$0"
+doas true || exit 1
 
 escape() { print -r -- "$*" | tr -cd '[:alnum:] -' | tr '[:upper:] ' '[:lower:]-'; }
 disknames=$(sysctl -n hw.disknames)
 duidof() { print "$disknames" | tr ',' '\n' | sed -n "s/^$1://p"; }
 
 # partitions DISK: "part size type label" for each usable partition.
-# The label is 16 bytes from the drive itself, so whoever made the stick
-# chose them. Only printable characters other than backslash are kept: awk
-# -v and ksh's print turn a written "\n" into a new line, which could add a
-# partition of the system disk to the menu. Untrusted text below is printed
-# with print -r, which leaves backslashes alone.
+# The label comes from the stick: printable characters only, printed with -r.
 partitions() {
 	typeset label
-	label=$(doas disklabel "$1" 2>/dev/null | sed -n 's/^label: *//p' |
-		tr -cd '[:print:]' | tr -d '\134')	# \134 is the backslash
+	label=$(doas disklabel "$1" 2>/dev/null | sed -n 's/^label: *//p' | tr -cd '[:print:]')
 	doas disklabel -h "$1" 2>/dev/null | l=$label awk -v d="$1" '
 		BEGIN { l = ENVIRON["l"] }
 		$1 ~ /^[a-p]:$/ && $1 != "c:" && $4 !~ /^(unused|swap)$/ {
@@ -58,9 +34,7 @@ drives=$(print "$disknames" | tr ',' '\n' | sed 's/:.*//' | grep -E '^(sd|cd)[0-
 	while read -r part size type label; do
 		if [ "$type" = RAID ]; then
 			print "$inuse" | grep -qx "$part" || print -r -- "🔒$part ($size $label) CRYPTO"
-		else
-			# FUSE mounts may not list the device, so check the default
-			# mount point too.
+		else	# FUSE mounts may not name the device: check /mnt/PART too
 			print "$mounted" | grep -qE "^/dev/$part |^[^ ]* on /mnt/$part " ||
 				print -r -- "💾$part ($size $label) $type"
 		fi
@@ -94,14 +68,9 @@ mountpart() {
 	fi
 	getmount "$part"
 	u=$(id -u) g=$(id -g)
-	# Every mount is nosuid,nodev: a setuid program or device node on a
-	# found stick must not give root. FUSE needs allow_other for you to read
-	# a mount root made.
-	fuse="allow_other,uid=$u,gid=$g,nosuid,nodev"
+	fuse="allow_other,uid=$u,gid=$g,nosuid,nodev"	# nosuid,nodev on every mount
 	case $type in
-		MSDOS|NTFS)
-			# MBR type 7 is exFAT or NTFS, and on GPT disks OpenBSD
-			# labels any Microsoft data partition MSDOS: try each.
+		MSDOS|NTFS)	# OpenBSD labels exFAT and NTFS alike: try each
 			{ [ "$type" = MSDOS ] &&
 				doas mount_msdos -o nosuid,nodev -u "$u" -g "$g" "$dev" "$mp" 2>/dev/null; } ||
 			doas mount.exfat -o "$fuse" "$dev" "$mp" 2>/dev/null ||

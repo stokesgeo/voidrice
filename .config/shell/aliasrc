@@ -8,7 +8,7 @@
 
 [ -f "$MBSYNCRC" ] && alias mbsync='mbsync -c $MBSYNCRC'
 
-# doas(1) is OpenBSD's sudo. These need root; doas.conf decides who may.
+# doas not required for some system commands
 for command in mount umount shutdown reboot halt ; do
 	alias $command="doas $command"
 done; unset command
@@ -18,10 +18,8 @@ se() {
 	[ -f "$HOME/.local/bin/$choice" ] && $EDITOR "$HOME/.local/bin/$choice"
 	}
 
-# Safety and settings. Only flags OpenBSD's tools have: an unknown flag in
-# an alias breaks the command it shadows. cp, mv and rm take -v (getopt in
-# bin/cp, bin/mv, bin/rm); rm has no -I, so voidrice's rm -vI is rm -v;
-# mkdir has no -v.
+# Verbosity and settings that you pretty much just always are going to want.
+# Only flags OpenBSD's tools have: no rm -I, no mkdir -v, no bc -q.
 alias \
 	cp="cp -iv" \
 	mv="mv -iv" \
@@ -31,16 +29,8 @@ alias \
 	yt="yt-dlp --embed-metadata -i" \
 	yta="yt -x -f bestaudio/best" \
 	ytt="yt --skip-download --write-thumbnail" \
-	ffmpeg="ffmpeg -hide_banner"
-
-# rsync: openrsync(1) from base by default. It speaks the rsync protocol but
-# has fewer flags (no -P, no -u), so it gets only the ones it has. Installing
-# the rsync package brings back voidrice's full set.
-if command -v rsync >/dev/null 2>&1; then
-	alias rsync="rsync -vrPlu"
-else
-	alias rsync="openrsync -vrl"
-fi
+	ffmpeg="ffmpeg -hide_banner" \
+	rsync="openrsync -vrl"
 
 # OpenBSD's ls, grep and diff have no --color; ls -F marks types instead.
 alias \

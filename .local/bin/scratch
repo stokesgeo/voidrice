@@ -4,7 +4,7 @@
 
 case $1 in
 	term) name=spterm geo=120x34 cmd= ;;
-	calc) name=spcalc geo=50x20 cmd="bc -lq" ;;
+	calc) name=spcalc geo=50x20 cmd="bc -l" ;;
 	*) echo "usage: scratch term|calc" >&2; exit 1 ;;
 esac
 
