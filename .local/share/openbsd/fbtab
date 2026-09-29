@@ -1,0 +1,2 @@
+# vertrice: the camera belongs to whoever logs in on the console, as the mouse and keyboard do.
+/dev/ttyC0	0600	/dev/video0

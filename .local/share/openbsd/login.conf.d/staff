@@ -1,0 +1,11 @@
+# login.conf's staff class with room for a browser: more memory and open files.
+staff:\
+	:datasize-cur=4096M:\
+	:datasize-max=infinity:\
+	:openfiles-cur=4096:\
+	:openfiles-max=8192:\
+	:maxproc-max=512:\
+	:maxproc-cur=256:\
+	:ignorenologin:\
+	:requirehome@:\
+	:tc=default:

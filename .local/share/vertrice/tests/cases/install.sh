@@ -1,70 +1,86 @@
-# vertrice-install pf: the optional laptop pf.conf. It runs as root on the
-# machine; here ROOT puts /etc under the scratch directory, $T/bin/id says
-# uid 0, and $T/bin/install drops -o and -g (only root may give files to
-# root). pfctl is the logging mock: rc.pfctl makes it reject the file.
+# vertrice-install: the system half, run as root on the machine. Here a copy
+# of the installer sits beside a copy of its data (so doas-agent.conf can
+# hold a rule), with /etc and /root rewritten to $R (see derived in lib.sh).
+# pkg_add, pfctl, doas and crontab are mocks; rcctl logs.
 
-pf_setup() {
-	mkdir -p "$T/root/etc"
-	printf 'set skip on lo\nblock return\npass\n' >"$T/root/etc/pf.conf"
-	cp "$T/root/etc/pf.conf" "$T/default.pf"
-	cat >"$T/bin/id" <<'EOF'
-#!/bin/sh
-[ "$1" = -u ] && { echo 0; exit 0; }
-exec /usr/bin/id "$@"
-EOF
-	cat >"$T/bin/install" <<'EOF'
-#!/bin/sh
-args=
-while getopts o:g:m:d o; do
-	case $o in m) args="$args -m $OPTARG" ;; d) args="$args -d" ;; esac
-done
-shift $((OPTIND - 1))
-exec /usr/bin/install $args "$@"
-EOF
-	chmod +x "$T/bin/id" "$T/bin/install"
-	export ROOT=$T/root
-	sample=$REPO/.local/share/openbsd/pf.conf
+inst_setup() {
+	R=$T/sys
+	mkdir -p "$T/x/bin" "$T/x/share" "$R/etc/hotplug" "$R/etc/login.conf.d" "$R/root"
+	cp -R "$REPO/.local/share/openbsd" "$T/x/share/"
+	echo 'permit nopass :wheel as root cmd /usr/sbin/rcctl args restart sndiod' \
+		>>"$T/x/share/openbsd/doas-agent.conf"
+	derived .local/bin/vertrice-install x/bin/vertrice-install \
+		"s|/etc/|$R/etc/|g; s|/root/|$R/root/|g" >/dev/null
+	ln -s "$VT_MOCKS/_log" "$T/bin/rcctl"
+	printf '0\t*\t*\t*\t*\t/usr/bin/newsyslog\n' >"$VT_STATE/crontab.user"
+	printf '/dev/ttyC0\t0600\t/dev/console\n' >"$R/etc/fbtab"
+	data=$T/x/share/openbsd
+	joined=$T/joined
+	cat "$data/doas.conf" "$data/doas-agent.conf" >"$joined"
+}
+inst() { "$VT_SH" "$T/x/bin/vertrice-install" >"$T/out" 2>&1; }
+
+t_install_system() {
+	inst_setup; inst
+	logged '^pkg_add -l pkglist$'
+	cmp -s "$joined" "$R/etc/doas.conf" || fail "doas.conf is not doas.conf + doas-agent.conf"
+	logged "^doas -C $R/etc/doas.new\$"
+	[ -e "$R/etc/doas.new" ] && fail "doas.new left"
+	cmp -s "$data/root.kshrc" "$R/root/.kshrc" || fail "no /root/.kshrc"
+	cmp -s "$data/login.conf.d/staff" "$R/etc/login.conf.d/staff" || fail "no staff class"
+	logged '^pfctl -nf pf.conf$'
+	logged "^pfctl -f $R/etc/pf.conf\$"
+	cmp -s "$data/pf.conf" "$R/etc/pf.conf" || fail "pf.conf not installed"
+	cmp -s "$data/apm-suspend" "$R/etc/apm/suspend" || fail "no /etc/apm/suspend"
+	eq "hibernate" suspend "$(readlink "$R/etc/apm/hibernate")"
+	cmp -s "$data/hotplug-attach" "$R/etc/hotplug/attach" || fail "no /etc/hotplug/attach"
+	eq "root's crontab: kept, plus the update count" "$(printf '0\t*\t*\t*\t*\t/usr/bin/newsyslog\n'; cat "$data/updates.cron")" \
+		"$(cat "$VT_STATE/crontab.user")"
+	logged '^rcctl enable apmd hotplugd messagebus obsdfreqd unwind$'
+	logged '^rcctl set apmd flags -z 7$'
+	logged '^rcctl set obsdfreqd flags -m 100,50 -r 50,90 -T 85,65$'
+	cmp -s "$data/wsconsctl.conf" "$R/etc/wsconsctl.conf" || fail "wsconsctl.conf"
+	cmp -s "$data/sysctl.conf" "$R/etc/sysctl.conf" || fail "sysctl.conf"
+	eq "fbtab: kept, plus the camera" "$(printf '/dev/ttyC0\t0600\t/dev/console\n'; cat "$data/fbtab")" "$(cat "$R/etc/fbtab")"
 }
 
-t_install_pf_plan() {
-	pf_setup
-	out=$(vertrice-install pf) || fail "plan failed: $out"
-	has "plan says what it would do" "would   install /etc/pf.conf" "$out"
-	has "plan parses the sample" "ok      pfctl -nf accepts" "$out"
-	has "dry run" "Dry run: nothing changed." "$out"
-	cmp -s "$T/default.pf" "$ROOT/etc/pf.conf" || fail "plan changed /etc/pf.conf"
-	notlogged '^pfctl -f'
+t_install_twice() {
+	# A second run keeps the agent doas rules and adds the cron line once.
+	inst_setup; inst; inst
+	cmp -s "$joined" "$R/etc/doas.conf" || fail "agent rules dropped: $(cat "$R/etc/doas.conf")"
+	eq "one update job" 1 "$(grep -c '^~.*/var/db/updates' "$VT_STATE/crontab.user")"
+	eq "one update comment" 1 "$(grep -c '^#.*/var/db/updates' "$VT_STATE/crontab.user")"
 }
 
-t_install_pf_apply() {
-	pf_setup
-	out=$(vertrice-install -y pf) || fail "apply failed: $out"
-	cmp -s "$sample" "$ROOT/etc/pf.conf" || fail "/etc/pf.conf is not the sample"
-	cmp -s "$T/default.pf" "$ROOT/etc/pf.conf.orig" || fail "no pf.conf.orig of the old file"
-	logged "^pfctl -nf $ROOT/etc/pf.conf.vertrice\$"
-	logged "^pfctl -f $ROOT/etc/pf.conf\$"
-	[ -e "$ROOT/etc/pf.conf.vertrice" ] && fail "temporary file left"
-	: >"$VT_STATE/log"
-	out=$(vertrice-install -y pf) || fail "second run failed: $out"
-	has "second run: already done" "ok      /etc/pf.conf is vertrice's" "$out"
-	notlogged '^pfctl'
+t_install_doas_rejected() {
+	inst_setup
+	echo 'permit persist :wheel' >"$R/etc/doas.conf"
+	echo 1 >"$VT_STATE/rc.doas"
+	inst
+	eq "doas.conf unchanged" 'permit persist :wheel' "$(cat "$R/etc/doas.conf")"
 }
 
 t_install_pf_rejected() {
-	pf_setup
+	inst_setup
+	printf 'pass\n' >"$R/etc/pf.conf"
 	echo 1 >"$VT_STATE/rc.pfctl"
-	vertrice-install -y pf >"$T/out" 2>&1 && fail "exit 0 although pfctl rejected the file"
-	cmp -s "$T/default.pf" "$ROOT/etc/pf.conf" || fail "/etc/pf.conf changed"
-	[ -e "$ROOT/etc/pf.conf.vertrice" ] && fail "temporary file left"
+	inst
+	eq "pf.conf unchanged" pass "$(cat "$R/etc/pf.conf")"
 	notlogged '^pfctl -f'
 }
 
-t_install_pf_needs_root() {
-	[ "$(id -u)" = 0 ] && skip "the suite itself runs as root"
-	mkdir -p "$T/root/etc"
-	ROOT=$T/root vertrice-install -y pf >"$T/out" 2>&1 && fail "ran without root"
-	[ -e "$T/root/etc/pf.conf" ] && fail "wrote pf.conf"
-	grep -q 'must run as root' "$T/out" || fail "no reason given: $(cat "$T/out")"
+t_install_staff_class() {
+	# One record: staff:\ first, :tc=default: last, every line between a
+	# :cap:\ continuation; base staff's own caps kept (login.conf.d replaces
+	# the whole record, login.conf(5)).
+	f=$REPO/.local/share/openbsd/login.conf.d/staff
+	rec=$(grep -v '^#' "$f")
+	eq "first" 'staff:\' "$(printf '%s\n' "$rec" | sed -n 1p)"
+	eq "last" '	:tc=default:' "$(printf '%s\n' "$rec" | sed -n '$p')"
+	eq "continuations" "" "$(printf '%s\n' "$rec" | sed '1d;$d' | grep -v '^	:[^:]*:\\$')"
+	for c in datasize-cur=4096M openfiles-cur=4096 maxproc-max=512 ignorenologin requirehome@; do
+		grep -q ":$c:" "$f" || fail "no $c"
+	done
 }
 
 t_install_pf_sample() {
@@ -104,42 +120,4 @@ t_apm_suspend_no_x() {
 	# (apmd.c, do_etc_file), so suspend goes ahead either way.
 	sh "$REPO/.local/share/openbsd/apm-suspend"
 	logged '^pkill -USR1 -x xidle$'
-}
-
-# vertrice-install system keeps the agent doas rules: /etc/doas.conf is
-# doas.conf followed by doas-agent.conf. The case runs a copy of the
-# installer beside a copy of its data, so doas-agent.conf can hold a rule;
-# root is faked as in pf_setup, and the package, rc and user commands are
-# logging mocks.
-doas_setup() {
-	pf_setup
-	mkdir -p "$T/x/bin" "$T/x/share" "$ROOT/etc" "$ROOT/root"
-	cp "$REPO/.local/bin/vertrice-install" "$T/x/bin/"
-	cp -R "$REPO/.local/share/openbsd" "$T/x/share/"
-	echo 'permit nopass :wheel as root cmd /usr/sbin/rcctl args restart sndiod' \
-		>>"$T/x/share/openbsd/doas-agent.conf"
-	echo 'wheel:*:0:root,user' >"$ROOT/etc/group"
-	echo 'user:*:1000:1000:staff:0:0:User:/home/user:/bin/ksh' >"$ROOT/etc/master.passwd"
-	for c in pkg_add pkg_info rcctl usermod cap_mkdb; do ln -s "$VT_MOCKS/_log" "$T/bin/$c"; done
-	export VERTRICE_USER=user
-	joined=$T/joined
-	cat "$T/x/share/openbsd/doas.conf" "$T/x/share/openbsd/doas-agent.conf" >"$joined"
-}
-
-t_install_doas_keeps_agent_rules() {
-	doas_setup
-	cp "$joined" "$ROOT/etc/doas.conf"
-	out=$("$VT_KSH" "$T/x/bin/vertrice-install" system 2>&1)
-	has "plan: already vertrice's" "ok      /etc/doas.conf is vertrice's" "$out"
-	"$VT_KSH" "$T/x/bin/vertrice-install" -y system >"$T/out" 2>&1
-	cmp -s "$joined" "$ROOT/etc/doas.conf" ||
-		fail "the agent rules were dropped: $(cat "$ROOT/etc/doas.conf")"
-	notlogged '^doas -C'
-	# An /etc/doas.conf without the agent rules gets them, after doas -C.
-	cp "$T/x/share/openbsd/doas.conf" "$ROOT/etc/doas.conf"
-	"$VT_KSH" "$T/x/bin/vertrice-install" -y system >"$T/out" 2>&1
-	cmp -s "$joined" "$ROOT/etc/doas.conf" || fail "not installed joined: $(cat "$T/out")"
-	logged "^doas -C $ROOT/etc/doas.conf.vertrice\$"
-	[ -e "$ROOT/etc/doas.conf.vertrice" ] && fail "temporary file left"
-	return 0
 }
