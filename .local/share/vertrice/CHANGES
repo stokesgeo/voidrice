@@ -85,6 +85,24 @@ Root and doas
 
 - `doas.conf` (one rule for wheel, no nopass) and `root.kshrc` for root.
 
+Codex in a box
+
+- `cdxb` runs Codex in an unveil/pledge box built by `codex-box`
+  (~/.local/src/codex-box): the start directory, granted paths, a deny
+  list, protected files changed only through reviewed proposals, a doas
+  relay for nopass rules (`-d`), and `cdxb add` for a running session.
+- Review fixes: proposals are reviewed and applied from a private copy
+  the box cannot reach (it could swap or redirect the old one in its
+  TMPDIR); proposals must be printable ASCII; `cdxb doas` works in the
+  box (a client in codex-box replaces nc, which cannot unveil there);
+  `-n` changes nothing; control characters in paths are refused (a
+  newline added unveil rules); `-H` keeps the top of home, ~/.config,
+  ~/.local and the dotfiles repository read-only; write grants that
+  hold protected paths are refused; git config, hooks and commondir of
+  the work trees granted are read-only; Codex's other instruction and
+  rule files in ~/.codex are read-only; git's credential store is
+  hidden; `vertrice-install system` keeps the agent doas rules.
+
 Browsers
 
 - qutebrowser is $BROWSER; chromium on Super+Shift+w.
