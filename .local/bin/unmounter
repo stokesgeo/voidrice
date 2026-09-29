@@ -1,0 +1,18 @@
+#!/bin/ksh
+
+# unmounter: unmount something under /mnt, picked with dmenu, and remove
+# its empty mount point. Run it in a terminal (Super+F10 does), so doas can
+# ask for the password. Unmounting also flushes pending writes: wait for it
+# to finish before pulling the drive.
+
+chosen=$(mount | awk '$3 ~ /^\/mnt\// {print $3, "(" $5 ")"}' |
+	dmenu -i -p "Unmount which?") || exit 1
+mp=${chosen%% *}
+
+if doas umount "$mp"; then
+	doas rmdir "$mp" 2>/dev/null
+	notify-send "💾 Unmounted" "$mp: safe to remove."
+else
+	notify-send "💾 Unmount failed" "$mp is busy? Close programs using it."
+	exit 1
+fi

@@ -10,10 +10,19 @@ export PATH="$PATH:$(find ~/.local/bin -type d | paste -sd ':' -)"
 # Luke's dwm and st are the opt-ins: build them into ~/.local/src, then set
 # WM="dwm" and TERMINAL="st" here.
 export WM="cwm"
-export EDITOR="nvim"
 export TERMINAL="xterm"
 export TERMINAL_PROG="$TERMINAL"
-export BROWSER="firefox"
+export BROWSER="qutebrowser"	# Super+w; chromium is Super+Shift+w
+
+# Editor: nvim when installed, else vi from base, the fallback that always
+# works (root, single-user mode, a broken package). Each has its own
+# config: nvim reads .config/nvim/init.vim, vi reads NEXINIT (set below).
+if command -v nvim >/dev/null 2>&1; then
+	export EDITOR="nvim"
+else
+	export EDITOR="vi"
+fi
+export VISUAL="$EDITOR"
 
 # Change the default crypto/weather monitor sites.
 # export CRYPTOURL="rate.sx"
@@ -29,6 +38,7 @@ export NOTMUCH_CONFIG="$XDG_CONFIG_HOME/notmuch-config"
 export WGETRC="$XDG_CONFIG_HOME/wget/wgetrc"
 export INPUTRC="$XDG_CONFIG_HOME/shell/inputrc"
 export ENV="$XDG_CONFIG_HOME/ksh/kshrc"	# ksh reads $ENV in each interactive shell
+export NEXINIT="source $XDG_CONFIG_HOME/vi/exrc"	# base vi (nvi) only; nvim ignores it
 #export GNUPGHOME="$XDG_DATA_HOME/gnupg"
 export WINEPREFIX="$XDG_DATA_HOME/wineprefixes/default"
 export KODI_DATA="$XDG_DATA_HOME/kodi"

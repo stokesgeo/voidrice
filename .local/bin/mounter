@@ -1,0 +1,58 @@
+#!/bin/ksh
+
+# mounter: mount a drive's partition under /mnt, picked with dmenu. The
+# OpenBSD version of voidrice's mounter. Run it in a terminal (Super+F9
+# does): reading disk labels and mounting need root, and doas asks for the
+# password there.
+#
+# Disks come from hw.disknames, partitions and their types from
+# disklabel(8). Mounted partitions (the root disk's, for one), swap and
+# RAID (softraid, e.g. an encrypted disk) are not offered. By type:
+#	MSDOS	FAT				mount_msdos (base)
+#	NTFS	exFAT or NTFS (one MBR type)	mount.exfat (exfat-fuse), else ntfs-3g
+#	4.2BSD	FFS				mount (base)
+#	ext2fs	Linux ext2/3/4			mount_ext2fs (base)
+#	ISO9660	CD/DVD				mount_cd9660 (base)
+# FAT, exFAT and NTFS have no Unix owners, so they mount owned by you.
+
+doas true || exit 1	# ask for the password once; persist covers the rest
+
+mounted=$(mount | awk '{print $1}')
+list=$(sysctl -n hw.disknames | tr ',' '\n' | sed 's/:.*//' |
+	grep -E '^(sd|cd)[0-9]+$' | while read -r d; do
+		doas disklabel -h "$d" 2>/dev/null | awk -v d="$d" '
+			$1 ~ /^[a-p]:$/ {
+				p = substr($1, 1, 1); t = $4
+				if (p == "c" || t ~ /^(unused|swap|RAID)$/) next
+				printf "%s%s %s %s\n", d, p, $2, t
+			}'
+	done | while read -r part size type; do
+		print "$mounted" | grep -qx "/dev/$part" || print "$part $size $type"
+	done)
+
+[ -n "$list" ] || { notify-send "💾 mounter" "No unmounted partitions."; exit 1; }
+chosen=$(print "$list" | dmenu -i -p "Mount which partition?") || exit 1
+set -- $chosen
+part=$1 type=$3
+dev=/dev/$part mp=/mnt/$part
+u=$(id -u) g=$(id -g)
+
+doas mkdir -p "$mp" || exit 1
+case $type in
+	MSDOS)	doas mount_msdos -u "$u" -g "$g" "$dev" "$mp" ;;
+	NTFS)	{ command -v mount.exfat >/dev/null &&
+			doas mount.exfat -o "uid=$u,gid=$g" "$dev" "$mp"; } ||
+		{ command -v ntfs-3g >/dev/null &&
+			doas ntfs-3g -o "uid=$u,gid=$g" "$dev" "$mp"; } ;;
+	4.2BSD)	doas mount "$dev" "$mp" ;;
+	ext2fs)	doas mount_ext2fs "$dev" "$mp" ;;
+	ISO9660) doas mount_cd9660 "$dev" "$mp" ;;
+	*)	false ;;
+esac
+if [ $? -eq 0 ]; then
+	notify-send "💾 Mounted" "$part ($type) on $mp"
+else
+	doas rmdir "$mp" 2>/dev/null
+	notify-send "💾 Mount failed" "$part ($type)"
+	exit 1
+fi
