@@ -6,7 +6,7 @@ sudo pacman -Syu
 
 command -v yay >/dev/null 2>&1 && yay -Su
 
-pkill -RTMIN+8 "${STATUSBAR:-dwmblocks}"
+sb-refresh
 
 printf "\nUpgrade complete.\nPress <Enter> to exit window.\n"
 read -r _

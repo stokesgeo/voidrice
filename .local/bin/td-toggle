@@ -10,4 +10,4 @@ pgrep -x transmission-daemon >/dev/null &&
 	{ [ "$(printf "No\nYes" | dmenu -i -p "Turn on transmission daemon?")" = Yes ] &&
 		transmission-daemon && notify-send "transmission-daemon enabled." ;}
 
-sleep 3; pkill -RTMIN+7 "${STATUSBAR:-dwmblocks}"
+sleep 3; sb-refresh

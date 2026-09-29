@@ -19,7 +19,7 @@ lock(){
 	wpctl set-mute @DEFAULT_AUDIO_SINK@ 1 &
 	slock
 	[ "$was_muted" -eq 0 ] && wpctl set-mute @DEFAULT_AUDIO_SINK@ 0
-	pkill -RTMIN+10 "${STATUSBAR:-dwmblocks}"
+	sb-refresh
 }
 
 case "$(printf "🔒 lock\n🚪 leave $WM\n♻️ renew $WM\n🐻 hibernate\n🔃 reboot\n🖥️shutdown\n💤 sleep\n📺 display off" | dmenu -i -p 'Action: ')" in

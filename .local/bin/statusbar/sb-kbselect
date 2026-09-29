@@ -17,7 +17,7 @@ case $BLOCK_BUTTON in
 	kb_choice="${kb_choice##* }"
 	[ -z "$kb_choice" ] && exit
 	setxkbmap "$kb_choice"
-	pkill -RTMIN+30 "${STATUSBAR:-dwmblocks}" ;;
+	sb-refresh ;;
 	3) notify-send "⌨  Keyboard/language module" "Current layout: $kb
 - Left click to change keyboard." ;;
 	6) detach "$TERMINAL" -e "$EDITOR" "$0" ;;

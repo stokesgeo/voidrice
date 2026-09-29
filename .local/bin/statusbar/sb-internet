@@ -5,7 +5,7 @@
 # Show 🔒 if a vpn connection is active
 
 case $BLOCK_BUTTON in
-	1) "$TERMINAL" -e nmtui; pkill -RTMIN+4 dwmblocks ;;
+	1) "$TERMINAL" -e nmtui; sb-refresh ;;
 	3) notify-send "🌐 Internet module" "\- Click to connect
 ❌: wifi disabled
 📡: no wifi connection

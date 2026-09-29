@@ -22,7 +22,7 @@ checkmoon ||
 		done
 		! checkmoon &&
 			until getmoon; do sleep 60; done
-		pkill -RTMIN+"${1:-17}" "${STATUSBAR:-dwmblocks}"
+		sb-refresh
 		) &
 	echo; exit ) 9>"${XDG_RUNTIME_DIR}/sb-moonphase.lock"
 
