@@ -239,10 +239,11 @@ cdxb add -r "$HOME/notes"
 EOF
 	mkdir -p "$HOME/notes" "$HOME/.ssh"
 	cd "$HOME/src/proj" || fail "no project"
-	cdxb </dev/null >/dev/null 2>&1 || fail "cdxb failed"
+	cdxb . -m x </dev/null >/dev/null 2>&1 || fail "cdxb failed"
 	notlogged '^added ssh'
 	grep -q 'deny list' "$VT_STATE/add.err" || fail "no reason: $(cat "$VT_STATE/add.err")"
-	logged '^codex .* resume --last$'
+	# The restart keeps your own Codex arguments.
+	logged '^codex -c [^ ]* resume --last -m x$'
 	wall "the added path, read-only" "r:$HOME/notes"
 	return 0
 }

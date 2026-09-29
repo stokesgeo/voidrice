@@ -287,6 +287,7 @@ export CDXB_OUTBOX=$outbox
 # trust question, whose answer Codex would write to config.toml.
 [ -n "$aflag" ] && trust=untrusted || trust=trusted
 project="projects={\"$dir\"={trust_level=\"$trust\"}}"
+set -A cargs -- "$@"	# your Codex arguments, kept for a restart
 while :; do
 	review
 	rm -f -- "$S/restart"
@@ -296,7 +297,7 @@ while :; do
 	# TMPDIR and the GitHub token are set for the box alone.
 	(cd -- "$dir" && export TMPDIR=$S/tmp && gittoken && exec "$box" "${argv[@]}" -- "$codex" -c "$project" "$@")
 	[ -e "$S/restart" ] || break
-	set -- resume --last
+	set -- resume --last "${cargs[@]}"
 	say "starting again with the new paths; the conversation resumes"
 done
 review
