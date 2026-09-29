@@ -1,0 +1,163 @@
+# hotplug-attach and hotplug-watch, theme, nightlight, scratch.
+
+# The hotplug pair shares /var/run/hotplug-disk, which only root may write;
+# here it is $T/hotplug-disk (see derived in lib.sh). Real entr watches it.
+hp_setup() {
+	command -v entr >/dev/null 2>&1 || skip "no entr on this host"
+	sub="s|/var/run/hotplug-disk|$T/hotplug-disk|g"
+	watch=$(derived .local/bin/hotplug-watch hotplug-watch "$sub")
+	attach=$(derived .local/share/openbsd/hotplug-attach hotplug-attach "$sub")
+}
+attached() { grep -c "^notify-send 💾 $1 attached Super+F9 to mount it\.\$" "$VT_STATE/log"; }
+seen() { [ "$(attached "$1")" -ge 1 ]; }
+entrs() { "$VT_REAL_PGREP" -f "entr .*$T/hotplug-disk" | wc -l | tr -d ' '; }
+watching() { [ "$(entrs)" -ge 1 ]; }
+
+t_hotplug_first_attach_after_boot() {
+	hp_setup
+	# /var/run is empty after boot: the watcher waits for the file.
+	VT_SLEEP=0.2 "$VT_SH" "$watch" >/dev/null 2>&1 &
+	"$VT_REAL_SLEEP" 0.3
+	"$VT_SH" "$attach" 2 sd1
+	eq "file written" sd1 "$(cat "$T/hotplug-disk")"
+	waitfor 5 seen sd1 || fail "no notice for the first attach"
+	"$VT_REAL_SLEEP" 0.3
+	"$VT_SH" "$attach" 2 sd2
+	waitfor 5 seen sd2 || fail "no notice for the second attach"
+	"$VT_SH" "$attach" 3 iwn0
+	"$VT_REAL_SLEEP" 1
+	eq "non-disk device leaves the file" sd2 "$(cat "$T/hotplug-disk")"
+	eq "one notice for sd1" 1 "$(attached sd1)"
+	eq "one notice for sd2" 1 "$(attached sd2)"
+	eq "notices in all" 2 "$(grep -c '^notify-send' "$VT_STATE/log")"
+}
+
+t_hotplug_login_after_attach() {
+	hp_setup
+	# A disk was attached before this login: no stale notice for it.
+	"$VT_SH" "$attach" 2 sd9
+	"$VT_SH" "$watch" >/dev/null 2>&1 &
+	waitfor 5 watching || fail "entr never started"
+	"$VT_REAL_SLEEP" 0.5
+	eq "no notice for the old disk" 0 "$(attached sd9)"
+	"$VT_SH" "$attach" 2 sd3
+	waitfor 5 seen sd3 || fail "no notice for a later attach"
+	eq "one notice" 1 "$(attached sd3)"
+}
+
+t_hotplug_replaces_old_watcher() {
+	hp_setup
+	"$VT_SH" "$attach" 2 sd1
+	"$VT_SH" "$watch" >/dev/null 2>&1 &
+	waitfor 5 watching || fail "first watcher never started"
+	"$VT_SH" "$watch" >/dev/null 2>&1 &
+	"$VT_REAL_SLEEP" 0.5
+	logged "^pkill -U $(id -u) -f entr -n\.\*hotplug-disk\$"
+	waitfor 3 eval '[ "$(entrs)" -eq 1 ]' || fail "$(entrs) watchers running, want 1"
+}
+
+t_hotplug_attach_non_disk() {
+	hp_setup
+	"$VT_SH" "$attach" 3 iwn0
+	"$VT_SH" "$attach" 5 uhidev0
+	[ -e "$T/hotplug-disk" ] && fail "non-disk device wrote the file"
+	return 0
+}
+
+# theme writes escape sequences to /dev/tty*; here those are files under
+# $T/dev, opened for append so a second write to one terminal shows.
+th_setup() {
+	mkdir -p "$XDG_CONFIG_HOME/x11" "$T/dev"
+	ln -s "$REPO/.config/x11/themes" "$XDG_CONFIG_HOME/x11/themes"
+	theme=$(derived .local/bin/theme theme \
+		"s|> \"/dev/tty|>> \"$T/dev/tty|; s|\"/dev/tty|\"$T/dev/tty|g")
+	: >"$T/dev/ttyp3"; : >"$T/dev/ttyq1"; : >"$T/dev/ttyC0"
+	printf 'p3\nC0\n??\np3\nq1\n' >"$VT_STATE/ttys"
+}
+# count TEXT FILE: how often TEXT occurs in FILE.
+count() { awk -v s="$1" '{ n += gsub(s, "") } END { print n + 0 }' "$2"; }
+esc=$(printf '\033')
+
+t_theme_day() {
+	th_setup
+	DISPLAY=:0 "$VT_KSH" "$theme" day || fail "theme day failed"
+	logged "^xrdb -merge $XDG_CONFIG_HOME/x11/themes/day\$"
+	for t in p3 q1; do
+		eq "tty$t: background once" 1 "$(count "]11;#f5f1e8" "$T/dev/tty$t")"
+		eq "tty$t: foreground once" 1 "$(count "]10;#383642" "$T/dev/tty$t")"
+		eq "tty$t: cursor once" 1 "$(count "]12;#a8474a" "$T/dev/tty$t")"
+		eq "tty$t: 16 palette entries" 16 "$(count "]4;" "$T/dev/tty$t")"
+		eq "tty$t: sequences start with ESC" 19 "$(count "$esc]" "$T/dev/tty$t")"
+	done
+	eq "console untouched" 0 "$(wc -c <"$T/dev/ttyC0" | tr -d ' ')"
+	eq "state" day "$(cat "$XDG_CACHE_HOME/theme")"
+}
+
+t_theme_no_display() {
+	th_setup
+	"$VT_KSH" "$theme" night || fail "theme night failed"
+	notlogged '^xrdb'
+	eq "terminals still recoloured" 1 "$(count "]11;#24232e" "$T/dev/ttyp3")"
+}
+
+t_theme_toggle() {
+	th_setup
+	"$VT_KSH" "$theme" toggle
+	eq "no state: day" day "$(cat "$XDG_CACHE_HOME/theme")"
+	"$VT_KSH" "$theme" toggle
+	eq "day: night" night "$(cat "$XDG_CACHE_HOME/theme")"
+	eq "night sent" 1 "$(count "]11;#24232e" "$T/dev/ttyp3")"
+	"$VT_KSH" "$theme" toggle
+	eq "night: day" day "$(cat "$XDG_CACHE_HOME/theme")"
+}
+
+t_theme_auto() {
+	th_setup
+	# 2026-09-29 at 06:59, 07:00, 18:59 and 19:00 UTC.
+	for c in 1790665140:night 1790665200:day 1790708340:day 1790708400:night; do
+		VT_EPOCH=${c%:*} "$VT_KSH" "$theme" auto
+		eq "auto at ${c%:*}" "${c#*:}" "$(cat "$XDG_CACHE_HOME/theme")"
+	done
+	"$VT_KSH" "$theme" dusk 2>/dev/null; eq "unknown word: exit 1" 1 "$?"
+}
+
+t_nightlight() {
+	state=$XDG_CACHE_HOME/nightlight
+	nightlight
+	logged '^sct 4000$'
+	logged '^notify-send 🌙 Night light 4000 K$'
+	[ -f "$state" ] || fail "on: no state file"
+	: >"$VT_STATE/log"
+	nightlight
+	logged '^sct $'
+	logged '^notify-send 🌞 Night light off$'
+	[ -f "$state" ] && fail "off: state file left"
+	nightlight 3200
+	logged '^sct 3200$'
+	: >"$VT_STATE/log"
+	nightlight 2700
+	logged '^sct 2700$'
+	[ -f "$state" ] || fail "a new temperature while on keeps it on"
+	rm -f "$state"; echo 1 >"$VT_STATE/rc.sct"; : >"$VT_STATE/log"
+	nightlight
+	[ -f "$state" ] && fail "sct failed but state says on"
+	notlogged '^notify-send'
+}
+
+t_scratch() {
+	scratch term
+	logged '^xterm -name spterm -geometry 120x34$'
+	TERMINAL=st scratch calc
+	logged '^st -n spcalc -g 50x20 -e bc -lq$'
+	echo "0x1 spterm 1" >"$VT_STATE/windows"
+	scratch term
+	logged '^xdotool windowunmap 0x1$'
+	echo "0x2 spcalc 0" >"$VT_STATE/windows"
+	scratch calc
+	logged '^xdotool windowmap 0x2 windowactivate 0x2$'
+	# The name is matched whole: spterm2 is not the scratchpad.
+	echo "0x3 spterm2 1" >"$VT_STATE/windows"; : >"$VT_STATE/log"
+	scratch term
+	logged '^xterm -name spterm'
+	scratch 2>/dev/null; eq "no argument: exit 1" 1 "$?"
+}

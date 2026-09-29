@@ -1,0 +1,12 @@
+#!/bin/sh
+
+# simple-mtpfs mock. `-l` lists phones from $VT_STATE/phones ("1: Google
+# Pixel 6", as simple-mtpfs -l prints; assumed from voidrice's use of it)
+# and fails when there are none. A mount is logged.
+
+if [ "$1" = -l ]; then
+	[ -s "$VT_STATE/phones" ] || exit 1
+	cat "$VT_STATE/phones"
+	exit 0
+fi
+echo "simple-mtpfs $*" >>"$VT_STATE/log"

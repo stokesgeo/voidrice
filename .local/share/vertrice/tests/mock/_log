@@ -1,0 +1,10 @@
+#!/bin/sh
+
+# Generic mock: log the call as "name args", print $VT_STATE/out.NAME if the
+# case wrote one, and exit with the status in $VT_STATE/rc.NAME (default 0).
+# Commands that need no more than this are symlinks to this file.
+
+n=${0##*/}
+echo "$n $*" >>"$VT_STATE/log"
+[ -f "$VT_STATE/out.$n" ] && cat "$VT_STATE/out.$n"
+exit "$(cat "$VT_STATE/rc.$n" 2>/dev/null || echo 0)"

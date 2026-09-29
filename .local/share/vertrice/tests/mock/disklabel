@@ -1,0 +1,70 @@
+#!/bin/sh
+
+# disklabel(8) mock: `disklabel [-h] DISK` prints $VT_STATE/disklabel.DISK,
+# else the defaults below; a disk with neither fails, as a drive with no
+# media does. The layout is disklabel(8)'s (known: a header with "label:",
+# then "  a:  size  offset  fstype ..."); -h sizes like "28.9G" are known
+# in form, and mounter reads only the letter, size and fstype columns.
+#
+# The default machine: sd0 is the internal SSD, one RAID partition, the
+# chunk of softraid volume sd1, which holds the system (/, swap, /home...).
+# sd2 is a USB stick with one FAT partition. cd0 has no disc.
+
+[ "$1" = -h ] && shift
+d=$1
+if [ -f "$VT_STATE/disklabel.$d" ]; then cat "$VT_STATE/disklabel.$d"; exit 0; fi
+
+header() {
+	cat <<EOF
+# /dev/r${d}c:
+type: SCSI
+disk: SCSI disk
+label: $1
+duid: $2
+flags:
+bytes/sector: 512
+sectors/track: 63
+tracks/cylinder: 255
+sectors/cylinder: 16065
+cylinders: 31130
+total sectors: $3
+boundstart: 64
+boundend: $3
+
+16 partitions:
+#                size           offset  fstype [fsize bsize   cpg]
+EOF
+}
+
+case $d in
+sd0)
+	header "Samsung SSD 860" 4f2a19c07d3e8b61 500118192
+	cat <<'EOF'
+  a:           238.5G               64    RAID
+  c:           238.5G                0  unused
+EOF
+	;;
+sd1)
+	header "SR CRYPTO" 9c1e5f7a3b2d4c68 500117136
+	cat <<'EOF'
+  a:             1.0G               64  4.2BSD   2048 16384 12960 # /
+  b:             8.0G          2097216    swap                   # none
+  c:           238.5G                0  unused
+  d:             4.0G         18874432  4.2BSD   2048 16384 12960 # /tmp
+  e:            12.0G         27263040  4.2BSD   2048 16384 12960 # /var
+  f:            20.0G         52428864  4.2BSD   2048 16384 12960 # /usr
+  k:           193.5G        136314976  4.2BSD   4096 32768 26062 # /home
+EOF
+	;;
+sd2)
+	header "SanDisk 3.2Gen1" 7b3d0e9f1a2c5b84 60620800
+	cat <<'EOF'
+  c:            28.9G                0  unused
+  i:            28.9G               64   MSDOS
+EOF
+	;;
+*)
+	echo "disklabel: $d: Device not configured" >&2
+	exit 1
+	;;
+esac

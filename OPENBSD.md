@@ -18,6 +18,19 @@ matches the old output. Nothing has run on OpenBSD yet.
 `~/.local/share/openbsd/check` tests on the machine each assumption that
 could not be tested here.
 
+**Tests.** `~/.local/share/vertrice/tests/run` is the regression suite: run
+it after every change. It runs the scripts from this tree against fake
+OpenBSD commands (`tests/mock`: apm, sysctl, disklabel, doas, dmenu and
+the rest), whose fixtures follow the formats the scripts assume; each mock
+says which formats are known and which are assumed. One line per case
+(PASS, FAIL, SKIP, or XFAIL for a known bug, named in the case), a total,
+and a nonzero exit on failure. `run ext` runs the cases whose names start
+with `ext`; `-k` keeps the scratch directories. On the X220 it needs
+nothing extra. On Linux, set `OKSH` to oksh and `BWK_AWK` to the one true
+awk (`CWM` and `CWM_SRC` add the cwmrc checks). `run --live`, on OpenBSD
+only, skips the mocks and prints what each status block shows on the
+machine; it changes nothing.
+
 ## The walk: what changed and why
 
 Each item names the Linux mechanism, the OpenBSD one, and the reason.

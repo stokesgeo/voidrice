@@ -1,0 +1,13 @@
+#!/bin/sh
+
+# wsconsctl(8) mock. `wsconsctl -n display.brightness` prints the level as a
+# percentage with two decimals, "70.00%" (assumed: from the port's notes,
+# not yet seen on the machine; check prints it). Set WSCONS_BRIGHTNESS; set
+# WSCONS_FAIL=1 for a user without /dev/ttyC0 (not logged in on the console).
+# Writes (display.brightness+=10) are logged.
+
+[ -n "$WSCONS_FAIL" ] && { echo "wsconsctl: /dev/ttyC0: Permission denied" >&2; exit 1; }
+case $* in
+"-n display.brightness") echo "${WSCONS_BRIGHTNESS:-70.00%}" ;;
+*) echo "wsconsctl $*" >>"$VT_STATE/log" ;;
+esac

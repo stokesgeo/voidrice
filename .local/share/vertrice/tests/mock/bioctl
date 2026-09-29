@@ -1,0 +1,39 @@
+#!/bin/sh
+
+# bioctl(8) mock, for softraid.
+#	bioctl softraid0	prints $VT_STATE/bioctl, else the default: volume
+#				sd1 (CRYPTO) on chunk sd0a. The layout, chunk
+#				device in <angle brackets>, is from memory of
+#				bioctl(8) output: assumed, not checked.
+#	bioctl -c C -l DEV softraid0	unlock: logs, then adds the disk in
+#				$VT_STATE/bioctl.new ("sd3:duid") to
+#				hw.disknames. rc.bioctl-unlock makes it fail.
+#	bioctl -d DISK		logs; succeeds only for a disk listed in
+#				$VT_STATE/volumes (softraid volumes), as the
+#				real one refuses a plain disk.
+
+echo "bioctl $*" >>"$VT_STATE/log"
+case $1 in
+softraid0)
+	if [ -f "$VT_STATE/bioctl" ]; then cat "$VT_STATE/bioctl"; exit 0; fi
+	cat <<'EOF'
+Volume      Status               Size Device
+softraid0 0 Online       256060162048 sd1     CRYPTO
+          0 Online       256060162048 0:0.0   noencl <sd0a>
+EOF
+	;;
+-c)
+	rc=$(cat "$VT_STATE/rc.bioctl-unlock" 2>/dev/null || echo 0)
+	[ "$rc" -eq 0 ] || { echo "bioctl: incorrect passphrase" >&2; exit "$rc"; }
+	new=$(cat "$VT_STATE/bioctl.new" 2>/dev/null) || exit 0
+	names=$(sysctl -n hw.disknames)
+	f=$VT_STATE/sysctl
+	[ -f "$f" ] && grep -v '^hw.disknames=' "$f" >"$f.new" && mv "$f.new" "$f"
+	echo "hw.disknames=$names,$new" >>"$f"
+	echo "${new%%:*} at scsibus4 targ 1 lun 0: <OPENBSD, SR CRYPTO, 006>"
+	;;
+-d)
+	grep -qx -- "$2" "$VT_STATE/volumes" 2>/dev/null || {
+		echo "bioctl: Can't locate $2 device via /dev/bio" >&2; exit 1; }
+	;;
+esac

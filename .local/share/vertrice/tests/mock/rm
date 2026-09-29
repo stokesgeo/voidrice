@@ -1,0 +1,15 @@
+#!/bin/sh
+
+# rm(1) guard, not a fake: runs the real rm, except that it refuses to
+# remove /dev/null and logs "rm-devnull" when asked to. The suite may run
+# as root in a container, where removing /dev/null would break the host.
+
+a=
+for x; do
+	if [ "$x" = /dev/null ]; then
+		echo "rm-devnull $*" >>"$VT_STATE/log"
+	else
+		a="$a '$(printf '%s' "$x" | sed "s/'/'\\\\''/g")'"
+	fi
+done
+eval "exec \"\$VT_REAL_RM\" $a"

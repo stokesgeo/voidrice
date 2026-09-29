@@ -1,0 +1,13 @@
+#!/bin/sh
+
+# dmenu mock. The Nth call saves the menu it was given (stdin) to
+# $VT_STATE/menu.N and answers line N of $VT_STATE/answers (see answers in
+# lib.sh). No line N: the user pressed Escape, so it prints nothing and
+# exits 1, as dmenu does.
+
+n=$(( $(cat "$VT_STATE/dmenu.n" 2>/dev/null || echo 0) + 1 ))
+echo "$n" >"$VT_STATE/dmenu.n"
+cat >"$VT_STATE/menu.$n"
+echo "dmenu $*" >>"$VT_STATE/log"
+[ "$(wc -l <"$VT_STATE/answers" 2>/dev/null || echo 0)" -ge "$n" ] || exit 1
+sed -n "${n}p" "$VT_STATE/answers"

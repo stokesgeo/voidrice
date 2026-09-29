@@ -1,0 +1,11 @@
+#!/bin/sh
+
+# date(1) mock: with VT_EPOCH set, the real date formats that moment
+# instead of now (GNU date takes -d @N, BSD date -r N). Without it, the
+# real date runs unchanged.
+
+[ -n "$VT_EPOCH" ] || exec "$VT_REAL_DATE" "$@"
+if "$VT_REAL_DATE" -d @0 +%s >/dev/null 2>&1; then
+	exec "$VT_REAL_DATE" -d "@$VT_EPOCH" "$@"
+fi
+exec "$VT_REAL_DATE" -r "$VT_EPOCH" "$@"
