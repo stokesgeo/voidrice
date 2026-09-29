@@ -101,8 +101,8 @@ colorscheme vim
 	autocmd BufRead,BufNewFile *.ms,*.me,*.mom,*.man set filetype=groff
 	autocmd BufRead,BufNewFile *.tex set filetype=tex
 
-" Save file as sudo on files that require root permission
-	cabbrev w!! execute 'silent! write !sudo tee % >/dev/null' <bar> edit!
+" Save file as root with doas (needs a doas.conf rule: nvim gives it no terminal)
+	cabbrev w!! execute 'silent! write !doas tee % >/dev/null' <bar> edit!
 
 " Enable Goyo by default for mutt writing
 	autocmd BufRead,BufNewFile /tmp/neomutt* :Goyo 80 | call feedkeys("jk")
@@ -122,8 +122,6 @@ colorscheme vim
 " Run xrdb whenever Xdefaults or Xresources are updated.
 	autocmd BufRead,BufNewFile Xresources,Xdefaults,xresources,xdefaults set filetype=xdefaults
 	autocmd BufWritePost Xresources,Xdefaults,xresources,xdefaults !xrdb %
-" Recompile dwmblocks on config edit.
-	autocmd BufWritePost ~/.local/src/dwmblocks/config.h !cd ~/.local/src/dwmblocks/; sudo make install && { killall -q dwmblocks;setsid -f dwmblocks }
 
 " Turns off highlighting on the bits of code that are changed, so the line that is changed is highlighted but the actual text that has changed stands out on the line and is readable.
 if &diff

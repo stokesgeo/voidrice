@@ -5,26 +5,25 @@
 moonfile="${XDG_DATA_HOME:-$HOME/.local/share}/moonphase"
 
 checkmoon() {
-	[ "$(stat -c %y "$moonfile" 2>/dev/null |
-		cut -d' ' -f1)" = "$(date '+%Y-%m-%d')" ]
+	[ "$(stat -f %Sm -t %Y-%m-%d "$moonfile" 2>/dev/null)" = "$(date '+%Y-%m-%d')" ]
 }
 
-getmoon() { { grep -q -m1 '^up$' /sys/class/net/w*/operstate || grep -q -m1 '^up$' /sys/class/net/e*/operstate; } &&
+getmoon() { route -n get default >/dev/null 2>&1 &&
 	curl -sf "wttr.in/?format=%m" --output "$moonfile" && touch "$moonfile"
 }
 
 checkmoon ||
-	( flock -n 9 &&
-		( tries=0; while [ $tries -ne 100 ]; do
+	( mkdir "${lock:=/tmp/sb-moonphase-$(id -u).lock}" 2>/dev/null &&
+		( trap 'rmdir "$lock"' EXIT; tries=0; while [ $tries -ne 100 ]; do
 			# shellcheck disable=SC2015
 			getmoon && break ||
 				{ tries=$((tries+1)); sleep .1; }
 		done
 		! checkmoon &&
 			until getmoon; do sleep 60; done
-		pkill -RTMIN+"${1:-17}" "${STATUSBAR:-dwmblocks}"
+		sb-refresh
 		) &
-	echo; exit ) 9>"${XDG_RUNTIME_DIR}/sb-moonphase.lock"
+	echo; exit )
 
 icon="$(cat "$moonfile")"
 
@@ -52,5 +51,5 @@ case $BLOCK_BUTTON in
 - 🌖: Waning Gibbous
 - 🌗: Last Quarter
 - 🌘: Waning Crescent" ;;
-	6) setsid -f "$TERMINAL" -e "$EDITOR" "$0" ;;
+	6) detach "$TERMINAL" -e "$EDITOR" "$0" ;;
 esac

@@ -8,7 +8,7 @@ kb="$(setxkbmap -query | while read -r key value; do
 done)"
 
 case $BLOCK_BUTTON in
-	1) kb_choice="$(cat /usr/share/X11/xkb/rules/base.lst)"
+	1) kb_choice="$(cat /usr/X11R6/share/X11/xkb/rules/base.lst)"
 	kb_choice="${kb_choice#*! layout*}"
 	kb_choice="${kb_choice%%! variant*}"
 	kb_choice="$(echo "$kb_choice" | while read -r iso layout; do
@@ -17,10 +17,10 @@ case $BLOCK_BUTTON in
 	kb_choice="${kb_choice##* }"
 	[ -z "$kb_choice" ] && exit
 	setxkbmap "$kb_choice"
-	pkill -RTMIN+30 "${STATUSBAR:-dwmblocks}" ;;
+	sb-refresh ;;
 	3) notify-send "⌨  Keyboard/language module" "Current layout: $kb
 - Left click to change keyboard." ;;
-	6) setsid -f "$TERMINAL" -e "$EDITOR" "$0" ;;
+	6) detach "$TERMINAL" -e "$EDITOR" "$0" ;;
 esac
 
 printf "%s\n" "$kb"

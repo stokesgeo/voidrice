@@ -1,35 +1,39 @@
 #!/bin/sh
 
 # A dmenu wrapper script for system functions.
-export WM="dwm"
-case "$(readlink -f /sbin/init)" in
-	*systemd*) ctl='systemctl' ;;
-	*) ctl='loginctl' ;;
-esac
+#
+# OpenBSD: zzz(8) suspends and ZZZ hibernates through apmd(8), so apmd must
+# be enabled (rcctl enable apmd). reboot and shutdown need root: they open
+# in a terminal so doas(1) can ask for the password. The locker is xlock(1)
+# from base.
 
-wmpid(){ # This function is needed if there are multiple instances of the window manager.
-	tree="$(pstree -ps $$)"
-	tree="${tree#*$WM(}"
-	echo "${tree%%)*}"
-}
+wm=cwm
+pgrep -x dwm >/dev/null && wm=dwm
 
 lock(){
-	was_muted="$(wpctl get-volume @DEFAULT_AUDIO_SINK@ | grep -o 'MUTED' && echo 1 || echo 0)"
+	was_muted="$(sndioctl -n output.mute)"
 	mpc pause & pauseallmpv &
-	wpctl set-mute @DEFAULT_AUDIO_SINK@ 1 &
-	slock
-	[ "$was_muted" -eq 0 ] && wpctl set-mute @DEFAULT_AUDIO_SINK@ 0
-	pkill -RTMIN+10 "${STATUSBAR:-dwmblocks}"
+	sndioctl -q output.mute=1
+	xlock -mode blank
+	[ "$was_muted" = 0 ] && sndioctl -q output.mute=0
+	sb-refresh
 }
 
-case "$(printf "🔒 lock\n🚪 leave $WM\n♻️ renew $WM\n🐻 hibernate\n🔃 reboot\n🖥️shutdown\n💤 sleep\n📺 display off" | dmenu -i -p 'Action: ')" in
+# Lock first, then suspend: the screen is locked when the machine wakes.
+lockthen(){
+	xlock -mode blank &
+	sleep 1
+	"$@"
+}
+
+case "$(printf "🔒 lock\n🚪 leave $wm\n♻️ renew $wm\n🐻 hibernate\n🔃 reboot\n🖥️shutdown\n💤 sleep\n📺 display off" | dmenu -i -p 'Action: ')" in
 	'🔒 lock') lock ;;
-	"🚪 leave $WM") kill -TERM "$(wmpid)" ;;
-	"♻️ renew $WM") kill -HUP "$(wmpid)" ;;
-	'🐻 hibernate') slock $ctl hibernate -i ;;
-	'💤 sleep') slock $ctl suspend -i ;;
-	'🔃 reboot') $ctl reboot -i ;;
-	'🖥️shutdown') $ctl poweroff -i ;;
+	"🚪 leave $wm") pkill -TERM -xn "$wm" ;;
+	"♻️ renew $wm") pkill -HUP -xn "$wm" ;;
+	'🐻 hibernate') lockthen ZZZ ;;
+	'💤 sleep') lockthen zzz ;;
+	'🔃 reboot') "$TERMINAL" -e doas reboot ;;
+	'🖥️shutdown') "$TERMINAL" -e doas shutdown -p now ;;
 	'📺 display off') xset dpms force off ;;
 	*) exit 1 ;;
 esac

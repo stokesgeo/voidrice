@@ -1,17 +1,25 @@
 #!/bin/sh
 
+# Prints memory in use and total. OpenBSD has no free(1): the in-use figure
+# is the "Real" active figure from top(1)'s header ("Real: 450M/1466M
+# act/tot"), the total is hw.physmem in bytes.
+
 case $BLOCK_BUTTON in
-	1) notify-send "🧠 Memory hogs" "$(ps axch -o cmd,%mem | awk '{cmd[$1]+=$2} END {for (i in cmd) print i, cmd[i]}' | sort -nrk2 | head)" ;;
-	2) setsid -f "$TERMINAL" -e htop ;;
+	1) notify-send "🧠 Memory hogs" "$(ps -Ao comm= -o %mem= | awk '{cmd[$1]+=$2} END {for (i in cmd) print i, cmd[i]}' | sort -nrk2 | head)" ;;
+	2) detach "$TERMINAL" -e top ;;
 	3) notify-send "🧠 Memory module" "\- Shows Memory Used/Total.
 - Click to show memory hogs.
-- Middle click to open htop." ;;
-	6) setsid -f "$TERMINAL" -e "$EDITOR" "$0" ;;
+- Middle click to open top." ;;
+	6) detach "$TERMINAL" -e "$EDITOR" "$0" ;;
 esac
 
-free="$(free --mebi)"
-free="${free#*Mem:}"
-
-set -- $free
-
-printf "🧠%2.2fGiB/%2.2fGiB\n" "$(( $2 * 100 / 1024 ))e-2" "$(( $1 * 100 / 1024 ))e-2"
+top -b -d 1 | awk -v phys="$(sysctl -n hw.physmem)" '
+	/^Memory:/ {
+		split($3, r, "/"); act = r[1]
+		u = substr(act, length(act)); n = act + 0
+		if (u == "K") n /= 1024 * 1024
+		else if (u == "M") n /= 1024
+		else if (u == "G") n += 0
+		printf "🧠%.2fGiB/%.2fGiB\n", n, phys / 1024 / 1024 / 1024
+		exit
+	}'

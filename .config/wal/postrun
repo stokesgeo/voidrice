@@ -29,4 +29,4 @@ fix_sequences() {
 
 fix_sequences <"${XDG_CACHE_HOME:-$HOME/.cache}/wal/sequences"
 
-pkill dunst; setsid -f dunst
+pkill dunst; detach dunst

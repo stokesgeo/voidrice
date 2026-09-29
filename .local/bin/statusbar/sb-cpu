@@ -1,19 +1,21 @@
 #!/bin/sh
 
+# Prints the CPU temperature. OpenBSD exposes hardware sensors as sysctl
+# nodes: cpu0.temp0 is the Intel core sensor from cpu(4), acpitz0 the ACPI
+# thermal zone. The value reads "52.00 degC".
+
 case $BLOCK_BUTTON in
-	1) notify-send "🖥 CPU hogs" "$(ps axch -o cmd,%cpu | awk '{cmd[$1]+=$2} END {for (i in cmd) print i, cmd[i]}' | sort -nrk2  | head)\\n(100% per core)" ;;
-	2) setsid -f "$TERMINAL" -e htop ;;
+	1) notify-send "🖥 CPU hogs" "$(ps -Ao comm= -o %cpu= | awk '{cmd[$1]+=$2} END {for (i in cmd) print i, cmd[i]}' | sort -nrk2  | head)\\n(100% per core)" ;;
+	2) detach "$TERMINAL" -e top ;;
 	3) notify-send "🖥 CPU module " "\- Shows CPU temperature.
 - Click to show intensive processes.
-- Middle click to open htop." ;;
-	6) setsid -f "$TERMINAL" -e "$EDITOR" "$0" ;;
+- Middle click to open top." ;;
+	6) detach "$TERMINAL" -e "$EDITOR" "$0" ;;
 esac
 
-sensors | while read -r sensor; do case "$sensor" in
-	*Package*|*Core*|*Tctl* )
-		temp="${sensor#* [-+]}"
-		sign="${sensor%"$temp"}"
-		temp="${sign##* }${temp%% *}"
-		printf "🌡 %s\n" "$temp"
-		break ;;
-esac done
+# Test the value, not the exit status: sysctl may exit 0 for a missing node.
+temp=$(sysctl -n hw.sensors.cpu0.temp0 2>/dev/null)
+[ -n "$temp" ] || temp=$(sysctl -n hw.sensors.acpitz0.temp0 2>/dev/null)
+[ -n "$temp" ] || exit 1
+
+printf "🌡 %d°C\n" "${temp%%.*}"

@@ -2,12 +2,12 @@
 
 # If transmission-daemon is running, will ask to kill, else will ask to start.
 
-ifinstalled transmission-cli || exit 1
+ifinstalled transmission-daemon || exit 1
 
-pidof transmission-daemon >/dev/null &&
+pgrep -x transmission-daemon >/dev/null &&
 	{ [ "$(printf "No\nYes" | dmenu -i -p "Turn off transmission-daemon?")" = Yes ] &&
-		killall transmission-daemon && notify-send "transmission-daemon disabled." ;} ||
+		pkill -x transmission-daemon && notify-send "transmission-daemon disabled." ;} ||
 	{ [ "$(printf "No\nYes" | dmenu -i -p "Turn on transmission daemon?")" = Yes ] &&
 		transmission-daemon && notify-send "transmission-daemon enabled." ;}
 
-sleep 3; pkill -RTMIN+7 "${STATUSBAR:-dwmblocks}"
+sleep 3; sb-refresh

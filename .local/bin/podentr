@@ -2,6 +2,7 @@
 
 # entr command to run `queueandnotify` when newsboat queue is changed
 
-[ "$(pgrep -x "$(basename "$0")" | wc -l)" -gt 2 ] && exit
+# A script runs as its interpreter, so match the command line, not the name.
+[ "$(pgrep -f podentr | wc -l)" -gt 1 ] && exit
 
 echo "${XDG_DATA_HOME:-$HOME/.local/share}"/newsboat/queue | entr -p queueandnotify 2>/dev/null

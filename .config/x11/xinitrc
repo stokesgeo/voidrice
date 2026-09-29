@@ -1,6 +1,16 @@
 #!/bin/sh
 
-# xinitrc runs automatically when you run startx.
+# xinitrc runs automatically when you run startx. OpenBSD's display manager,
+# xenodm, runs ~/.xsession instead, and that file links here.
+
+# xenodm starts X without a login shell, so ~/.profile has not run yet.
+[ -z "$XDG_CONFIG_HOME" ] && . "$HOME/.profile"
+
+# Session bus first: dunst (started in xprofile) and notify-send must share
+# one bus. Started later, GLib would autolaunch a second, private bus for
+# dunst. --exit-with-session ends the bus when X ends.
+[ -z "$DBUS_SESSION_BUS_ADDRESS" ] && command -v dbus-launch >/dev/null 2>&1 &&
+	eval "$(dbus-launch --sh-syntax --exit-with-session)"
 
 # There are some small but important commands that need to be run when we start
 # the graphical environment. There is a link to this file in ~/.xprofile
@@ -13,6 +23,20 @@ if [ -f "${XDG_CONFIG_HOME:-$HOME/.config}/x11/xprofile" ]; then
 else
 	. "$HOME/.xprofile"
 fi
-# Activate dbus variables
-dbus-update-activation-environment --all
-dbus-launch ssh-agent dwm
+
+# Window manager: dwm if it is installed, else cwm from base. Which one to
+# live in is still open; building and installing dwm is that choice.
+# dwm draws the status bar from the root window name, which sbar sets.
+if command -v dwm >/dev/null 2>&1; then
+	wm=dwm
+	sbar &
+else
+	wm=cwm
+fi
+
+# One ssh-agent: xenodm may already have started one.
+if [ -z "$SSH_AUTH_SOCK" ]; then
+	exec ssh-agent "$wm"
+else
+	exec "$wm"
+fi

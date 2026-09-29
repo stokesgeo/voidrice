@@ -1,5 +1,8 @@
 # The Voidrice (Luke Smith <https://lukesmith.xyz>'s dotfiles)
 
+**This branch is an OpenBSD port. Read [OPENBSD.md](OPENBSD.md) first:**
+what changed, how to install it, and what is not ported.
+
 These are the dotfiles deployed by [LARBS](https://larbs.xyz) and as seen on
 [my YouTube channel](https://youtube.com/c/lukesmithxyz).
 

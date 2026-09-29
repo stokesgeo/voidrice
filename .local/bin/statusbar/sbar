@@ -1,0 +1,60 @@
+#!/bin/ksh
+
+# sbar: the status bar loop. Runs each block script in $blocks, joins what
+# they print, and sets it as the root window name, where dwm draws it.
+# `sbar -p` prints each line to stdout instead, for testing or for piping
+# into another bar.
+#
+# Why not dwmblocks: dwmblocks redraws one block when it gets SIGRTMIN+n.
+# OpenBSD has no real-time signals, so there is no n to send. sbar redraws
+# every block when it gets SIGUSR1; `sb-refresh` sends that signal.
+#
+# Edit $blocks to choose the modules. Order is left to right.
+
+blocks="sb-music sb-news sb-mailbox sb-cpu sb-memory sb-volume sb-battery sb-internet sb-clock"
+interval=5
+pidfile=${XDG_CACHE_HOME:-$HOME/.cache}/sbar.pid
+
+out=xsetroot
+[ "$1" = -p ] && out=print
+
+# One bar per user. A pid in the file only counts if that process is sbar.
+if [ -f "$pidfile" ]; then
+	pid=$(<"$pidfile")
+	case $(ps -o command= -p "$pid" 2>/dev/null) in
+	*sbar*)	print -u2 "sbar: already running as $pid"; exit 1 ;;
+	esac
+fi
+# Traps first: a USR1 that arrived before its trap was set would kill sbar.
+# A USR1 interrupts the wait below. One that arrives during draw sets dirty,
+# and the loop draws again at once instead of sleeping on stale output.
+trap 'rm -f "$pidfile"; exit 0' HUP INT TERM
+trap 'dirty=1' USR1
+
+mkdir -p "${pidfile%/*}"
+print $$ >"$pidfile"
+
+draw() {
+	typeset b s line=
+	for b in $blocks; do
+		s=$("$b" 2>/dev/null) || continue
+		[ -n "$s" ] && line="$line $s"
+	done
+	line=${line# }
+	if [ "$out" = print ]; then
+		print -r -- "$line"
+	else
+		# X is gone (session ended): stop, as dwmblocks did, instead of
+		# polling every block on the console.
+		xsetroot -name "$line" || { rm -f "$pidfile"; exit 1; }
+	fi
+}
+
+while :; do
+	dirty=
+	draw
+	[ -n "$dirty" ] && continue
+	sleep "$interval" &
+	wait $!
+	kill $! 2>/dev/null
+done

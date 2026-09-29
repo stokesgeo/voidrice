@@ -28,30 +28,31 @@ set autoquit true
 
 # cmds/functions
 cmd open ${{
-    case $(file --mime-type "$(readlink -f $f)" -b) in
+    mime=$(file -bi "$(readlink -f $f)")
+    case ${mime%%;*} in
 	application/vnd.openxmlformats-officedocument.spreadsheetml.sheet) localc $fx ;;
-	image/vnd.djvu|application/vnd.djvu|application/pdf|application/postscript|application/epub*) setsid -f zathura $fx >/dev/null 2>&1 ;;
-        text/*|application/json|inode/x-empty|application/x-subrip) $EDITOR $fx;;
-	image/x-xcf) setsid -f gimp $f >/dev/null 2>&1 ;;
+	image/vnd.djvu|application/vnd.djvu|application/pdf|application/postscript|application/epub*) detach zathura $fx >/dev/null 2>&1 ;;
+        text/*|application/json|inode/x-empty|application/x-empty|application/x-subrip) $EDITOR $fx;;
+	image/x-xcf) detach gimp $f >/dev/null 2>&1 ;;
 	image/svg+xml) display -- $f ;;
-	image/*) rotdir $f | grep -i "\.\(png\|jpg\|jpeg\|gif\|webp\|avif\|tif\|ico\)\(_large\)*$" |
-		setsid -f nsxiv -aio 2>/dev/null | while read -r file; do
+	image/*) rotdir $f | grep -iE '\.(png|jpg|jpeg|gif|webp|avif|tif|ico)(_large)*$' |
+		nsxiv -aio 2>/dev/null | while read -r file; do
 			[ -z "$file" ] && continue
 			lf -remote "send select \"$file\""
 			lf -remote "send toggle"
 		done &
 		;;
 	audio/*|video/x-ms-asf) mpv --audio-display=no $f ;;
-	video/*) setsid -f mpv $f -quiet >/dev/null 2>&1 ;;
+	video/*) detach mpv $f -quiet >/dev/null 2>&1 ;;
 	application/pgp-encrypted) $EDITOR $fx ;;
-	application/vnd.openxmlformats-officedocument.wordprocessingml.document|application/vnd.oasis.opendocument.text|application/vnd.openxmlformats-officedocument.spreadsheetml.sheet|application/vnd.oasis.opendocument.spreadsheet|application/vnd.oasis.opendocument.spreadsheet-template|application/vnd.openxmlformats-officedocument.presentationml.presentation|application/vnd.oasis.opendocument.presentation-template|application/vnd.oasis.opendocument.presentation|application/vnd.ms-powerpoint|application/vnd.oasis.opendocument.graphics|application/vnd.oasis.opendocument.graphics-template|application/vnd.oasis.opendocument.formula|application/vnd.oasis.opendocument.database) setsid -f libreoffice $fx >/dev/null 2>&1 ;;
+	application/vnd.openxmlformats-officedocument.wordprocessingml.document|application/vnd.oasis.opendocument.text|application/vnd.openxmlformats-officedocument.spreadsheetml.sheet|application/vnd.oasis.opendocument.spreadsheet|application/vnd.oasis.opendocument.spreadsheet-template|application/vnd.openxmlformats-officedocument.presentationml.presentation|application/vnd.oasis.opendocument.presentation-template|application/vnd.oasis.opendocument.presentation|application/vnd.ms-powerpoint|application/vnd.oasis.opendocument.graphics|application/vnd.oasis.opendocument.graphics-template|application/vnd.oasis.opendocument.formula|application/vnd.oasis.opendocument.database) detach libreoffice $fx >/dev/null 2>&1 ;;
         application/octet-stream) case ${f##*.} in
-			doc|docx|xls|xlsx|odt|ppt|pptx) setsid -f libreoffice $fx >/dev/null 2>&1 ;;
-			ghw) setsid -f gtkwave $f >/dev/null 2>&1 ;;
-			ts) setsid -f mpv $f -quiet >/dev/null 2>&1 ;;
-			*) setsid -f zathura $fx >/dev/null 2>&1 ;;
+			doc|docx|xls|xlsx|odt|ppt|pptx) detach libreoffice $fx >/dev/null 2>&1 ;;
+			ghw) detach gtkwave $f >/dev/null 2>&1 ;;
+			ts) detach mpv $f -quiet >/dev/null 2>&1 ;;
+			*) detach zathura $fx >/dev/null 2>&1 ;;
 	   	esac ;;
-	*) for f in $fx; do setsid -f $OPENER $f >/dev/null 2>&1; done;;
+	*) for f in $fx; do detach $OPENER $f >/dev/null 2>&1; done;;
     esac
 }}
 
@@ -93,7 +94,7 @@ cmd delete ${{
 cmd moveto ${{
 	set -f
 	clear; tput cup $(($(tput lines)/3))
-	dest=$(sed -e 's/\s*#.*//' -e '/^$/d' -e 's/^\S*\s*//' "${XDG_CONFIG_HOME:-$HOME/.config}/shell/bm-dirs" | fzf --layout=reverse --height 40% --prompt 'Move to where? ' | sed 's|~|$HOME|')
+	dest=$(sed -e 's/[[:space:]]*#.*//' -e '/^$/d' -e 's/^[^[:space:]]*[[:space:]]*//' "${XDG_CONFIG_HOME:-$HOME/.config}/shell/bm-dirs" | fzf --layout=reverse --height 40% --prompt 'Move to where? ' | sed 's|~|$HOME|')
 	[ -z "$dest" ] && exit
 	destpath=$(eval printf '%s' \"$dest\")
 	clear; tput cup $(($(tput lines)/3)); tput bold
@@ -111,7 +112,7 @@ cmd moveto ${{
 cmd copyto ${{
 	set -f
 	clear; tput cup $(($(tput lines)/3))
-	dest=$(sed -e 's/\s*#.*//' -e '/^$/d' -e 's/^\S*\s*//' "${XDG_CONFIG_HOME:-$HOME/.config}/shell/bm-dirs" | fzf --layout=reverse --height 40% --prompt 'Copy to where? ' | sed 's|~|$HOME|')
+	dest=$(sed -e 's/[[:space:]]*#.*//' -e '/^$/d' -e 's/^[^[:space:]]*[[:space:]]*//' "${XDG_CONFIG_HOME:-$HOME/.config}/shell/bm-dirs" | fzf --layout=reverse --height 40% --prompt 'Copy to where? ' | sed 's|~|$HOME|')
 	[ -z "$dest" ] && exit
 	destpath=$(eval printf '%s' \"$dest\")
 	clear; tput cup $(($(tput lines)/3)); tput bold
@@ -151,7 +152,7 @@ cmd bulkrename ${{
 
 # Bindings
 map <c-f> $lf -remote "send $id select \"$(fzf)\""
-map J $lf -remote "send $id cd $(sed -e 's/\s*#.*//' -e '/^$/d' -e 's/^\S*\s*//' ${XDG_CONFIG_HOME:-$HOME/.config}/shell/bm-dirs | fzf)"
+map J $lf -remote "send $id cd $(sed -e 's/[[:space:]]*#.*//' -e '/^$/d' -e 's/^[^[:space:]]*[[:space:]]*//' ${XDG_CONFIG_HOME:-$HOME/.config}/shell/bm-dirs | fzf)"
 map H cd ~
 map g top
 map D delete
@@ -179,7 +180,7 @@ map <c-e> down
 map <c-y> up
 map V push :!nvim<space>
 
-map W $setsid -f $TERMINAL >/dev/null 2>&1
+map W $detach $TERMINAL >/dev/null 2>&1
 
 map U $printf "%s" "$fx" | xclip -selection clipboard
 map u $printf "%s" "$fx" | sed 's/.*\///' | xclip -selection clipboard

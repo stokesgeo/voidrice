@@ -1,37 +1,42 @@
 #!/bin/sh
 
-# Prints all batteries, their percentage remaining and an emoji corresponding
-# to charge status (🔌 for plugged up, 🔋 for discharging on battery, etc.).
+# Prints the battery percentage and an emoji for the charge state.
+# OpenBSD reports battery state through apm(8), which asks apmd(8) or the
+# kernel: -l percent left, -a AC state, -b battery state. apm merges all
+# batteries into one figure, so this prints one entry, not one per battery.
 
 case $BLOCK_BUTTON in
 	3) notify-send "🔋 Battery module" "🔋: discharging
-🛑: not charging
-♻: stagnant charge
+🛑: on AC, not charging
+♻: state unknown
 🔌: charging
 ⚡: charged
 ❗: battery very low!
-- Scroll to change adjust xbacklight." ;;
-	4) xbacklight -inc 10 ;;
-	5) xbacklight -dec 10 ;;
-	6) setsid -f "$TERMINAL" -e "$EDITOR" "$0" ;;
+- Scroll to change the backlight." ;;
+	4) wsconsctl display.brightness+=10 >/dev/null ;;
+	5) wsconsctl display.brightness-=10 >/dev/null ;;
+	6) detach "$TERMINAL" -e "$EDITOR" "$0" ;;
 esac
 
-# Loop through all attached batteries and format the info
-for battery in /sys/class/power_supply/BAT?*; do
-	# If non-first battery, print a space separator.
-	[ -n "${capacity+x}" ] && printf " "
-	# Sets up the status and capacity
-	case "$(cat "$battery/status" 2>&1)" in
-		"Full") status="⚡" ;;
-		"Discharging") status="🔋" ;;
-		"Charging") status="🔌" ;;
-		"Not charging") status="🛑" ;;
-		"Unknown") status="♻️" ;;
-		*) exit 1 ;;
-	esac
-	capacity="$(cat "$battery/capacity" 2>&1)"
-	# Will make a warn variable if discharging and low
-	[ "$status" = "🔋" ] && [ "$capacity" -le 25 ] && warn="❗"
-	# Prints the info
-	printf "%s%s%d%%" "$status" "$warn" "$capacity"; unset warn
-done && printf "\\n"
+capacity=$(apm -l)
+ac=$(apm -a)		# 0 off line, 1 on line, 2 backup, 255 unknown
+state=$(apm -b)		# 0 high, 1 low, 2 critical, 3 charging, 4 absent, 255 unknown
+
+[ "$state" = 4 ] && exit 1
+
+if [ "$state" = 3 ]; then
+	status="🔌"
+elif [ "$ac" = 0 ]; then
+	status="🔋"
+elif [ "$ac" = 1 ] && [ "$capacity" -ge 99 ]; then
+	status="⚡"
+elif [ "$ac" = 1 ]; then
+	status="🛑"
+else
+	status="♻️"
+fi
+
+# Warn when discharging and low.
+[ "$status" = "🔋" ] && [ "$capacity" -le 25 ] && warn="❗"
+
+printf "%s%s%d%%\n" "$status" "$warn" "$capacity"
