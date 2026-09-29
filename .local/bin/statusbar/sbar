@@ -1,9 +1,26 @@
 #!/bin/ksh
 
-# sbar: dwmblocks for OpenBSD. Sets the root window name, where dwm draws it,
-# every 5 seconds or on SIGUSR1 (sb-refresh): OpenBSD has no real-time signals.
-# sbar -1 prints the line once (sb-show). Edit $blocks to choose the modules.
+# sbar: the status line. Runs each block in $blocks, joins their output on
+# one line and sets it as the root window name, where dwm draws it. It
+# redraws every 5 seconds, or at once on SIGUSR1 (see sb-refresh).
+#
+# Usage: sbar [-1]
+# 	-1	print the line once and exit (sb-show does this)
+#
+# Edit $blocks to choose and order the blocks.
+#
+# Every block is a script sb-NAME that prints one item, or nothing to hide
+# it. Its header names it; then a case on $BLOCK_BUTTON handles clicks:
+# 1 left, 2 middle, 3 right (shows help), 4 and 5 scroll, 6 shift click
+# (edits the block). Only a bar that sets $BLOCK_BUTTON, such as dwmblocks,
+# sends clicks; sbar sets none.
+#
+# Blocks that fetch from the net (sb-forecast, sb-iplocate, sb-moonphase,
+# sb-price) share one pattern. On a stale cache they print an empty line
+# and fetch in the background, one fetcher at a time (a mkdir lock), then
+# call sb-refresh.
 
+# A caught signal ends the wait below; the loop then redraws.
 trap : USR1
 blocks="sb-music sb-news sb-mailbox sb-updates sb-cpu sb-memory sb-volume sb-battery sb-internet sb-words sb-clock"
 line() { for b in $blocks; do $b; done 2>/dev/null | grep . | paste -sd ' ' -; }

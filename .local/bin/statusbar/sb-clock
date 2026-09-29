@@ -1,5 +1,8 @@
 #!/bin/sh
 
+# sb-clock: date and time, with a clock face for the hour.
+# Left click shows the month and the next three days of appointments.
+
 clock=$(date '+%I')
 
 case "$clock" in

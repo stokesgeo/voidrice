@@ -1,35 +1,39 @@
 #!/bin/sh
 
-# Displays today's precipication chance (☔), and daily low (🥶) and high (🌞).
-# Usually intended for the statusbar.
+# sb-forecast: today's chance of rain or snow, low and high, from wttr.in.
+# $LOCATION names the place and $WTTRURL the server. The report is fetched
+# once a day and kept in a cache file.
 
 url="${WTTRURL:-wttr.in}"
 weatherreport="${XDG_CACHE_HOME:-$HOME/.cache}/weatherreport"
 
-# Get a weather report from 'wttr.in' and save it locally.
+# Fetch the report into the cache file. Fails without a default route.
 getforecast() { route -n get default >/dev/null 2>&1 &&
 	ftp -MV -U curl -o "$weatherreport" "https://$url/$LOCATION" 2>/dev/null &&
 	touch "$weatherreport"
 }
 
-# Forecast should be updated only once a day.
+# True when the cache file was written today.
 checkforecast() {
 	[ "$(stat -f %Sm -t %Y-%m-%d "$weatherreport" 2>/dev/null)" = "$(date '+%Y-%m-%d')" ]
 }
 
+# Line 16 of the report holds the chances of rain; show the highest.
 getprecipchance() {
-	echo "$weatherdata" | sed '16q;d' |    # Extract line 16 from file
-		grep -wo "[0-9]*%" |           # Find a sequence of digits followed by '%'
-		sort -rn |                     # Sort in descending order
-		head -n 1                       # Extract first line
+	echo "$weatherdata" | sed '16q;d' |
+		grep -wo "[0-9]*%" |
+		sort -rn |
+		head -n 1
 }
 
+# Line 13 has the day's temperatures, each as m<signed number>; the "m" ends a
+# colour escape. Print the lowest, then the highest.
 getdailyhighlow() {
-	echo "$weatherdata" | sed '13q;d' |      # Extract line 13 from file
-		grep -Eo "m[-+]*[0-9]+" | # Find temperatures in the format "m<signed number>"
-		sed 's/[+m]//g' |                # Remove '+' and 'm'
-		sort -g |                        # Sort in ascending order
-		sed -e 1b -e '$!d'               # Extract the first and last lines
+	echo "$weatherdata" | sed '13q;d' |
+		grep -Eo "m[-+]*[0-9]+" |
+		sed 's/[+m]//g' |
+		sort -g |
+		sed -e 1b -e '$!d'
 }
 
 readfile() { weatherdata="$(cat "$weatherreport")" ;}
@@ -51,6 +55,7 @@ case $BLOCK_BUTTON in
 	6) detach "$TERMINAL" -e "$EDITOR" "$0" ;;
 esac
 
+# Fresh cache: show it. Otherwise fetch in the background (see sbar).
 # shellcheck disable=SC2015
 checkforecast && showweather ||
 	( mkdir "${lock:=/tmp/sb-forecast-$(id -u).lock}" 2>/dev/null &&

@@ -1,7 +1,7 @@
 #!/bin/sh
 
-# Displays number of unread mail and an loading icon if updating.
-# When clicked, brings up `neomutt`.
+# sb-mailbox: number of unread mail, and a sync mark while mbsync(1) runs.
+# Left click opens neomutt; middle click syncs.
 
 case $BLOCK_BUTTON in
 	1) "$TERMINAL" -e neomutt; sb-refresh ;;
@@ -13,6 +13,7 @@ case $BLOCK_BUTTON in
 	6) detach "$TERMINAL" -e "$EDITOR" "$0" ;;
 esac
 
+# One Maildir per account; unread mail is in new/.
 unread="$(find "${XDG_DATA_HOME:-$HOME/.local/share}"/mail/*/[Ii][Nn][Bb][Oo][Xx]/new/* -type f | wc -l 2>/dev/null)"
 
 pgrep -x mbsync >/dev/null 2>&1 && icon="🔃"

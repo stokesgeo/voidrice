@@ -1,12 +1,14 @@
 #!/bin/sh
 
-# Show a Doppler RADAR of a user's preferred location.
+# sb-doppler: weather radar loop for a saved location.
+# Left click shows it, fetching a new one when the file is older than $secs
+# seconds. Middle click picks the location.
 
-secs=600 # Download a new doppler radar if one hasn't been downloaded in $secs seconds.
+secs=600	# age in seconds after which a click fetches a new radar
 radarloc="${XDG_CACHE_HOME:-$HOME/.cache}/radar"
 doppler="${XDG_CACHE_HOME:-$HOME/.cache}/doppler.gif"
 
-# The dmenu package has no -r (a patch in Luke's build): the pick is checked below.
+# Choose a radar with dmenu(1). The choice is saved in $radarloc as COUNTRY,CODE.
 pickloc() { locs="US: CONUS: Continental United States
 US: Northeast
 US: Southeast
@@ -202,21 +204,21 @@ DE: THU: Thuringia
 NL: The Netherlands"
 chosen="$(printf '%s\n' "$locs" | dmenu -i -l 50 -p "Select a radar to use as default:")"
 
-# Ensure user did not escape or type something not in the list.
+# dmenu accepts typed text: keep only a pick from the list.
 [ -z "$chosen" ] && exit 1
 printf '%s\n' "$locs" | grep -qxF -- "$chosen" || exit 1
 
-# Set country code and radar code.
+# Split "US: KTWX: Topeka, KS" into country (US) and radar code (KTWX).
 countrycode=${chosen%%:*}
 radarcode=${chosen#* } radarcode=${radarcode%:*}
 
-# Print codes to $radarloc file.
  printf "%s,%s\\n" "$countrycode" "$radarcode" > "$radarloc" ;}
 
 getdoppler() {
 	country=$(cut -c -2 "$radarloc")
 	province=$(cut -c 4- "$radarloc")
 	notify-send "🌦️ Doppler RADAR" "Pulling most recent Doppler RADAR for $province."
+	# Each service has its own URL form; the code's case follows it.
 	case "$country" in
 		"US") province="$(echo "$province" | tr "[:lower:]" "[:upper:]")"
 		ftp -MV -o "$doppler" "https://radar.weather.gov/ridge/standard/${province}_loop.gif" ;;
