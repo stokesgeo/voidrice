@@ -420,3 +420,43 @@ t_booksplit_total_padded_wc() {
 	eq "every track tagged total=2" 2 "$(grep -o '\[total=2\]' "$VT_STATE/log" | wc -l | tr -d ' ')"
 	notlogged '\[total= '
 }
+
+# otp's add: the scanned secret goes in under a placeholder, then is renamed.
+# The pass stand-in keeps entries as files in $T/store; its mv fails on a
+# destination that reads as options, as pass does (password-store.sh,
+# cmd_copy_move: getopt, then "Usage" unless two paths are left).
+otp_setup() {
+	mkdir -p "$T/store"
+	cat >"$T/bin/pass" <<'EOF'
+#!/bin/sh
+echo "pass $*" >>"$VT_STATE/log"
+s=$T/store
+case $1 in
+otp) [ "$2" = insert ] && cat >"$s/$3" ;;
+mv) case $3 in -*) echo "Usage: pass mv [--force,-f] old-path new-path" >&2; exit 1 ;; esac
+    [ -f "$s/$2" ] && mv "$s/$2" "$s/$3" ;;
+rm) rm -f "$s/$3" ;;
+esac
+EOF
+	for p in pass-otp maim zbar xclip; do ln -s "$VT_MOCKS/_log" "$T/bin/$p"; done
+	printf '#!/bin/sh\necho "QR-Code:otpauth://totp/x?secret=ABC"\n' >"$T/bin/zbarimg"
+	chmod +x "$T/bin/pass" "$T/bin/zbarimg"
+	export PASSWORD_STORE_DIR=$T/store
+}
+t_otp_add_named() {
+	otp_setup
+	answers 🆕add 'two words' github
+	otp >/dev/null 2>&1
+	eq "stored under its name" "otpauth://totp/x?secret=ABC" "$(cat "$T/store/github-otp" 2>/dev/null)"
+	logged '^notify-send Successfully added\. github-otp has been created\.$'
+}
+# Three tries without a good name: the placeholder goes, so the secret is
+# not kept, and that must not be reported as added.
+t_otp_add_unnamed() {
+	otp_setup
+	answers 🆕add	# then Escape at every name prompt
+	otp >/dev/null 2>&1
+	notlogged '^notify-send Successfully added'
+	logged '^notify-send OTP not added\. '
+	eq "no placeholder left" "" "$(ls "$T/store")"
+}
