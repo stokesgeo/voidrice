@@ -1,18 +1,6 @@
 #!/bin/sh
 
-# sb-words: the word count of the writing file changed last (the newest
-# .md or .txt under $WRITING_DIR, default ~/writing; `proof -l` names it),
-# counted by wc(1). wc counts Markdown marks such as "#" as words too.
-# No such file: nothing printed, exit 1, and sbar leaves the block out.
+# sb-words: the word count of the writing file changed last (proof -l).
 
 f=$(proof -l) || exit 1
-
-case $BLOCK_BUTTON in
-	1) notify-send "📝 Writing" "${f##*/}: $(wc -w <"$f" | tr -d ' ') words" ;;
-	3) notify-send "📝 Words module" "\- Words in the writing file changed last.
-- Click to show its name." ;;
-	6) detach "$TERMINAL" -e "$EDITOR" "$0" ;;
-esac
-
-n=$(wc -w <"$f") || exit 1
-printf '📝%s\n' "$((n))"
+echo "📝$(wc -w <"$f" | tr -d ' ')"

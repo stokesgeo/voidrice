@@ -14,8 +14,12 @@ t_queue_qndl() {
 	[ -e "$T/pwned" ] && fail "the URL ran as shell text"
 	logged '^notify-send 👍 a;touch\$\{IFS\}pwned done\.$'
 	: >"$VT_STATE/log"
-	qndl https://x.example/v/1 'yt-dlp -o "%(title)s.%(ext)s" -f bestaudio'
+	# $2 is split into words, as voidrice's tsp $cmd was: no quotes in it.
+	qndl https://x.example/v/1 'yt-dlp -o %(title)s.%(ext)s -f bestaudio'
 	logged '^yt-dlp \[-o\] \[%\(title\)s\.%\(ext\)s\] \[-f\] \[bestaudio\] \[https://x\.example/v/1\]$'
+	logged '^nq -cq mv 1 1$'
+	eq "dmenuhandler's audio entry passes no quotes" "" \
+		"$(grep "queue yt-dlp audio\" ) qndl" "$REPO/.local/bin/dmenuhandler" | grep '"%')"
 }
 
 t_queue_ftp_rename() {

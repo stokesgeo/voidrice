@@ -4,8 +4,7 @@
 # Some changes by Luke
 # Rebuild by Tenyun
 
-# Displays the number of running and queued downloads (qndl's nq queue).
-# nq names each job ,TIME.PID and sets the file's x bit while it runs.
+# Displays the number of running/queued qndl jobs (nq: ,TIME.PID, x while running).
 
 dir="${XDG_CACHE_HOME:-$HOME/.cache}/qndl"
 
