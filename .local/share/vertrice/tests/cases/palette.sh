@@ -19,6 +19,26 @@ t_palette_switch() {
 	done
 }
 
+# GTK follows day and night; wal leaves it; the other settings are kept.
+t_palette_gtk() {
+	th_setup
+	mkdir -p "$XDG_CONFIG_HOME/gtk-3.0"
+	ini=$XDG_CONFIG_HOME/gtk-3.0/settings.ini
+	cp "$REPO/.config/gtk-3.0/settings.ini" "$ini"
+	"$VT_KSH" "$theme" night || fail "theme night failed"
+	eq "night" "gtk-theme-name=Adwaita-dark" "$(grep '^gtk-theme-name=' "$ini")"
+	"$VT_KSH" "$theme" day
+	eq "day" "gtk-theme-name=Adwaita" "$(grep '^gtk-theme-name=' "$ini")"
+	eq "only that line changed" "" "$(diff "$REPO/.config/gtk-3.0/settings.ini" "$ini")"
+	mkdir -p "$XDG_CACHE_HOME/wal"
+	printf '*.background: #101010\n' >"$XDG_CACHE_HOME/wal/colors.Xresources"
+	: >"$XDG_CACHE_HOME/wal/dunstrc"; : >"$XDG_CACHE_HOME/wal/zathurarc"
+	"$VT_KSH" "$theme" wal
+	eq "wal leaves GTK" "gtk-theme-name=Adwaita" "$(grep '^gtk-theme-name=' "$ini")"
+	[ -e "$ini.new" ] && fail "left settings.ini.new"
+	return 0
+}
+
 t_palette_wal() {
 	th_setup
 	mkdir -p "$XDG_CACHE_HOME/wal"
