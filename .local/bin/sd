@@ -1,15 +1,41 @@
 #!/bin/sh
 
 # Open a terminal window in the same directory as the currently active window.
-# Not ported: OpenBSD has no /proc, pstree or tac, so it opens a plain terminal.
-command -v pstree >/dev/null 2>&1 && [ -d /proc/self ] || exec "$TERMINAL"
+#
+# OpenBSD has no /proc, pstree or tac. ps gives the process tree; proc-cwd
+# (~/.local/src/sd, built on first use) reads a process's directory with
+# sysctl(2) kern.proc_cwd. If it cannot be built, a plain terminal opens.
+src=${SD_SRC:-$HOME/.local/src/sd}
+proccwd=$src/proc-cwd
+[ -x "$proccwd" ] && [ ! "$src/proc-cwd.c" -nt "$proccwd" ] ||
+	(cd -- "$src" && make) >&2 || exec "$TERMINAL"
 
 windowPID=$(xprop -id "$(xprop -root | sed -n "/_NET_ACTIVE_WINDOW/ s/^.*# // p")" | sed -n "/PID/ s/^.*= // p")
-PIDlist=$(pstree -lpATna "$windowPID" | sed -En 's/.*,([0-9]+).*/\1/p' | tac)
+# The window's process and all below it, as pstree -n lists them (each
+# process, then its children by pid), reversed: the deepest last one first.
+PIDlist=$(ps -ax -o pid=,ppid= | awk -v root="$windowPID" '
+	function walk(p,	n, i, j, c, t) {
+		order[++len] = p
+		n = split(kids[p], c, " ")
+		for (i = 2; i <= n; i++)
+			for (j = i; j > 1 && c[j - 1] + 0 > c[j] + 0; j--) {
+				t = c[j]; c[j] = c[j - 1]; c[j - 1] = t
+			}
+		for (i = 1; i <= n; i++)
+			walk(c[i])
+	}
+	$1 != $2 { kids[$2] = kids[$2] " " $1 }
+	END {
+		if (root !~ /^[0-9]+$/)
+			exit
+		walk(root)
+		for (i = len; i > 0; i--)
+			print order[i]
+	}')
 for PID in $PIDlist; do
 	cmdline=$(ps -o args= -p "$PID")
 	process_group_leader=$(ps -o comm= -p "$(ps -o pgid= -p "$PID" | tr -d ' ')")
-	cwd=$(readlink /proc/"$PID"/cwd)
+	cwd=$("$proccwd" "$PID" 2>/dev/null)
 	# zsh and lf won't be ignored even if it shows ~ or /
 	case "$cmdline" in
 		'lf -server') continue ;;

@@ -64,5 +64,9 @@ $box -D $d/s & r=$!; sleep 1
 try "box: cdxb doas reaches the relay" eval "! $box $sys -u rw:$d/s -u rx:$box -- $box -C $d/s -- /usr/bin/true 2>&1 | grep -q codex-box:"
 kill $r; rm -rf $d
 
+print "== sd"
+try "proc-cwd builds and reads this shell's folder" eval '(cd ~/.local/src/sd && make) && [ "$(~/.local/src/sd/proc-cwd $$)" = "$(pwd -P)" ]'
+try "xterm sets _NET_WM_PID (run check in an xterm)" eval 'xprop -id "$WINDOWID" _NET_WM_PID | grep -q "= [0-9]"'
+
 print "== $fails failed"
 [ $fails -eq 0 ]

@@ -89,7 +89,7 @@ bind-key 4-Next		group-cycle
 
 # --- launchers: Return terminal, w web, e mail, r files, d run menu ------
 # BackSpace and S+q open the power menu (sysact). Shifted keys are variants.
-bind-key 4-Return	"sh -c 'exec $TERMINAL'"
+bind-key 4-Return	sd	# a terminal in the focused window's folder
 bind-key 4S-Return	"scratch term"
 bind-key 4-apostrophe	"scratch calc"
 bind-key 4-d		menu-exec
