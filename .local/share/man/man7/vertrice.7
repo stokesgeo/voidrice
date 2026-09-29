@@ -415,6 +415,11 @@ read-only.
 Codex proposes a change to a settings file by writing it whole;
 .Ic cdxb review
 shows the diff and applies it on y.
+Git runs the hooks and commands a repository's
+.Pa .git
+names, and Codex may change any
+.Pa .git
+it can write: in those repositories git is Codex's job, done in the box.
 .Pp
 .Ic cdxb
 .Op Fl adH
@@ -574,16 +579,6 @@ and
 on the backup disk, the update count's reading of
 .Ic pkg_add -u -n -v ,
 the dictionary build, the Codex box's walls and the TrackPoint scroll.
-.Pp
-Git runs what a repository's
-.Pa .git/config
-and
-.Pa .git/hooks
-name.
-The box keeps them read-only only at the top of each path it may change;
-treat any other repository Codex may write in as untrusted, and read its
-.Pa .git
-before running git there.
 .Pp
 After the first boot, run
 .Pa ~/.local/share/vertrice/tests/check ,

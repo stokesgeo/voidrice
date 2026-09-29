@@ -16,14 +16,15 @@
 # and all it runs see only the system (read and run), ~/.codex, dir, the
 # paths in ~/.config/cdxb/grants and those from -r, -w and add. The deny
 # list hides its paths even then; the protected paths (Codex's and cdxb's
-# settings, your dotfiles, git's config and hooks) stay read-only. A
+# settings, your dotfiles) stay read-only. A
 # session's walls: ~/.cache/cdxb/PID/walls. Codex proposes a settings file
 # by writing it whole to $CDXB_OUTBOX; you see the diff and apply it with y.
 # Setuid programs cannot run in the box: `cdxb doas` asks a relay outside
 # it to run `doas -n`, so only nopass rules work (openbsd/doas-agent.conf).
 # TMPDIR is the session's own; no X display (/copy uses OSC 52).
-# Known gap: the box can remove .git in dir and make a new one, whose
-# config and hooks git runs later, outside the box: check it before use.
+# Git runs the hooks and commands a repository's .git names, and Codex may
+# change any .git it can write: in those repositories, git is Codex's job,
+# in the box.
 
 conf=${XDG_CONFIG_HOME:-$HOME/.config}
 cfg=$conf/cdxb
@@ -105,16 +106,8 @@ ok() {
 # by name if its folder exists, so the box cannot make it.
 wall() { { [ -e "$2" ] || [ -d "${2%/*}" ]; } && print -r -- "${1#-}:$2"; }
 
-# mine PERMS PATH: a grant. rw is read, write, run, create and remove;
-# git's config, hooks and commondir stay read-only, as git runs what they
-# name outside the box. A .git file (a worktree) names the real one.
-mine() {
-	typeset f
-	[ "$1" = rw ] || { wall r "$2"; return; }
-	wall rwxc "$2"
-	[ -f "$2/.git" ] && wall r "$2/.git"
-	[ -d "$2/.git" ] && for f in config hooks commondir; do wall r "$2/.git/$f"; done
-}
+# mine PERMS PATH: a grant. rw is read, write, run, create and remove.
+mine() { if [ "$1" = rw ]; then wall rwxc "$2"; else wall r "$2"; fi; }
 
 # homewalls, for -H: home read and run, so nothing at its top is made,
 # removed or swapped; each folder in it may change, but one with protected

@@ -19,8 +19,9 @@ A missing file may exist outside the box. Do not try to get around the box.
   /copy).
 - diff(1) and patch(1) call unveil themselves and fail here: use
   `git diff --no-index a b`, and your own patch tool.
-- A project's git config and hooks are read-only: print `git config`,
-  `git remote add` and `git push -u` commands for the owner.
+- You do the git, here in the box; never hand the owner a git command to
+  run outside it. The box has no push credential yet: when a push is
+  needed, say so.
 
 ## Changing the box's own settings
 
