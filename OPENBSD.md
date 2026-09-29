@@ -123,6 +123,7 @@ against cwm's source, and `cwm -n` accepts the file.
 | minus / equal / Shift+m | volume / mute (wpctl) | sndioctl |
 | BackSpace, Shift+q | sysact | sysact |
 | F1 / F5 | LARBS guide / reload xresources | `keys`: this key list in dmenu, read from cwmrc / `restart` (rereads cwmrc) |
+| Shift+F1 | (none) | `manpick`: any manual page, picked in dmenu, opened with man in a terminal |
 | Print, Shift+Print, Super+Print, Delete | screenshots, recording | same |
 
 Mouse: Super+drag moves, Super+right-drag resizes. cwm's Alt mouse
@@ -494,6 +495,39 @@ OpenBSD once `config.mk` points at `/usr/X11R6` (their config.mk has
 OpenBSD lines). Luke's dwm sends status-bar clicks with sigqueue(3), so
 that patch needs replacing before his dwm builds here. dmenu comes from
 packages.
+
+## Learning
+
+The machine is also for learning OpenBSD's way of writing programs:
+ksh first, then C in style(9). Everything here uses base only.
+
+- **Manual pages.** Super+Shift+F1 runs `manpick`: dmenu over every page
+  on the machine (`apropos .`, whose argument is a regular expression, so
+  "." matches all), and the pick opens with man(1) in `$TERMINAL`. Pages
+  for one machine type (`apm(4/amd64)`) open with `man -s 4 -S amd64`.
+  Typing `ksh(1)` or `ksh` into the menu works too.
+- **Practice programs.** `learn new NAME` makes `~/src/learn/NAME` from
+  the templates in `.local/share/vertrice/learn`: a ksh script (`set -u`,
+  getopts, a usage line) with `tests/run` and `tests/cases`, which print
+  PASS or FAIL per case as the vertrice suite does. `learn new NAME c`
+  makes the C kind: a Makefile for bsd.prog.mk (PROG, SRCS, MAN, CFLAGS
+  with -Wall -Wextra), a style(9) main.c with pledge(2), getopt(3) and
+  err(3), and an mdoc manual page. `make` builds; `make manlint` runs
+  `mandoc -Tlint` on the page (that target comes with bsd.man.mk). The
+  comments say what each line teaches; the templates hold no answers.
+- **Reading list.** `.local/share/vertrice/learn/reading`: scripts that
+  come with the system (/etc/netstart, /etc/rc, sysupgrade, rcctl,
+  sysmerge) and small C programs in /usr/src (yes, echo, cat, head, wc).
+  /usr/src is empty on a fresh install. The list says how to fill it with
+  cvs(1), which is in base: the main branch while the machine runs
+  snapshots, the `OPENBSD_8_0` branch (8.0-stable) once it runs 8.0.
+
+Checked off the machine: bsd.prog.mk, bsd.man.mk (manlint), style(9),
+pledge(2) and apropos(1)'s output format were read in OpenBSD's source;
+the C skeleton compiles with gcc and clang (`-Wall -Wextra`), the manual
+page passes mandoc's lint, and the ksh files parse and run under oksh.
+Not run: bsd.prog.mk itself, and the cvs commands (from memory of the
+FAQ).
 
 ## Not ported, or not tested
 

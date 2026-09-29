@@ -141,6 +141,7 @@ bind-key 4S-m		"sh -c 'sndioctl -q output.mute=!; sb-refresh'"
 
 # --- function keys, screenshots, recording ----------------------------------
 bind-key 4-F1		keys			# this key list in dmenu
+bind-key 4S-F1		manpick			# any manual page, picked in dmenu
 bind-key 4-F2		tutorialvids
 bind-key 4-F3		displayselect
 bind-key 4-F4		nightlight		# warm screen on/off (sct)

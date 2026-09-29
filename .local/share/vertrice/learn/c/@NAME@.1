@@ -1,0 +1,35 @@
+.\" The manual page for @NAME@, in mdoc(7): every line starting with a dot
+.\" is a macro that says what the text is (a name, a flag, an argument),
+.\" not how it looks. Lines like this one are comments. `make manlint`
+.\" checks the file; `man ./@NAME@.1` shows it. Pages to compare with:
+.\" /usr/share/man/man1/cat.1 and the mdoc(7) manual itself.
+.\"
+.\" The date: CVS rewrites $Mdocdate$ on each commit; here it is the day
+.\" the page was made. Change it when the page changes.
+.Dd $Mdocdate: @DATE@ $
+.\" Title and section, in capitals: section 1 is for user commands.
+.Dt @UPNAME@ 1
+.\" The operating system, filled in by mandoc.
+.Os
+.Sh NAME
+.Nm @NAME@
+.\" One line, lower case, no full stop: this is what apropos searches.
+.Nd one line saying what it does
+.Sh SYNOPSIS
+.\" The same as the usage() line in main.c. Options: .Op Fl x
+.Nm
+.Sh DESCRIPTION
+The
+.Nm
+utility
+.\" Say what it does. For each option, a list item:
+.\" .Bl -tag -width Ds
+.\" .It Fl x
+.\" What -x does.
+.\" .El
+does nothing yet.
+.Sh EXIT STATUS
+.\" .Ex -std writes the usual sentence: 0 on success, >0 on error.
+.Ex -std
+.Sh SEE ALSO
+.Xr style 9

@@ -1,0 +1,62 @@
+Reading list: small base programs and scripts worth reading on this machine
+
+For each: its manual page first, then the source (less or vi), then a
+copy under ~/src/learn to change and break. Shell first, then C.
+
+Shell (ksh), installed with the system: nothing to fetch.
+
+  /etc/netstart           Brings network interfaces up from
+                          /etc/hostname.IF files: small functions, case,
+                          `while read` over a file.
+  /etc/rc                 The boot script, run by init(8). Long, but a
+                          list of steps: read the functions at the top,
+                          then follow the order at the bottom.
+  /etc/rc.d/rc.subr       What every daemon script in /etc/rc.d shares.
+                          Read one of them (/etc/rc.d/sshd) beside it.
+  /usr/sbin/sysupgrade    sysupgrade(8): getopts, an err() function, and
+                          checking the downloaded sets with signify(1)
+                          before trusting them.
+  /usr/sbin/rcctl         rcctl(8): getopts, and editing
+                          /etc/rc.conf.local through a mktemp file.
+  /usr/sbin/sysmerge      sysmerge(8): merges configuration files after
+                          an upgrade. The longest; read it last.
+
+C, in /usr/src (fetch it first: see below). All follow style(9), and
+each calls pledge(2) before it does any work.
+
+  /usr/src/usr.bin/yes/yes.c      The smallest: a pledge and a loop.
+  /usr/src/bin/echo/echo.c        Options parsed by hand: a comment
+                                  forbids getopt(3). Work out why.
+  /usr/src/bin/cat/cat.c          getopt(3), files or standard input,
+                                  err(3), a second, narrower pledge.
+  /usr/src/usr.bin/head/head.c    Numbers from options with strtonum(3).
+  /usr/src/usr.bin/wc/wc.c        Counting over several files, a total.
+
+Each directory also holds a Makefile for bsd.prog.mk (as
+`learn new NAME c` makes) and the manual page.
+
+Getting /usr/src
+
+/usr/src is empty until the source is fetched. cvs(1) is in base, and it
+is the way for both -current and a release. Commands from memory of the
+OpenBSD FAQ (www.openbsd.org/faq/faq5.html is the authority; mirrors and
+their host key fingerprints are on www.openbsd.org/anoncvs.html).
+
+  Once, as root: /usr/src belongs to group wsrc, so let your user write
+  to it with `usermod -G wsrc YOU`, then log in again.
+
+  -current, what this machine runs on snapshots until 8.0 ships: the
+  main branch (no -r).
+
+      cd /usr
+      cvs -qd anoncvs@anoncvs.ca.openbsd.org:/cvs checkout -P src
+
+  8.0-stable, once the machine runs the 8.0 release: the release's
+  branch, so the source matches the system plus its errata fixes.
+
+      cd /usr
+      cvs -qd anoncvs@anoncvs.ca.openbsd.org:/cvs checkout -rOPENBSD_8_0 -P src
+
+  Either way, `cd /usr/src && cvs -q up -Pd` updates it later; after
+  moving the machine from snapshots to 8.0, `cvs -q up -Pd -rOPENBSD_8_0`
+  switches the same checkout to the branch.
