@@ -1,13 +1,13 @@
 #!/bin/sh
 
-# Feed this script a link and it will give dmenu
-# some choice programs to use to open it.
+# dmenuhandler [URL|FILE]: pick in dmenu how to open a link or file. With no
+# argument, dmenu asks for one.
 
 url="${1:-$(true | dmenu -p "Paste URL or file path")}"
 
 [ -z "$url" ] && exit
 
-fetch() { d=$(mktemp -d) && tmpfile=$d/${url##*/} && ftp -MV -o "$tmpfile" "$url"; }	# a private dir, not /tmp/NAME
+fetch() { d=$(mktemp -d) && tmpfile=$d/${url##*/} && ftp -MV -o "$tmpfile" "$url"; }	# mktemp -d: a private dir, so no one can plant a file at a guessable /tmp name
 
 case "$(printf "copy url\nnsxiv\nsetbg\nPDF\nbrowser\nlynx\nvim\nmpv\nmpv loop\nmpv float\nqueue download\nqueue yt-dlp\nqueue yt-dlp audio" | dmenu -i -p "Open it with?")" in
 	"copy url" ) echo "$url" | xclip -selection clipboard ;;
