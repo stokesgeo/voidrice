@@ -308,6 +308,22 @@ Ladybird is left out. It has no OpenBSD port in the ports tree; the
 OpenBSD build is an out-of-tree patch set kept by one person, and upstream
 does not take outside ports. That is not "well maintained" yet.
 
+voidrice shipped `.config/firefox/larbs.js`, Luke's changes on top of the
+arkenfox user.js. vertrice has no Firefox, so the file is gone and its
+intent is in `.config/qutebrowser/config.py`, where qutebrowser has the
+setting (names checked against its settings reference at v3.7.0, the
+packaged version): no history in `:open`'s completion, words typed there
+start a search, cookies kept until they expire, no site notifications
+(the nearest setting to Firefox's push switch). The rest has no
+qutebrowser counterpart, because qutebrowser lacks the feature: sponsored
+top sites, form prefill, inline address-bar autofill, Pocket, Sync,
+userChrome.css, Firefox's right-click fix; config.py lists each. It loads
+your `autoconfig.yml` (what `:set` saves) last, so your own settings
+still win, as before config.py existed.
+
+`.config/sxiv`, a link to `.config/nsxiv` kept for sxiv, which has no
+port, is gone too.
+
 ## Files: archives and drives
 
 - `ext file ...` extracts any archive by its name: tar in all its

@@ -95,6 +95,13 @@ Torrents
   pkglist.extra beside transmission) in place of stig, which has no port.
   td-toggle and the counts stay on transmission.
 
+Browser and inert files
+
+- .config/firefox/larbs.js is gone; its intent is in
+  .config/qutebrowser/config.py (no history suggestions, search from
+  :open, cookies kept, no site notifications), which loads autoconfig.yml
+  last. The .config/sxiv link is gone.
+
 Files and drives
 
 - New `ext` extracts every archive type by name; lf's E key calls it.
