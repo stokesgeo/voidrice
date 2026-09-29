@@ -1,13 +1,13 @@
 #!/bin/sh
 
-# opout: "open output": A general handler for opening a file's intended output,
-# usually the pdf of a compiled document.  I find this useful especially
-# running from vim.
+# opout FILE: open what FILE builds into: the pdf of a source document, the
+# html page, or the sent slides. Meant to be called from an editor.
 
 basename="${1%.*}"
 
 case "${*}" in
 	*.tex|*.sil|*.m[dse]|*.[rR]md|*.mom|*.[0-9])
+		# getcomproot names the main file when FILE is one part of a larger document.
 		target="$(getcomproot "$1" || echo "$1")"
 		target="${target##*/}"
 		target="$(find . -name "${target%.*}".pdf | head -n 1)"

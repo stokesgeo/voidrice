@@ -1,8 +1,8 @@
 #!/bin/sh
 
-# Podboat sucks. This script replaces it.
-# It reads the newsboat queue, queuing downloads with taskspooler.
-# It also removes the junk from extensions.
+# queueandnotify: give each URL in the newsboat queue file to qndl, which
+# queues the download with nq(1), then empty the file.
+
 queuefile="${XDG_DATA_HOME:-$HOME/.local/share}/newsboat/queue"
 
 while read -r line; do

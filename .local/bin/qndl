@@ -1,7 +1,8 @@
 #!/bin/sh
 
-# $1 is a url; $2 is a command
-# nq(1) runs each job after the ones before it; sb-tasks counts them.
+# qndl URL [COMMAND]: queue a download of URL with nq(1), then strip query
+# junk from the saved file name. COMMAND defaults to yt-dlp. nq runs jobs one
+# after another; sb-tasks counts them.
 [ -z "$1" ] && exit
 base="$(basename "$1")"
 notify-send "⏳ Queuing $base..."

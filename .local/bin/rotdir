@@ -1,11 +1,8 @@
 #!/bin/sh
 
-# When I open an image from the file manager in nsxiv (the image viewer), I want
-# to be able to press the next/previous keys to key through the rest of the
-# images in the same directory. This script "rotates" the content of a
-# directory based on the first chosen file, so that if I open the 15th image,
-# if I press next, it will go to the 16th etc. Autistic, I know, but this is
-# one of the reasons that nsxiv is great for being able to read standard input.
+# rotdir FILE: list the files of the current directory, starting at FILE and
+# wrapping round to the ones before it. nsxiv reads this list on standard
+# input, so opening the 15th image makes "next" show the 16th.
 
 [ -z "$1" ] && printf "usage: rotdir regex\n" 2>&1 && exit 1
 
