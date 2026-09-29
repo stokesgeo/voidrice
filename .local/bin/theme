@@ -2,8 +2,8 @@
 
 # theme day|night|toggle|auto|clock|wal: the terminals' palette
 # (x11/themes/NAME), and dunst's and zathura's colours from it (wal's own).
-# Day and night also write gtk-3.0/settings.ini (wal leaves it), which is
-# why the dotfiles do not track it.
+# Day and night also write gtk-3.0/settings.ini and gtk.css (wal leaves
+# them), which is why the dotfiles do not track them.
 # Super+F8 toggles; xprofile runs `theme clock`: day from 07:00, night from 19:00.
 # Open terminals are recoloured with OSC sequences; zathura and GTK
 # programs on their next start.
@@ -12,8 +12,8 @@ conf=${XDG_CONFIG_HOME:-$HOME/.config}
 dir=$conf/x11/themes
 wal=${XDG_CACHE_HOME:-$HOME/.cache}/wal
 state=${XDG_CACHE_HOME:-$HOME/.cache}/theme
-# The GTK themes for day and night. Placeholders, pending the owner's pick;
-# both ship with gtk+3.
+# The GTK themes for day and night, both shipped with gtk+3; gtk.css
+# gives them the palette's colours.
 gtkday=Adwaita gtknight=Adwaita-dark
 
 # gtk THEME: settings.ini, whole. The profile's QT_QPA_PLATFORMTHEME makes
@@ -41,15 +41,32 @@ gtk() {
 	EOF
 }
 
+# gtkcss BG FG ACCENT: gtk.css, whole. Adwaita's own rules use fixed
+# colours, so the named colours reach only programs that ask for them;
+# the rules after them recolour windows, views, entries and selections.
+gtkcss() {
+	cat > "$conf/gtk-3.0/gtk.css" <<-EOF
+	/* Written by ~/.local/bin/theme: Adwaita in the terminals' palette.
+	   Running GTK programs pick it up on restart. */
+	@define-color theme_bg_color $1; @define-color theme_base_color $1;
+	@define-color theme_fg_color $2; @define-color theme_text_color $2;
+	@define-color theme_selected_bg_color $3;
+	@define-color theme_selected_fg_color $1;
+	.background, .view, textview text, entry { color: $2; background-color: $1; }
+	selection, *:selected { color: $1; background-color: $3; }
+	EOF
+}
+
 auto() { h=$(date +%H); [ "$h" -ge 7 ] && [ "$h" -lt 19 ] && print day || print night; }
 
 apply() {
-	typeset p=$dir/$1 k v seq= fg bg u
+	typeset p=$dir/$1 k v seq= fg bg acc u
 	[ "$1" = wal ] && p=$wal/colors.Xresources
 	[ -n "$DISPLAY" ] && xrdb -merge "$p"
 	while read -r k v; do
 		case $k in
-		\*.color*:)	k=${k#\*.color}; seq="$seq\033]4;${k%:};$v\007" ;;
+		\*.color*:)	k=${k#\*.color}; k=${k%:}; seq="$seq\033]4;$k;$v\007"
+			[ "$k" = 4 ] && acc=$v ;;	# the accent, as in dmenu
 		\*.foreground:)	seq="$seq\033]10;$v\007" fg=$v ;;
 		\*.background:)	seq="$seq\033]11;$v\007" bg=$v ;;
 		\*.cursorColor:) seq="$seq\033]12;$v\007" ;;
@@ -76,8 +93,8 @@ apply() {
 	fi
 	dunstctl reload >/dev/null 2>&1
 	case $1 in
-	day)	gtk "$gtkday" ;;
-	night)	gtk "$gtknight" ;;
+	day)	gtk "$gtkday"; gtkcss "$bg" "$fg" "$acc" ;;
+	night)	gtk "$gtknight"; gtkcss "$bg" "$fg" "$acc" ;;
 	*)	[ -f "$conf/gtk-3.0/settings.ini" ] || gtk "$gtkday" ;;
 	esac
 	print "$1" > "$state"

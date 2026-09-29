@@ -401,9 +401,13 @@ and
 set the palette of the terminals, dunst and zathura,
 and the GTK theme in
 .Pa ~/.config/gtk-3.0/settings.ini :
-Adwaita by day and Adwaita-dark by night, placeholders named at the top of
+Adwaita by day and Adwaita-dark by night, named at the top of
 .Pa ~/.local/bin/theme ,
 which writes the whole file: change GTK settings there.
+It also writes
+.Pa ~/.config/gtk-3.0/gtk.css
+with the palette's background, text and accent,
+so GTK windows match the terminals.
 Running GTK programs keep their theme until restarted.
 At login the palette follows the clock: day from 07:00, night from 19:00.
 .Ev PALETTE Ns = Ns Cm wal
