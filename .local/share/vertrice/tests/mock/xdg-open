@@ -29,6 +29,7 @@ f=${XDG_DATA_HOME:-$HOME/.local/share}/applications/$desk
 [ -r "$f" ] || { echo "xdg-open: $desk not found" >&2; exit 3; }
 exec_line=$(sed -n 's/^Exec=//p' "$f" | head -n 1)
 set -f
+# shellcheck disable=SC2086 # split into words, as xdg-open does
 set -- $exec_line
 set +f
 command -v "$1" >/dev/null 2>&1 || { echo "xdg-open: $1: not found" >&2; exit 3; }

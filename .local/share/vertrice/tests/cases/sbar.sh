@@ -10,6 +10,7 @@ fakeblocks() {
 	done
 	printf '#!/bin/sh\nexit 1\n' >"$T/bin/sb-news"
 	printf '#!/bin/sh\nexit 0\n' >"$T/bin/sb-mailbox"
+	printf '#!/bin/sh\nexit 0\n' >"$T/bin/sb-updates"
 	cat >"$T/bin/sb-memory" <<'EOF'
 #!/bin/sh
 n=$(( $(cat "$T/memruns" 2>/dev/null || echo 0) + 1 )); echo "$n" >"$T/memruns"

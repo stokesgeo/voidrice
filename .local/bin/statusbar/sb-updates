@@ -1,0 +1,36 @@
+#!/bin/sh
+
+# sb-updates: how many updates wait, from the file root's cron job writes
+# (vertrice-updates, installed by vertrice-install's system stage). Shows
+# 📦N for packages and 🩹N for base errata; on a snapshot, 🩹 means nothing
+# (there are no errata: sysupgrade -s is the update). Nothing when all is
+# current or the file is missing. Replaces voidrice's sb-pacpackages.
+#
+# Left click opens sb-popupgrade in a terminal: doas needs one to ask for
+# the password (as mounter does).
+
+f=${VERTRICE_UPDATES:-/var/db/vertrice-updates}
+
+val() { sed -n "s/^$1=//p" "$f" 2>/dev/null; }
+
+case $BLOCK_BUTTON in
+	1) detach "$TERMINAL" -e sb-popupgrade ;;
+	2) notify-send "📦 Updates" "base: $(val base)
+packages: $(val packages)
+checked: $(val checked)" ;;
+	3) notify-send "📦 Updates module" "- 📦: packages pkg_add -u would update
+- 🩹: base errata syspatch would install
+- ? : the last check failed (network)
+- Left click to update, in a terminal
+- Middle click for the counts and when they were taken
+Root's cron runs vertrice-updates every four hours." ;;
+	6) detach "$TERMINAL" -e "$EDITOR" "$0" ;;
+esac
+
+[ -r "$f" ] || exit 0
+base=$(val base) pkgs=$(val packages)
+s=
+case $pkgs in ""|0) ;; *) s="📦$pkgs" ;; esac
+case $base in ""|0|snapshot) ;; *) s="$s${s:+ }🩹$base" ;; esac
+[ -n "$s" ] && printf '%s\n' "$s"
+exit 0

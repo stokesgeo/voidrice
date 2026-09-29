@@ -1,0 +1,32 @@
+#!/bin/sh
+
+# crontab(1) mock. Logs "crontab ARGS". Takes only OpenBSD's options
+# (getopt "u:ler", usr.sbin/cron/crontab.c): -l prints the table, -r
+# removes it, FILE or "-" (stdin) replaces it. The table of USER is
+# $VT_STATE/crontab.USER (default user: "user"). -l with no table prints
+# "crontab: no crontab for USER" and exits 1, as crontab does.
+# Known: the options and the - for stdin (crontab.1). Assumed: the
+# message text.
+
+echo "crontab $*" >>"$VT_STATE/log"
+u=user act=
+while getopts u:ler o; do
+	case $o in
+	u) u=$OPTARG ;;
+	l|e|r) act=$o ;;
+	*) exit 1 ;;
+	esac
+done
+shift $((OPTIND - 1))
+tab=$VT_STATE/crontab.$u
+case $act in
+l) [ -f "$tab" ] || { echo "crontab: no crontab for $u" >&2; exit 1; }
+   cat "$tab" ;;
+r) rm -f "$tab" ;;
+e) echo "crontab mock: -e is interactive" >&2; exit 1 ;;
+*) [ $# -eq 1 ] || { echo "crontab mock: want a file or -" >&2; exit 1; }
+   # Through a temporary file, as crontab does, so "crontab -l | ... |
+   # crontab -" reads the old table before it is replaced.
+   if [ "$1" = - ]; then cat >"$tab.new"; else cat "$1" >"$tab.new"; fi &&
+   mv "$tab.new" "$tab" ;;
+esac
