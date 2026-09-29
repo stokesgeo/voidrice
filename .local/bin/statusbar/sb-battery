@@ -1,7 +1,7 @@
 #!/bin/sh
 
-# Prints the battery percentage and an emoji for the charge state.
-# apm(8): -l percent, -a AC, -b state; all batteries as one figure.
+# sb-battery: battery charge and state, as one figure for all batteries.
+# apm(8) gives the percent (-l), AC line (-a) and state (-b).
 
 case $BLOCK_BUTTON in
 	3) notify-send "🔋 Battery module" "🔋: discharging
@@ -20,6 +20,7 @@ capacity=$(apm -l)
 ac=$(apm -a)		# 0 off line, 1 on line, 2 backup, 255 unknown
 state=$(apm -b)		# 0 high, 1 low, 2 critical, 3 charging, 4 absent, 255 unknown
 
+# No battery fitted: print nothing.
 [ "$state" = 4 ] && exit 1
 
 if [ "$state" = 3 ]; then

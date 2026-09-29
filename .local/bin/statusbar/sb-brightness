@@ -1,7 +1,7 @@
 #!/bin/sh
 
-# Prints the backlight level. wsconsctl reads "70.00%"; fbtab gives the
-# console user the device.
+# sb-brightness: backlight level, in percent.
+# wsconsctl(8) prints e.g. 70.00%; fbtab(5) gives the console user the device.
 
 case $BLOCK_BUTTON in
 	3) notify-send "💡 Brightness module" "\- Shows current brightness level ☀️." ;;

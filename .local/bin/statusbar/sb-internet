@@ -1,9 +1,9 @@
 #!/bin/sh
 
-# Show wifi 📶 and percent strength or 📡 if none.
-# Show 🌐 if connected to ethernet or ❎ if none.
-# Show 🔒 if a vpn connection is active (wg or tun)
-# OpenBSD has no /sys: it all comes from one ifconfig(8).
+# sb-internet: network state, all from one ifconfig(8) call.
+# Wifi: signal strength when associated; a mark when not; another when down.
+# Ethernet: one mark for an active link, another for none. A further mark
+# shows when a wg(4) or tun(4) interface is up. The help text lists the marks.
 
 case $BLOCK_BUTTON in
 	3) notify-send "🌐 Internet module" "\- Click to connect

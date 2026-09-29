@@ -1,6 +1,8 @@
 #!/bin/sh
 
-# Memory in use (top's "Real: 450M/1466M act/tot") of hw.physmem: no free(1) here.
+# sb-memory: memory in use over total, e.g. 1.20GiB/3.80GiB.
+# In use is the "act" figure on top(1)'s Memory line, e.g. "Real: 450M/1466M
+# act/tot"; the total is hw.physmem. OpenBSD has no free(1).
 
 case $BLOCK_BUTTON in
 	1) notify-send "🧠 Memory hogs" "$(ps -Ao comm= -o %mem= | awk '{cmd[$1]+=$2} END {for (i in cmd) print i, cmd[i]}' | sort -nrk2 | head)" ;;
@@ -14,7 +16,7 @@ esac
 top -b -d 1 | awk -v phys="$(sysctl -n hw.physmem)" '
 	/^Memory:/ {
 		split($3, r, "/"); act = r[1]
-		u = substr(act, length(act)); n = act + 0	# 450M, 2G: to GiB
+		u = substr(act, length(act)); n = act + 0	# act ends in K, M or G: convert to GiB
 		if (u == "K") n /= 1024 * 1024
 		else if (u == "M") n /= 1024
 		printf "🧠%.2fGiB/%.2fGiB\n", n, phys / 1024 / 1024 / 1024

@@ -1,7 +1,7 @@
 #!/bin/sh
 
-# Prints the current volume or 🔇 if muted.
-# sndioctl(1): output.level runs 0 to 1, output.mute is 0 or 1.
+# sb-volume: output volume, or a mute mark.
+# sndioctl(1): output.level runs from 0 to 1; output.mute is 0 or 1.
 
 case $BLOCK_BUTTON in
 	2) sndioctl -q output.mute=! ;;
@@ -17,6 +17,7 @@ esac
 
 vol=$(sndioctl -n output.level | awk '{printf "%.0f", $1 * 100}')
 
+# A true test expands to 1, so case 1 takes the first test that holds.
 case 1 in
 	$((vol >= 70)) ) icon="🔊" ;;
 	$((vol >= 30)) ) icon="🔉" ;;

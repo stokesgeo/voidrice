@@ -1,14 +1,16 @@
 #!/bin/sh
 
-# Install the waiting updates in a terminal: base errata, then packages.
+# sb-popupgrade: install the waiting updates in a terminal: base errata
+# (syspatch(8)), then packages (pkg_add(1)).
 
+# Run from a bar or a key: reopen in a terminal.
 [ -t 0 ] || exec "$TERMINAL" -e "$0"
 
 printf "Beginning upgrade.\n"
 
 doas syspatch
 doas pkg_add -u
-doas rm -f /var/db/updates	# root's cron counts again within four hours
+doas rm -f /var/db/updates	# clears sb-updates; root's cron counts again within four hours
 
 sb-refresh
 

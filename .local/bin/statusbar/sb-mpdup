@@ -1,7 +1,7 @@
 #!/bin/sh
 
-# This loop will update the mpd statusbar module whenever a command changes the
-# music player's status. mpd must be running on X's start for this to work.
+# sb-mpdup: call sb-refresh whenever mpd(8) changes state. mpc idle waits
+# for the next mpd event. Stops when mpd stops; sb-music starts it again.
 
 while : ; do
 	mpc idle >/dev/null && sb-refresh || break

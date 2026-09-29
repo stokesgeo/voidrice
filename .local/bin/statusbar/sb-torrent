@@ -1,5 +1,9 @@
 #!/bin/sh
 
+# sb-torrent: torrent counts by state, from transmission-remote(1).
+# Left click opens tremc; middle click toggles transmission. The help text
+# lists the marks.
+
 case $BLOCK_BUTTON in
 	1) detach "$TERMINAL" -e tremc ;;
 	2) td-toggle ;;

@@ -1,6 +1,7 @@
 #!/bin/sh
 
-# CPU temperature and speed, e.g. "🌡 52°C 1.2GHz": sysctl hw.sensors and hw.cpuspeed (MHz).
+# sb-cpu: CPU temperature and speed, e.g. 52C 1.2GHz.
+# sysctl(8) gives the temperature (hw.sensors) and speed (hw.cpuspeed, MHz).
 
 case $BLOCK_BUTTON in
 	1) notify-send "🖥 CPU hogs" "$(ps -Ao comm= -o %cpu= | awk '{cmd[$1]+=$2} END {for (i in cmd) print i, cmd[i]}' | sort -nrk2  | head)\\n(100% per core)" ;;
@@ -11,6 +12,7 @@ case $BLOCK_BUTTON in
 	6) detach "$TERMINAL" -e "$EDITOR" "$0" ;;
 esac
 
+# The sensor name depends on the CPU: try cpu0, then acpitz0.
 temp=$(sysctl -n hw.sensors.cpu0.temp0 2>/dev/null)
 [ -n "$temp" ] || temp=$(sysctl -n hw.sensors.acpitz0.temp0 2>/dev/null)
 mhz=$(sysctl -n hw.cpuspeed 2>/dev/null)

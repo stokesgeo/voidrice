@@ -1,9 +1,7 @@
 #!/bin/sh
 
-# Gets your public ip address checks which country you are in and
-# displays that information in the statusbar
-#
-# https://www.maketecheasier.com/ip-address-geolocation-lookups-linux/
+# sb-iplocate: flag and name of the country your public IP address is in.
+# Needs geoiplookup. The address comes from api.ipify.org.
 
 ifinstalled geoiplookup || exit 1
 
@@ -12,7 +10,9 @@ getip() {
 		ftp -MV -o "$ipfile" https://api.ipify.org 2>/dev/null
 }
 
+# The background fetch saves the address here; it is used once, then deleted.
 ipfile="${XDG_CACHE_HOME:-$HOME/.cache}/iplocate"
+# No saved address: fetch one in the background (see sbar) and print nothing.
 addr=$(cat "$ipfile" 2>/dev/null) && addr=$(geoiplookup "$addr" 2>/dev/null) && rm "$ipfile" ||
 	( mkdir "${lock:=/tmp/sb-iplocate-$(id -u).lock}" 2>/dev/null &&
 		( trap 'rmdir "$lock"' EXIT; tries=0; while [ $tries -ne 100 ]; do

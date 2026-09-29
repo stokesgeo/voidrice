@@ -1,8 +1,11 @@
 #!/bin/sh
 
-# Originally by Andr3as07 <https://github.com/Andr3as07>
-# Some changes by Luke
-# Rebuild by Tenyun
+# sb-tasks: background jobs of qndl: the total, then those still queued in
+# parentheses, e.g. 3(2). A job is a file ,TIME.PID in the queue directory (nq(1));
+# it is executable while it runs, and done when its PID is gone.
+#
+# Originally by Andr3as07 <https://github.com/Andr3as07>.
+# Some changes by Luke. Rebuilt by Tenyun.
 
 # Displays the number of running/queued qndl jobs (nq: ,TIME.PID, x while running).
 
@@ -11,14 +14,14 @@ dir="${XDG_CACHE_HOME:-$HOME/.cache}/qndl"
 case $BLOCK_BUTTON in
 	1) NQDIR="$dir" detach "$TERMINAL" -e fq ;;
 	3) notify-send "Tasks module" "🤖: number of running/queued background tasks
-- Left click follows them (fq)" ;; # Right click
+- Left click follows them (fq)" ;;
 	6) detach "$TERMINAL" -e "$EDITOR" "$0" ;;
 esac
 
 numr=0
 numq=0
 for f in "$dir"/,*; do
-	kill -0 "${f##*.}" 2>/dev/null || continue	# job done
+	kill -0 "${f##*.}" 2>/dev/null || continue	# finished
 	[ -x "$f" ] && numr=$((numr + 1)) || numq=$((numq + 1))
 done
 num="$((numr + numq))($numq)"

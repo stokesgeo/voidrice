@@ -1,5 +1,6 @@
 #!/bin/sh
 
-# Updates waiting: the lines root's cron writes to /var/db/updates (updates.cron).
+# sb-updates: number of updates waiting. Root's cron job writes one line
+# per update to /var/db/updates (updates.cron). Prints nothing when none.
 
 n=$(grep -c . /var/db/updates 2>/dev/null) && echo "📦$n"

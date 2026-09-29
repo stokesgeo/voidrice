@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# sb-words: the word count of the writing file changed last (proof -l).
+# sb-words: word count of the writing file changed last (see proof(1)).
 
 f=$(proof -l) || exit 1
 echo "📝$(wc -w <"$f" | tr -d ' ')"
