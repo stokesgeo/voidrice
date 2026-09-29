@@ -160,6 +160,17 @@ EOF
 	return 0
 }
 
+# A path ending in a blank is walled as checked, blank and all.
+t_cdxb_trailing_blank() {
+	cdxb_setup
+	mkdir -p "$HOME/work " "$HOME/work"
+	cd "$HOME/src/proj" || fail "no project"
+	out=$(cdxb -w "$HOME/work " 2>&1 </dev/null) || fail "cdxb failed: $out"
+	wall "the path as given" "rwxc:$HOME/work "
+	nowall "not the path without the blank" "rwxc:$HOME/work"
+	return 0
+}
+
 # ~/.config, ~/.cache and the dotfiles repository run outside the box:
 # never writable, with or without -H. Without -H they are not walled
 # read-only either, so the box sees only what is granted in them.

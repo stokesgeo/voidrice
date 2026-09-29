@@ -66,8 +66,8 @@ list() { [ -r "$1" ] && grep -v -e '^[[:space:]]*#' -e '^[[:space:]]*$' -- "$1";
 #	deep D LIST	a path in LIST is two or more folders below D (D/a/b)
 anc() { typeset p=${1%/}; while [ -n "$p" ]; do print -r -- "$p"; p=${p%/*}; done; print /; }
 under() { anc "$1" | grep -qxF -e "$2"; }
-holds() { print -r -- "$2" | while read -r q; do anc "$q"; done | grep -qxF -- "$1"; }
-deep() { print -r -- "$2" | while read -r q; do anc "${q%/*/*}"; done | grep -qxF -- "$1"; }
+holds() { print -r -- "$2" | while IFS= read -r q; do anc "$q"; done | grep -qxF -- "$1"; }
+deep() { print -r -- "$2" | while IFS= read -r q; do anc "${q%/*/*}"; done | grep -qxF -- "$1"; }
 
 # protected: read-only in every box ("-" hides). Codex 0.157 reads the
 # ~/.codex files as settings, instructions or commands to run.
@@ -146,8 +146,8 @@ walls() {
 		p=$(path grants "$p") && [ -e "$p" ] && ok "$perms" "$p" && mine "$perms" "$p"
 	done
 	[ "$dir" = "$H" ] || mine rw "$dir"
-	while read -r perms p; do mine "$perms" "$p"; done <"$S/added"
-	print -r -- "$deny" | while read -r p; do wall - "$p"; done
+	while IFS= read -r p; do mine "${p%% *}" "${p#* }"; done <"$S/added"
+	print -r -- "$deny" | while IFS= read -r p; do wall - "$p"; done
 	{ protected; [ -z "$Hflag" ] || dotfiles; } | while read -r perms p; do wall "$perms" "$p"; done
 	print -r -- "rwc:$S/tmp"
 	print -r -- "rwc:$outbox"
@@ -268,7 +268,8 @@ case $dir in /|*[\"\\]*) die "$dir: not /, nor a path with a quote or backslash"
 [ "$dir" != "$H" ] || [ -n "$Hflag" ] || die "$dir is your home: add -H to mean it"
 case $H/ in "$dir"/*) [ "$dir" = "$H" ] || die "$dir holds your home" ;; esac
 [ "$dir" = "$H" ] || ok rw "$dir" || exit
-while read -r perms p; do ok "$perms" "$p" || exit; done <"$S/added"
+# Paths cdxb wrote itself are read whole (IFS=): a blank at the end is kept.
+while IFS= read -r p; do ok "${p%% *}" "${p#* }" || exit; done <"$S/added"
 print -r -- "$dir" >"$S/dir"
 print -r -- "$Hflag" >"$S/H"
 trap : INT QUIT		# Codex gets them; cdxb keeps running
@@ -291,7 +292,7 @@ while :; do
 	rm -f -- "$S/restart"
 	walls >"$S/walls"
 	set -A argv --
-	while read -r w; do argv[${#argv[*]}]=-u; argv[${#argv[*]}]=$w; done <"$S/walls"
+	while IFS= read -r w; do argv[${#argv[*]}]=-u; argv[${#argv[*]}]=$w; done <"$S/walls"
 	# TMPDIR and the GitHub token are set for the box alone.
 	(cd -- "$dir" && export TMPDIR=$S/tmp && gittoken && exec "$box" "${argv[@]}" -- "$codex" -c "$project" "$@")
 	[ -e "$S/restart" ] || break
