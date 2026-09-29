@@ -123,6 +123,7 @@ t_sb_mailbox() {
 	box=$HOME/.local/share/mail/me/INBOX/new
 	mkdir -p "$box"
 	eq "no unread: nothing" "" "$(sb-mailbox)"
+	eq "empty new/: no find error" "" "$(sb-mailbox 2>&1)"
 	: >"$box/1"; : >"$box/2"
 	eq "two unread" "📬2" "$(sb-mailbox)"
 }
