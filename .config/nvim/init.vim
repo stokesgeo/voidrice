@@ -49,6 +49,8 @@ colorscheme vim
 	map <leader>f :Goyo \| set bg=light \| set linebreak<CR>
 " Prose in ~/writing: soft-wrapped at word ends, no line numbers:
 	autocmd BufRead,BufNewFile ~/writing/*.md,~/writing/*.txt setlocal wrap linebreak nonumber norelativenumber textwidth=0 nospell
+" K on a word in prose: its definitions and Roget headings, from dictd (vertrice-dict):
+	autocmd FileType markdown,text setlocal keywordprg=dict
 " Spell-check set to <leader>o, 'o' for 'orthography':
 	map <leader>o :setlocal spell! spelllang=en_us<CR>
 " Splits open at the bottom and right, which is non-retarded, unlike vim defaults.
