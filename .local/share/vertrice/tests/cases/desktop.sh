@@ -373,3 +373,15 @@ t_booksplit_total() {
 	logged 'track=1 -metadata total=2 '
 	logged 'track=2 -metadata total=2 '
 }
+# OpenBSD's wc pads its count (" %7lld", usr.bin/wc/wc.c), which went into
+# the tag as "       2". The ffmpeg stand-in logs each argument in [].
+t_booksplit_total_padded_wc() {
+	printf '#!/bin/sh\nprintf " %%7d\\n" "$(grep -c "")"\n' >"$T/bin/wc"
+	printf '#!/bin/sh\nfor a; do printf "[%%s]" "$a"; done >>"$VT_STATE/log"; echo >>"$VT_STATE/log"\n' >"$T/bin/ffmpeg"
+	chmod +x "$T/bin/wc" "$T/bin/ffmpeg"
+	: >book.mp3
+	printf '00:00:00\tOne\n00:10:00\tTwo\n' >tc
+	printf 'Book\nMe\n2020\n' | booksplit book.mp3 tc >/dev/null
+	eq "every track tagged total=2" 2 "$(grep -o '\[total=2\]' "$VT_STATE/log" | wc -l | tr -d ' ')"
+	notlogged '\[total= '
+}
