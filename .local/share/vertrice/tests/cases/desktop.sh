@@ -266,3 +266,18 @@ t_otp_add() {
 	logged '^pass mv otp-test-script github-otp$'
 	hasnt "no missing command" "not found" "$(cat "$T/err")"
 }
+
+# passmenu runs the package's example script, which is installed mode 444
+# (INSTALL_DATA), through bash; without the package, a notice.
+t_passmenu_wrapper() {
+	ex=$T/examples/passmenu
+	p=$(derived .local/bin/passmenu passmenu "s|/usr/local/share/examples/password-store/dmenu/passmenu|$ex|")
+	printf '#!/bin/sh\necho "bash $*" >>"$VT_STATE/log"\n' >"$T/bin/bash"
+	chmod +x "$T/bin/bash"
+	"$VT_SH" "$p" --type
+	logged '^notify-send 📦 password-store must be installed'
+	notlogged '^bash'
+	mkdir -p "$T/examples"; echo 'echo passmenu' >"$ex"; chmod 444 "$ex"
+	"$VT_SH" "$p" --type
+	logged "^bash $ex --type\$"
+}

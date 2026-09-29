@@ -11,6 +11,7 @@
 mutt-wizard
 newsboat
 password-store
+pinentry-dmenu
 pass-otp
 zbar
 transmission
