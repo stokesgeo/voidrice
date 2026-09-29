@@ -339,3 +339,12 @@ EOF
 	displayselect >/dev/null 2>&1
 	logged '^xrandr --output DP-1 --auto --scale 1\.0x1\.0 --output eDP-1 --auto --same-as DP-1 '
 }
+
+# A selected area is grabbed from $DISPLAY, as the whole screen is.
+t_dmenurecord_selected_display() {
+	ln -s "$VT_MOCKS/_log" "$T/bin/ffmpeg"
+	printf '#!/bin/sh\necho "10 20 300 200"\n' >"$T/bin/slop"; chmod +x "$T/bin/slop"
+	DISPLAY=:1 dmenurecord selected
+	waitfor 5 grep -q '^ffmpeg' "$VT_STATE/log" || fail "ffmpeg never ran"
+	logged '^ffmpeg -f x11grab -framerate 30 -video_size 300x200 -i :1\+10,20 '
+}
