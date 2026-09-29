@@ -13,7 +13,9 @@ id=$(xdotool search --classname "^$name\$" | head -n 1)
 if [ -z "$id" ]; then
 	exec xterm -name "$name" -geometry "$geo" ${cmd:+-e $cmd}
 elif xdotool search --onlyvisible --classname "^$name\$" >/dev/null; then
-	xdotool windowunmap "$id"
+	# Iconify, which cwm hides and keeps. A plain unmap makes cwm let
+	# go of the window, and place it anew when it comes back.
+	xdotool windowminimize "$id"
 else
-	xdotool windowmap "$id" windowactivate "$id"
+	xdotool windowactivate "$id"	# cwm shows it where it was
 fi

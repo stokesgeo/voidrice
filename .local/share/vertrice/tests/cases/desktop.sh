@@ -154,12 +154,16 @@ t_scratch() {
 	logged '^xterm -name spterm -geometry 120x34$'
 	scratch calc
 	logged '^xterm -name spcalc -geometry 50x20 -e bc -l$'	# OpenBSD's bc has no -q
+	# Hide by iconifying and show by activating, so cwm keeps the window
+	# (cwm's xevents.c: a real unmap of a window it has not hidden
+	# unmanages it; seen on Xvfb, where it came back placed anew).
 	echo "0x1 spterm 1" >"$VT_STATE/windows"
 	scratch term
-	logged '^xdotool windowunmap 0x1$'
+	logged '^xdotool windowminimize 0x1$'
 	echo "0x2 spcalc 0" >"$VT_STATE/windows"
 	scratch calc
-	logged '^xdotool windowmap 0x2 windowactivate 0x2$'
+	logged '^xdotool windowactivate 0x2$'
+	notlogged 'windowunmap|windowmap'
 	# The name is matched whole: spterm2 is not the scratchpad.
 	echo "0x3 spterm2 1" >"$VT_STATE/windows"; : >"$VT_STATE/log"
 	scratch term
