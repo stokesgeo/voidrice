@@ -1,4 +1,8 @@
 #!/bin/sh
+
+# nsxiv key handler: Ctrl-x, then a key below, acts on the marked images.
+# $1 is the key; nsxiv sends one image path per line on stdin.
+
 while read -r file
 do
 	case "$1" in

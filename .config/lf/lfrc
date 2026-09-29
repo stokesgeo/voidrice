@@ -27,6 +27,7 @@ set previewer '~/.config/lf/scope'
 set autoquit true
 
 # cmds/functions
+# open picks a program by MIME type; other files go to $OPENER.
 cmd open ${{
     mime=$(file -bi "$(readlink -f $f)")
     case ${mime%%;*} in
@@ -76,6 +77,8 @@ cmd delete ${{
 	[ $ans = "y" ] && rm -rf -- $fx
 }}
 
+# moveto and copyto: pick a directory from bm-dirs with fzf, show the
+# files and the target, and act only on "y".
 cmd moveto ${{
 	set -f
 	clear; tput cup $(($(tput lines)/3))
@@ -114,6 +117,8 @@ cmd copyto ${{
 
 cmd setbg "$1"
 
+# bulkrename: edit the names in $EDITOR, one per line. Line N of the new list
+# renames line N of the old. Nothing happens if the line count changes.
 cmd bulkrename ${{
     tmpfile_old="$(mktemp)"
     tmpfile_new="$(mktemp)"
@@ -170,6 +175,8 @@ map W $detach $TERMINAL >/dev/null 2>&1
 
 map U $printf "%s" "$fx" | xclip -selection clipboard
 map u $printf "%s" "$fx" | sed 's/.*\///' | xclip -selection clipboard
+# . and >: copy a YouTube or piped.video link built from the video id in the
+# file name (yt-dlp names files "title [id].ext").
 map . $printf "%s" "$fx" | sed -E 's/^.+\[/https:\/\/www.youtube.com\/watch?v=/' | sed -E 's/\]\..+//' | xclip -selection clipboard
 map <gt> $printf "%s" "$fx" | sed -E 's/^.+\[/https:\/\/piped.video\/watch?v=/' | sed -E 's/\]\..+//' | xclip -selection clipboard
 map T $nsxiv -t "$(pwd)" # opens thumbnail mode
@@ -177,5 +184,5 @@ map <c-l> unselect
 
 
 
-# Source Bookmarks
+# Source Bookmarks (generated from bm-dirs by the shortcuts script)
 source "~/.config/lf/shortcutrc"

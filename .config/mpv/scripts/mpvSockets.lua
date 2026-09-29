@@ -1,16 +1,12 @@
--- mpvSockets, one socket per instance, removes socket on exit
+-- mpvSockets: one IPC socket per mpv instance, removed on exit.
+-- mpv loads it from scripts/ by itself.
 --
--- Source: https://github.com/wis/mpvSockets, commit be9b7ca8 (the commit
--- voidrice's submodule pinned), MIT License, notice below. voidrice loaded
--- it as a git submodule, which a bare clone of the dotfiles never checks
--- out; vertrice keeps the one file here instead, and mpv loads it from
--- scripts/ by itself.
---
--- Changed for vertrice: the sockets live in
--- ${XDG_CACHE_HOME:-$HOME/.cache}/mpvSockets (made mode 700) instead of
--- the system temporary directory, where on OpenBSD anyone could plant a
--- file or directory of that name first. The directory is made without a
--- shell. pauseallmpv reads the same directory.
+-- Source: https://github.com/wis/mpvSockets, commit be9b7ca8, MIT License,
+-- notice below. This copy puts the sockets in
+-- ${XDG_CACHE_HOME:-$HOME/.cache}/mpvSockets (mode 700), not in the system
+-- temporary directory, where on OpenBSD anyone could create a file or
+-- directory of that name first. The directory is made without a shell.
+-- pauseallmpv reads the same directory.
 --
 -- MIT License
 --

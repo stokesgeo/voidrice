@@ -22,6 +22,7 @@ bind-key D pb-download
 bind-key U show-urls
 bind-key x pb-delete
 
+# Colors
 color listnormal cyan default
 color listfocus black yellow standout bold
 color listnormal_unread blue default
@@ -30,6 +31,10 @@ color info red black bold
 color article white default bold
 
 browser linkhandler
+# Links open through linkhandler, which picks a program by link type. A macro
+# opens the selected link another way once: press comma, then its key.
+# , default  t queue download (qndl)  a audio download  v mpv  w lynx
+# d dmenuhandler  c copy link  C YouTube comments  p/P PeerTube torrent, 480p/1080p
 macro , open-in-browser
 macro t set browser "qndl" ; open-in-browser ; set browser linkhandler
 macro a set browser "qndl %u 'yt-dlp --embed-metadata -xic -f bestaudio/best --restrict-filenames'" ; open-in-browser ; set browser linkhandler
@@ -41,6 +46,7 @@ macro C set browser "youtube-viewer --comments=%u" ; open-in-browser ; set brows
 macro p set browser "peertubetorrent %u 480" ; open-in-browser ; set browser linkhandler
 macro P set browser "peertubetorrent %u 1080" ; open-in-browser ; set browser linkhandler
 
+# Highlights
 highlight all "---.*---" yellow
 highlight feedlist ".*(0/0))" black
 highlight article "(^Feed:.*|^Title:.*|^Author:.*)" cyan default bold

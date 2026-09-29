@@ -1,5 +1,6 @@
 # vim: filetype=conf
 
+# ncmpcpp settings. mpd_music_dir must match music_directory in mpd.conf.
 ncmpcpp_directory = "~/.config/ncmpcpp"
 lyrics_directory = "~/.local/share/lyrics"
 mpd_music_dir = "~/Music"
@@ -30,5 +31,6 @@ progressbar_color = black:b
 progressbar_elapsed_color = blue:b
 statusbar_color = red
 statusbar_time_color = cyan:b
+# Refresh the status bar block when the song or player state changes.
 execute_on_song_change="sb-refresh"
 execute_on_player_state_change="sb-refresh"
