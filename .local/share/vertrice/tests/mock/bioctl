@@ -7,7 +7,12 @@
 #				bioctl(8) output: assumed, not checked.
 #	bioctl -c C -l DEV softraid0	unlock: logs, then adds the disk in
 #				$VT_STATE/bioctl.new ("sd3:duid") to
-#				hw.disknames. rc.bioctl-unlock makes it fail.
+#				hw.disknames and prints "softraid0: CRYPTO
+#				volume attached as sd3", as bioctl's
+#				bio_status() prints the kernel's sr_info()
+#				(OpenBSD src: sbin/bioctl/bioctl.c,
+#				sys/dev/softraid.c). rc.bioctl-unlock makes
+#				it fail.
 #	bioctl -d DISK		logs; succeeds only for a disk listed in
 #				$VT_STATE/volumes (softraid volumes), as the
 #				real one refuses a plain disk.
@@ -30,7 +35,7 @@ EOF
 	f=$VT_STATE/sysctl
 	[ -f "$f" ] && grep -v '^hw.disknames=' "$f" >"$f.new" && mv "$f.new" "$f"
 	echo "hw.disknames=$names,$new" >>"$f"
-	echo "${new%%:*} at scsibus4 targ 1 lun 0: <OPENBSD, SR CRYPTO, 006>"
+	echo "softraid0: CRYPTO volume attached as ${new%%:*}"
 	;;
 -d)
 	grep -qx -- "$2" "$VT_STATE/volumes" 2>/dev/null || {

@@ -91,11 +91,10 @@ case $chosen in
 		;;
 	🔒*)
 		set -- ${chosen#🔒}
-		before=$(sysctl -n hw.disknames)
 		print "Passphrase for $1:"
-		doas bioctl -c C -l "/dev/$1" softraid0 || exit 1
-		new=$(sysctl -n hw.disknames | tr ',' '\n' | sed 's/:.*//' |
-			grep -vxF "$(print "$before" | tr ',' '\n' | sed 's/:.*//')" | head -n 1)
+		# bioctl prints "softraid0: CRYPTO volume attached as sd3".
+		new=$(doas bioctl -c C -l "/dev/$1" softraid0) || exit 1
+		new=$(print -r -- "$new" | sed -n 's/.* volume attached as \(sd[0-9]*\)$/\1/p')
 		[ -n "$new" ] || { notify-send "🔒 Unlock failed." "$1"; exit 1; }
 		disknames=$(sysctl -n hw.disknames)
 		inner=$(partitions "$new" | grep -v ' RAID ')
