@@ -292,6 +292,8 @@ cannot beat wear levelling); `hotplug-watch` with a real attach.
   pledge/unveil sandbox, which would retire cdxb.
 - The Mac: the test round, then which native window manager, bar and
   menu carry the UX there, and how the repository holds two devices.
+- The device after the Mac: "my jailbreak of the remarkable paper pro
+  with keyboard. eink linux with a somewhat narrow package repo."
 - Held by the owner, in his words: a console writing session
   ("interesting, but too much for now, note as a future feature idea");
   word-level diffs for prose ("it might be great, but id want to
