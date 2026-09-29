@@ -138,6 +138,80 @@ t_cdxb_walls() {
 	return 0
 }
 
+# / holds every protected path: a write grant of it is refused, whether
+# from -w, the grants file or add.
+t_cdxb_root_refused() {
+	cdxb_setup
+	cd "$HOME/src/proj" || fail "no project"
+	out=$(cdxb -w / 2>&1 </dev/null) && fail "-w / was accepted"
+	has "says why" "holds protected files" "$out"
+	notlogged '^codex-box -u'
+	echo 'rw /' >>"$HOME/.config/cdxb/grants"
+	out=$(cdxb 2>&1 </dev/null) || fail "cdxb failed: $out"
+	nowall "a grants line rw / is skipped" "rwxc:/"
+	cat >"$T/fakecodex" <<'EOF'
+#!/bin/sh
+cdxb add / 2>>"$VT_STATE/add.err" && echo "added root" >>"$VT_STATE/log"
+exit 0
+EOF
+	cdxb </dev/null >/dev/null 2>&1 || fail "cdxb failed"
+	notlogged '^added root'
+	grep -q 'holds protected files' "$VT_STATE/add.err" || fail "add: $(cat "$VT_STATE/add.err")"
+	return 0
+}
+
+# A path ending in a blank is walled as checked, blank and all.
+t_cdxb_trailing_blank() {
+	cdxb_setup
+	mkdir -p "$HOME/work " "$HOME/work"
+	cd "$HOME/src/proj" || fail "no project"
+	out=$(cdxb -w "$HOME/work " 2>&1 </dev/null) || fail "cdxb failed: $out"
+	wall "the path as given" "rwxc:$HOME/work "
+	nowall "not the path without the blank" "rwxc:$HOME/work"
+	return 0
+}
+
+# ~/.config, ~/.cache and the dotfiles repository run outside the box:
+# never writable, with or without -H. Without -H they are not walled
+# read-only either, so the box sees only what is granted in them.
+t_cdxb_dotfiles_protected() {
+	cdxb_setup
+	mkdir -p "$HOME/.config/nvim" "$HOME/.cache/foo" "$HOME/.local/share/vertrice.git"
+	cd "$HOME/src/proj" || fail "no project"
+	for p in "$HOME/.config/nvim" "$HOME/.cache" "$HOME/.local/share/vertrice.git"; do
+		out=$(cdxb -w "$p" 2>&1 </dev/null) && fail "-w $p was accepted"
+		has "-w $p: says why" "is protected" "$out"
+	done
+	out=$(cdxb "$HOME/.cache/foo" 2>&1 </dev/null) && fail "a dir in ~/.cache was accepted"
+	notlogged '^codex-box -u'
+	printf 'rw ~/.config/nvim\n' >>"$HOME/.config/cdxb/grants"
+	out=$(cdxb -r "$HOME/.config/nvim" 2>&1 </dev/null) || fail "-r ~/.config/nvim refused: $out"
+	wall "read grant kept" "r:$HOME/.config/nvim"
+	nowall "rw grant skipped" "rwxc:$HOME/.config/nvim"
+	nowall "~/.config not widened without -H" "r:$HOME/.config"
+	nowall "~/.cache not widened without -H" "r:$HOME/.cache"
+	return 0
+}
+
+# /etc is read-only in the box, but /etc/hostname.* hold wireless keys
+# (dmenuwifi writes them; mode 640, group wheel, which the user is in).
+# Here /etc/hostname.* is $T/etc/hostname.* (see derived in lib.sh).
+t_cdxb_hostname_hidden() {
+	cdxb_setup
+	mkdir -p "$T/etc"
+	echo 'join home wpakey secret' >"$T/etc/hostname.iwn0"
+	: >"$T/etc/hostname.em0"
+	cb=$(derived .local/bin/cdxb cdxb "s|/etc/hostname\\.|$T/etc/hostname.|g")
+	cd "$HOME/src/proj" || fail "no project"
+	out=$("$VT_KSH" "$cb" 2>&1 </dev/null) || fail "cdxb failed: $out"
+	wall "wireless keys hidden" ":$T/etc/hostname.iwn0"
+	wall "every hostname file hidden" ":$T/etc/hostname.em0"
+	rm "$T/etc/hostname.iwn0" "$T/etc/hostname.em0"
+	out=$("$VT_KSH" "$cb" 2>&1 </dev/null) || fail "cdxb failed: $out"
+	hasnt "no wall for an unmatched pattern" "hostname.*" "$(cat "$VT_STATE/walls")"
+	return 0
+}
+
 # What the box inherits: its own TMPDIR, no display, the outbox; cdxb
 # keeps its own TMPDIR. -a marks the project untrusted.
 t_cdxb_box_env() {
@@ -165,10 +239,11 @@ cdxb add -r "$HOME/notes"
 EOF
 	mkdir -p "$HOME/notes" "$HOME/.ssh"
 	cd "$HOME/src/proj" || fail "no project"
-	cdxb </dev/null >/dev/null 2>&1 || fail "cdxb failed"
+	cdxb . -m x </dev/null >/dev/null 2>&1 || fail "cdxb failed"
 	notlogged '^added ssh'
 	grep -q 'deny list' "$VT_STATE/add.err" || fail "no reason: $(cat "$VT_STATE/add.err")"
-	logged '^codex .* resume --last$'
+	# The restart keeps your own Codex arguments.
+	logged '^codex -c [^ ]* resume --last -m x$'
 	wall "the added path, read-only" "r:$HOME/notes"
 	return 0
 }

@@ -1,26 +1,33 @@
 #!/bin/sh
 
-# run: the vertrice regression suite. Runs the scripts of this repository
-# against a directory of fake OpenBSD commands (mock/), so each case can set
-# the machine's state and check what a script printed or which commands it
-# called. It runs on OpenBSD and, with two stand-ins, on Linux.
-#
-#	run [-k] [NAME ...]	run every case, or those whose name starts
-#				with a NAME ("ext", "sb_battery", "ext_dash")
-#	run -l			--live: OpenBSD only, no mocks; run each read-only
-#				status block and print what it shows
-#	-k			keep the scratch directories
-#
-# Prints PASS, FAIL, SKIP, XFAIL (a known bug, see the case) or XPASS (a
-# known bug no longer shows: drop its xfail) per case, then a total. Exits 1
-# if anything failed or passed unexpectedly.
-#
-# On Linux it needs OpenBSD's ksh and awk: set OKSH to a build of oksh
-# (portable OpenBSD ksh) and BWK_AWK to the one true awk, or put oksh and
-# original-awk on PATH. It links them as sh, ksh and awk in a directory put
-# before the system's, so scripts run under the shell and awk they will have
-# on the machine. Optional: CWM (a cwm binary) and CWM_SRC (cwm's source,
-# for conf.c); on OpenBSD these default to base cwm and /usr/xenocara.
+# run: the vertrice regression suite. What it does and how to run it: usage
+# below, which run -h prints.
+
+usage() {
+	cat <<'EOF'
+run: the vertrice regression suite. Runs the scripts of this repository
+against a directory of fake OpenBSD commands (mock/), so each case can set
+the machine's state and check what a script printed or which commands it
+called. It runs on OpenBSD and, with two stand-ins, on Linux.
+
+	run [-k] [NAME ...]	run every case, or those whose name starts
+				with a NAME ("ext", "sb_battery", "ext_dash")
+	run -l			--live: OpenBSD only, no mocks; run each read-only
+				status block and print what it shows
+	-k			keep the scratch directories
+
+Prints PASS, FAIL, SKIP, XFAIL (a known bug, see the case) or XPASS (a
+known bug no longer shows: drop its xfail) per case, then a total. Exits 1
+if anything failed or passed unexpectedly.
+
+On Linux it needs OpenBSD's ksh and awk: set OKSH to a build of oksh
+(portable OpenBSD ksh) and BWK_AWK to the one true awk, or put oksh and
+original-awk on PATH. It links them as sh, ksh and awk in a directory put
+before the system's, so scripts run under the shell and awk they will have
+on the machine. Optional: CWM (a cwm binary) and CWM_SRC (cwm's source,
+for conf.c); on OpenBSD these default to base cwm and /usr/xenocara.
+EOF
+}
 
 here=$(cd "$(dirname "$0")" && pwd)
 REPO=$(cd "$here/../../../.." && pwd)
@@ -29,7 +36,7 @@ while [ $# -gt 0 ]; do
 	case $1 in
 	-k) keep=1 ;;
 	-l|--live) live=1 ;;
-	-h|--help) sed -n '3,24p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+	-h|--help) usage; exit 0 ;;
 	--) shift; break ;;
 	-*) echo "run: unknown option $1" >&2; exit 2 ;;
 	*) break ;;

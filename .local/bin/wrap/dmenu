@@ -12,7 +12,7 @@ day) p=${XDG_CONFIG_HOME:-$HOME/.config}/x11/themes/day ;;
 night) p=${XDG_CONFIG_HOME:-$HOME/.config}/x11/themes/night ;;
 wal) p=$c/wal/colors.Xresources ;;
 esac
-get() { [ -n "$p" ] && sed -n "s/^\*\.$1:[[:space:]]*//p" "$p" 2>/dev/null | sed 1q; }
+get() { [ -n "$p" ] && awk -F ':[ \t]*' -v k="*.$1" '$1 == k { print $2; exit }' "$p" 2>/dev/null; }
 bg=$(get background) fg=$(get foreground) sel=$(get color4)
 
 exec /usr/local/bin/dmenu -fn 'IBM Plex Mono:size=10' \

@@ -6,12 +6,12 @@
 
 inst_setup() {
 	R=$T/sys
-	mkdir -p "$T/x/bin" "$T/x/share" "$R/etc/hotplug" "$R/etc/login.conf.d" "$R/root"
+	mkdir -p "$T/x/bin" "$T/x/share" "$R/etc/hotplug" "$R/etc/login.conf.d" "$R/root" "$R/var/db"
 	cp -R "$REPO/.local/share/openbsd" "$T/x/share/"
 	echo 'permit nopass :wheel as root cmd /usr/sbin/rcctl args restart sndiod' \
 		>>"$T/x/share/openbsd/doas-agent.conf"
 	derived .local/bin/vertrice-install x/bin/vertrice-install \
-		"s|/etc/|$R/etc/|g; s|/root/|$R/root/|g" >/dev/null
+		"s|/etc/|$R/etc/|g; s|/root/|$R/root/|g; s|/var/db/hotplug-disk|$R/var/db/hotplug-disk|g" >/dev/null
 	for m in rcctl stat newaliases; do ln -s "$VT_MOCKS/_log" "$T/bin/$m"; done
 	echo puffy >"$VT_STATE/out.stat"	# stat -f %Su: the checkout's owner
 	printf '0\t*\t*\t*\t*\t/usr/bin/newsyslog\n' >"$VT_STATE/crontab.user"
@@ -39,6 +39,8 @@ t_install_system() {
 	cmp -s "$data/apm-suspend" "$R/etc/apm/suspend" || fail "no /etc/apm/suspend"
 	eq "hibernate" suspend "$(readlink "$R/etc/apm/hibernate")"
 	cmp -s "$data/hotplug-attach" "$R/etc/hotplug/attach" || fail "no /etc/hotplug/attach"
+	[ -f "$R/var/db/hotplug-disk" ] && [ ! -s "$R/var/db/hotplug-disk" ] ||
+		fail "no empty /var/db/hotplug-disk for hotplug-watch"
 	eq "root's crontab: kept, plus the update count" "$(printf '0\t*\t*\t*\t*\t/usr/bin/newsyslog\n'; cat "$data/updates.cron")" \
 		"$(cat "$VT_STATE/crontab.user")"
 	logged '^rcctl enable apmd hotplugd unwind$'
@@ -73,6 +75,8 @@ t_install_twice() {
 	eq "no calendar job" 0 "$(grep -c calendar "$VT_STATE/crontab.puffy")"
 	eq "the owner's own job kept" 1 "$(grep -c 'logger monday' "$VT_STATE/crontab.puffy")"
 	eq "one root alias" 1 "$(grep -c '^root:' "$R/etc/mail/aliases")"
+	echo sd1 >"$R/var/db/hotplug-disk"; inst
+	eq "the last disk's name kept" sd1 "$(cat "$R/var/db/hotplug-disk")"
 }
 
 t_install_doas_rejected() {

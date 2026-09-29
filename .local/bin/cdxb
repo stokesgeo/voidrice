@@ -1,22 +1,14 @@
 #!/bin/ksh
 
-# cdxb: run Codex in a box, from your own terminal.
-#
-#	cdxb [-adH] [-r path] [-w path] [dir [codex-arg ...]]
-#		Codex in dir (default: here), which it may change; also
-#		-w path to change, -r path to read, -H your home's folders
-#		to change; -d your nopass doas rules; -a asks before each command
-#	cdxb add [-r] path [session]	give a running session one more path
-#	cdxb review			show Codex's proposals; apply each on y
-#	cdxb ls				the running sessions
-#	cdxb doas command [arg ...]	in a -d box: run a nopass doas rule
+# cdxb: run Codex in a box, from your own terminal. Usage below.
 #
 # How it works: codex-box (~/.local/src/codex-box, built on first use)
 # unveils the walls cdxb lists, locks them and sets execpromises, so Codex
 # and all it runs see only the system (read and run), ~/.codex, dir, the
 # paths in ~/.config/cdxb/grants and those from -r, -w and add. The deny
-# list hides its paths even then; the protected paths (Codex's and cdxb's
-# settings, your dotfiles) stay read-only. A session's walls are in
+# list hides its paths even then, as it does /etc/hostname.* (wireless
+# keys). The protected paths (Codex's and cdxb's settings, your dotfiles,
+# ~/.config, ~/.cache) are never writable. A session's walls are in
 # ~/.cache/cdxb/PID/walls. Codex proposes a settings file by writing it
 # whole to $CDXB_OUTBOX; you see the diff and apply it with y.
 # Setuid programs cannot run in the box: `cdxb doas` asks a relay outside
@@ -26,6 +18,20 @@
 # change any .git it can write: in those repositories, git is Codex's job,
 # in the box. With a GitHub token in ~/.config/cdxb/github-token (read-only
 # in the box), git in the box pushes over https; git outside it never uses it.
+
+usage() {
+	cat >&2 <<'EOF'
+	cdxb [-adH] [-r path] [-w path] [dir [codex-arg ...]]
+		Codex in dir (default: here), which it may change; also
+		-w path to change, -r path to read, -H your home's folders
+		to change; -d your nopass doas rules; -a asks before each command
+	cdxb add [-r] path [session]	give a running session one more path
+	cdxb review			show Codex's proposals; apply each on y
+	cdxb ls				the running sessions
+	cdxb doas command [arg ...]	in a -d box: run a nopass doas rule
+EOF
+	exit 1
+}
 
 conf=${XDG_CONFIG_HOME:-$HOME/.config}
 cfg=$conf/cdxb
@@ -58,20 +64,18 @@ path() {
 # list FILE: a grants or deny file without its comments and blank lines.
 list() { [ -r "$1" ] && grep -v -e '^[[:space:]]*#' -e '^[[:space:]]*$' -- "$1"; }
 
-# anc P: P and each folder above it. Three tests take a path and a LIST of
-# paths, one per line:
+# anc P: P and each folder above it, / last. Three tests take a path and a
+# LIST of paths, one per line:
 #	under P LIST	P is, or is inside, a path in LIST
 #	holds P LIST	a path in LIST is P, or inside it
 #	deep D LIST	a path in LIST is two or more folders below D (D/a/b)
-anc() { typeset p=$1; while [ -n "$p" ]; do print -r -- "$p"; p=${p%/*}; done; }
+anc() { typeset p=${1%/}; while [ -n "$p" ]; do print -r -- "$p"; p=${p%/*}; done; print /; }
 under() { anc "$1" | grep -qxF -e "$2"; }
-holds() { print -r -- "$2" | while read -r q; do anc "$q"; done | grep -qxF -- "$1"; }
-deep() { print -r -- "$2" | while read -r q; do anc "${q%/*/*}"; done | grep -qxF -- "$1"; }
+holds() { print -r -- "$2" | while IFS= read -r q; do anc "$q"; done | grep -qxF -- "$1"; }
+deep() { print -r -- "$2" | while IFS= read -r q; do anc "${q%/*/*}"; done | grep -qxF -- "$1"; }
 
 # protected: read-only in every box ("-" hides). Codex 0.157 reads the
-# ~/.codex files as settings, instructions or commands to run. With -H
-# also ~/.config, ~/.cache and the dotfiles repository, which run outside
-# the box: cron reads ~/.cache/session-env; mpv's socket runs commands.
+# ~/.codex files as settings, instructions or commands to run.
 protected() {
 	typeset f
 	print -r -- "- $state"
@@ -81,7 +85,14 @@ protected() {
 	for f in config.toml AGENTS.md AGENTS.override.md .env hooks.json rules skills plugins; do
 		print -r -- "r $HOME/.codex/$f"
 	done
-	[ -z "$Hflag" ] || print -r -- "r $conf
+}
+
+# dotfiles: ~/.config, ~/.cache and the dotfiles repository, which run
+# outside the box: cron reads ~/.cache/session-env; mpv's socket runs
+# commands. Protected in every box too, but walled read-only only with -H:
+# without it the box sees no more of them than is granted.
+dotfiles() {
+	print -r -- "r $conf
 r $HOME/.cache
 r $HOME/.local/share/vertrice.git"
 }
@@ -90,7 +101,7 @@ r $HOME/.local/share/vertrice.git"
 lists() {
 	[ -r "$cfg/deny" ] || die "no deny list at $cfg/deny: restore it from the dotfiles"
 	deny=$(list "$cfg/deny" | while read -r p; do path deny "$p"; done) || exit
-	prot=$(protected | while read -r perms p; do path protected "$p"; done) || exit
+	prot=$({ protected; dotfiles; } | while read -r perms p; do path protected "$p"; done) || exit
 }
 
 # ok PERMS PATH: PATH may be granted. Never a denied path; for rw, neither a
@@ -99,7 +110,7 @@ lists() {
 ok() {
 	if under "$2" "$deny"; then say "$2 is on the deny list"
 	elif [ "$1" != rw ]; then return 0
-	elif under "$2" "$prot"; then say "$2 is protected: propose a change (cdxb review)"
+	elif under "$2" "$prot"; then say "$2 is protected: -r, or propose a change (cdxb review)"
 	elif holds "$2" "$prot"; then say "$2 holds protected files: grant a folder in it, or -r"
 	else return 0; fi
 	return 1
@@ -131,6 +142,7 @@ walls() {
 	[ -n "$Hflag" ] && homewalls
 	for p in /bin /sbin /usr; do wall rx $p; done
 	for p in /etc /var/run/ld.so.hints /dev/random /dev/urandom; do wall r $p; done
+	for p in /etc/hostname.*; do [ -e "$p" ] && wall - "$p"; done	# wpakey lines
 	for p in null tty ptm; do wall rw /dev/$p; done	# ptm: Codex's terminals
 	wall rwc "$HOME/.codex"
 	for p in "$HOME/.gitconfig" "$conf/git"; do wall r "$p"; done
@@ -139,9 +151,9 @@ walls() {
 		p=$(path grants "$p") && [ -e "$p" ] && ok "$perms" "$p" && mine "$perms" "$p"
 	done
 	[ "$dir" = "$H" ] || mine rw "$dir"
-	while read -r perms p; do mine "$perms" "$p"; done <"$S/added"
-	print -r -- "$deny" | while read -r p; do wall - "$p"; done
-	protected | while read -r perms p; do wall "$perms" "$p"; done
+	while IFS= read -r p; do mine "${p%% *}" "${p#* }"; done <"$S/added"
+	print -r -- "$deny" | while IFS= read -r p; do wall - "$p"; done
+	{ protected; [ -z "$Hflag" ] || dotfiles; } | while read -r perms p; do wall "$perms" "$p"; done
 	print -r -- "rwc:$S/tmp"
 	print -r -- "rwc:$outbox"
 	[ -z "$dflag" ] || print -r -- "rw:$S/doas.sock
@@ -248,7 +260,7 @@ while getopts adHr:w: o; do
 	r|w) p=$(path "-$o" "$OPTARG") || exit
 	     [ -e "$p" ] || die "$OPTARG: no such file or directory"
 	     [ $o = w ] && o=rw; print -r -- "$o $p" >>"$S/added" ;;
-	*) sed -n '5,12s/^#//p' "$0" >&2; exit 1 ;;
+	*) usage ;;
 	esac
 done
 shift $((OPTIND - 1))
@@ -261,7 +273,8 @@ case $dir in /|*[\"\\]*) die "$dir: not /, nor a path with a quote or backslash"
 [ "$dir" != "$H" ] || [ -n "$Hflag" ] || die "$dir is your home: add -H to mean it"
 case $H/ in "$dir"/*) [ "$dir" = "$H" ] || die "$dir holds your home" ;; esac
 [ "$dir" = "$H" ] || ok rw "$dir" || exit
-while read -r perms p; do ok "$perms" "$p" || exit; done <"$S/added"
+# Paths cdxb wrote itself are read whole (IFS=): a blank at the end is kept.
+while IFS= read -r p; do ok "${p%% *}" "${p#* }" || exit; done <"$S/added"
 print -r -- "$dir" >"$S/dir"
 print -r -- "$Hflag" >"$S/H"
 trap : INT QUIT		# Codex gets them; cdxb keeps running
@@ -279,16 +292,17 @@ export CDXB_OUTBOX=$outbox
 # trust question, whose answer Codex would write to config.toml.
 [ -n "$aflag" ] && trust=untrusted || trust=trusted
 project="projects={\"$dir\"={trust_level=\"$trust\"}}"
+set -A cargs -- "$@"	# your Codex arguments, kept for a restart
 while :; do
 	review
 	rm -f -- "$S/restart"
 	walls >"$S/walls"
 	set -A argv --
-	while read -r w; do argv[${#argv[*]}]=-u; argv[${#argv[*]}]=$w; done <"$S/walls"
+	while IFS= read -r w; do argv[${#argv[*]}]=-u; argv[${#argv[*]}]=$w; done <"$S/walls"
 	# TMPDIR and the GitHub token are set for the box alone.
 	(cd -- "$dir" && export TMPDIR=$S/tmp && gittoken && exec "$box" "${argv[@]}" -- "$codex" -c "$project" "$@")
 	[ -e "$S/restart" ] || break
-	set -- resume --last
+	set -- resume --last "${cargs[@]}"
 	say "starting again with the new paths; the conversation resumes"
 done
 review

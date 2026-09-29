@@ -36,6 +36,7 @@ try "you are in wheel (doas, zzz)" eval 'id -Gn | grep -qw wheel'
 try "doas.conf parses" doas -C /etc/doas.conf
 try "/etc/apm/suspend locks X" grep -q 'pkill -USR1 -x xidle' /etc/apm/suspend
 try "/etc/hotplug/attach installed" test -x /etc/hotplug/attach
+try "/var/db/hotplug-disk readable, for hotplug-watch" test -r /var/db/hotplug-disk
 try "staff class: datasize 4096M" eval '[ "$(ulimit -d)" -ge 4194304 ]'
 try "touchpad off (mouse.tp.disable=1)" eval '[ "$(wsconsctl -n mouse.tp.disable)" = 1 ]'
 try "webcam: /dev/video0 yours" test -O /dev/video0

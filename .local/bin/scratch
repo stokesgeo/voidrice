@@ -1,7 +1,7 @@
 #!/bin/sh
 
-# scratch term|calc: show or hide a scratchpad xterm, and start it on first
-# use. The window class (spterm, spcalc) is what cwmrc matches.
+# scratch term|calc: show or hide a scratchpad terminal, and start it on
+# first use. The window name (spterm, spcalc) is what cwmrc matches.
 
 case $1 in
 	term) name=spterm geo=120x34 cmd= ;;
@@ -11,7 +11,7 @@ esac
 
 id=$(xdotool search --classname "^$name\$" | head -n 1)
 if [ -z "$id" ]; then
-	exec xterm -name "$name" -geometry "$geo" ${cmd:+-e $cmd}
+	exec floatterm "$name" "$geo" $cmd
 elif xdotool search --onlyvisible --classname "^$name\$" >/dev/null; then
 	# Iconify, which cwm hides and keeps. A plain unmap makes cwm let
 	# go of the window, and place it anew when it comes back.
