@@ -1,10 +1,12 @@
 #!/bin/sh
 
-# maimpick: pick a screenshot kind in dmenu (needs maim). Bound to
-# Shift+PrintScreen. Plain entries save a png in the current directory; "(copy)"
-# entries go to the clipboard; the last reads text from an area with tesseract.
-# scrotcucks on suicidewatch right now.
+# This is bound to Shift+PrintScreen by default, requires maim. It lets you
+# choose the kind of screenshot to take, including copying the image or even
+# highlighting an area to copy. scrotcucks on suicidewatch right now.
+# Plain entries save a png in the current directory; "(copy)" entries go to the
+# clipboard; the last reads text from an area with tesseract.
 
+# variables
 output="$(date '+%y%m%d-%H%M-%S').png"
 xclip_cmd="xclip -sel clip -t image/png"
 ocr_cmd="xclip -sel clip"

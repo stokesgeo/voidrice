@@ -114,8 +114,8 @@ duration $duration"
 	prevtime="$time"
 	prevseconds="$(secs "$prevtime")"
 done < "$file"
-# List the last slide twice: ffmpeg's concat demuxer ignores the duration of
-# the final entry.
+# Do last file which must be given twice as follows
+# (ffmpeg's concat demuxer ignores the duration of the final entry.)
 endtime="$((totseconds-seconds))"
 echo "file '$base'
 duration ${endtime:-5}

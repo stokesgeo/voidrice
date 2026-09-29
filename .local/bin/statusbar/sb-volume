@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# sb-volume: output volume, or a mute mark.
+# Prints the current volume or 🔇 if muted.
 # sndioctl(1): output.level runs from 0 to 1; output.mute is 0 or 1.
 
 case $BLOCK_BUTTON in

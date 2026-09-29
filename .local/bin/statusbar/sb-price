@@ -2,11 +2,13 @@
 
 # sb-price: price of a cryptocurrency, from rate.sx ($CRYPTOURL), cached daily.
 #
-# Usage: sb-price COIN-DENOMINATION [NAME [ICON [SIGNAL]]]
-# 	sb-price bat-btc "Basic Attention Token" B 24
-# 	The price of BAT in BTC. Quote a multi-word NAME. A fourth argument
-# 	(SIGNAL) makes a stale price fetch in the background (see sbar); its
-# 	value is not used.
+# Usage:
+#	price <currency-base currency> <name of currency> <icon> <signal>
+#	price bat-btc "Basic Attention Token" 🦁 24
+#	This will give the price of BAT denominated in BTC and will update on
+#	signal 24. (Here the fourth argument only makes a stale price fetch in the
+#	background, see sbar; its value is not used.)
+# When the name of the currency is multi-word, put it in quotes.
 
 [ -z "$1" ] && exit 1
 
@@ -21,7 +23,7 @@ case "$denom" in
 	eur) symb="€" ;;
 	btc) symb="" ;;
 esac
-interval="@14d"	# chart history: @ and a span (7d = 7 days)
+interval="@14d"	# History contained in chart preceded by '@' (7d = 7 days)
 dir="${XDG_CACHE_HOME:-$HOME/.cache}/crypto-prices"
 pricefile="$dir/$target-$denom"
 chartfile="$dir/$target-$denom-chart"

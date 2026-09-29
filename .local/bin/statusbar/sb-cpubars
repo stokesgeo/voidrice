@@ -1,9 +1,11 @@
 #!/bin/sh
 
-# sb-cpubars: CPU load as changing bars, one per core. Just like in polybar.
-# Each bar shows the load since the previous run, in eighths. The ticks come
-# from sysctl kern.cp_time2.N; hw.ncpu counts online cores only, so SMT
-# threads (off by default) get no bar.
+# Module showing CPU load as a changing bars.
+# Just like in polybar.
+# Each bar represents amount of load on one core since
+# last run.
+# The ticks come from sysctl kern.cp_time2.N; hw.ncpu counts online cores only,
+# so SMT threads (off by default) get no bar.
 
 # The previous run's ticks, kept to take the difference.
 cache="${XDG_CACHE_HOME:-$HOME/.cache}"/cpubarscache
@@ -15,7 +17,7 @@ one CPU core";;
 	6) detach "$TERMINAL" -e "$EDITOR" "$0" ;;
 esac
 
-# One row per core: id, total ticks, idle ticks.
+# id total idle
 stats=$(i=0; n=$(sysctl -n hw.ncpu)
 	while [ "$i" -lt "$n" ]; do
 		sysctl -n kern.cp_time2."$i" |

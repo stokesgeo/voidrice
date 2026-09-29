@@ -184,5 +184,6 @@ map <c-l> unselect
 
 
 
-# Source Bookmarks (generated from bm-dirs by the shortcuts script)
+# Source Bookmarks
+# (generated from bm-dirs by the shortcuts script)
 source "~/.config/lf/shortcutrc"

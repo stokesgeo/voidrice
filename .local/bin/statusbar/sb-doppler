@@ -1,10 +1,10 @@
 #!/bin/sh
 
-# sb-doppler: weather radar loop for a saved location.
+# Show a Doppler RADAR of a user's preferred location.
 # Left click shows it, fetching a new one when the file is older than $secs
 # seconds. Middle click picks the location.
 
-secs=600	# age in seconds after which a click fetches a new radar
+secs=600 # Download a new doppler radar if one hasn't been downloaded in $secs seconds.
 radarloc="${XDG_CACHE_HOME:-$HOME/.cache}/radar"
 doppler="${XDG_CACHE_HOME:-$HOME/.cache}/doppler.gif"
 
@@ -208,10 +208,11 @@ chosen="$(printf '%s\n' "$locs" | dmenu -i -l 50 -p "Select a radar to use as de
 [ -z "$chosen" ] && exit 1
 printf '%s\n' "$locs" | grep -qxF -- "$chosen" || exit 1
 
-# Split "US: KTWX: Topeka, KS" into country (US) and radar code (KTWX).
+# Set country code and radar code.
 countrycode=${chosen%%:*}
 radarcode=${chosen#* } radarcode=${radarcode%:*}
 
+# Print codes to $radarloc file.
  printf "%s,%s\\n" "$countrycode" "$radarcode" > "$radarloc" ;}
 
 getdoppler() {

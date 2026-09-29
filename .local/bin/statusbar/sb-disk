@@ -1,9 +1,7 @@
 #!/bin/sh
 
-# sb-disk: used and total space of one filesystem.
-#
-# Usage: sb-disk [MOUNTPOINT]
-# 	MOUNTPOINT defaults to /.
+# Status bar module for disk space
+# $1 should be drive mountpoint, otherwise assumed /.
 
 location=${1:-/}
 
