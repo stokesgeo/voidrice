@@ -37,7 +37,7 @@ try "/etc/apm/suspend locks X" grep -q 'pkill -USR1 -x xidle' /etc/apm/suspend
 try "/etc/hotplug/attach installed" test -x /etc/hotplug/attach
 try "staff class: datasize 4096M" eval '[ "$(ulimit -d)" -ge 4194304 ]'
 try "touchpad off (mouse.tp.disable=1)" eval '[ "$(wsconsctl -n mouse.tp.disable)" = 1 ]'
-try "webcam: kern.video.record=1, /dev/video0 yours" eval '[ "$(sysctl -n kern.video.record)" = 1 ] && [ -O /dev/video0 ]'
+try "webcam: /dev/video0 yours" test -O /dev/video0
 try "root's crontab counts updates" eval 'doas crontab -l | grep -q /var/db/updates'
 while read -r p; do try "package $p" pkg_info -qe "$p-*"; done <~/.local/share/openbsd/pkglist
 

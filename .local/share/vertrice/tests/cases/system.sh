@@ -8,7 +8,8 @@ t_system_touchpad_off() {
 }
 
 t_system_webcam() {
-	grep -qx 'kern.video.record=1' "$REPO/.local/share/openbsd/sysctl.conf" || fail "no kern.video.record=1"
+	# Recording stays at OpenBSD's default (off); rec turns it on for a call.
+	[ -e "$REPO/.local/share/openbsd/sysctl.conf" ] && fail "a sysctl.conf fragment turns recording on at boot"
 	# fbtab(5): login device, mode, devices; one more ttyC0 line is read too.
 	eq "fbtab line" '/dev/ttyC0	0600	/dev/video0' "$(grep -v '^#' "$REPO/.local/share/openbsd/fbtab")"
 }

@@ -22,6 +22,5 @@ rcctl set apmd flags -z 7
 rcctl set obsdfreqd flags -m 100,50 -r 50,90 -T 85,65
 # These append: a second run repeats the lines, and the last one read wins.
 cat wsconsctl.conf >>/etc/wsconsctl.conf
-cat sysctl.conf >>/etc/sysctl.conf
 cat fbtab >>/etc/fbtab
 echo "Done. Reboot to load it all."

@@ -40,7 +40,7 @@ t_install_system() {
 	logged '^rcctl set apmd flags -z 7$'
 	logged '^rcctl set obsdfreqd flags -m 100,50 -r 50,90 -T 85,65$'
 	cmp -s "$data/wsconsctl.conf" "$R/etc/wsconsctl.conf" || fail "wsconsctl.conf"
-	cmp -s "$data/sysctl.conf" "$R/etc/sysctl.conf" || fail "sysctl.conf"
+	[ -e "$R/etc/sysctl.conf" ] && fail "sysctl.conf written: recording is per call (rec)"
 	eq "fbtab: kept, plus the camera" "$(printf '/dev/ttyC0\t0600\t/dev/console\n'; cat "$data/fbtab")" "$(cat "$R/etc/fbtab")"
 }
 
