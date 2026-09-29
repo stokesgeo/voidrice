@@ -135,7 +135,8 @@ for name in $list; do
 		# Nothing from the caller's environment may steer a mock.
 		unset DISPLAY BLOCK_BUTTON LANG APM_L APM_A APM_B WSCONS_BRIGHTNESS \
 			WSCONS_FAIL SND_LEVEL SND_MUTE NET_RX NET_TX LO_BYTES MEM_ACT \
-			VT_EPOCH VT_SLEEP
+			VT_EPOCH VT_SLEEP BK_DIR BK_FS BK_DAYS BK_TERM \
+			XDG_STATE_HOME TMPDIR
 		: >"$VT_STATE/log"
 		cd "$T" || exit 1
 		. "$here/lib.sh"

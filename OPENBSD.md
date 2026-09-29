@@ -237,6 +237,164 @@ offered are accepted. Tested end to end against mocked disklabel, mount,
 bioctl and doas: plain FAT, encrypted unlock-and-mount, unmount-and-lock,
 and refusing typed input. Not yet on the machine.
 
+## Backups
+
+**dump(8) and restore(8) are the backup.** `bk full` and `bk incr` dump the
+/home filesystem, full and incremental, to an encrypted USB disk; restore
+gets one file back (`restore -i`) or the whole filesystem (`restore -r`).
+There is no second backup path: `restore -i` already gets single files
+back, and a tool kept for its own sake is one more thing to maintain.
+
+Sources read: dump.8, restore.8, restore's tape.c and restore.c, and
+openrsync's rsync.1, main.c and fargs.c (GitHub mirror of src, September
+2026). "From memory" marks what was not read.
+
+### Why dump, and not something else
+
+The rule here is base first; a package needs a reason base cannot meet.
+
+- **dump** is OpenBSD's own backup for FFS, the filesystem /home is on. It
+  reads the filesystem, not files, so a dump keeps everything FFS keeps:
+  owners, modes, flags, hard links, sparse files, special files. Levels give
+  incrementals for free: level N saves what changed since the newest dump of
+  a lower level, and `dump -u` records each dump in /etc/dumpdates, which is
+  how the next run knows the date. restore reads it back: `restore -i` is a
+  small shell for picking files, `restore -r` rebuilds a whole filesystem
+  from a full plus its incrementals.
+- **openrsync** copies files. It keeps no history: the next run overwrites
+  yesterday's copy, so a file damaged today is damaged in the copy too.
+  The usual rsync way to keep history, `--link-dest` (unchanged files as hard
+  links to the previous copy), is in openrsync's source but inside `#if 0`,
+  so it is not built, and rsync.1 does not list it. It has no `-H`, so hard
+  links are copied as separate files.
+- **tar** can archive /home, but it has no incremental mode of its own
+  (from memory: OpenBSD's tar has no `--listed-incremental`); rebuilding one
+  from `find -newer` would be writing dump again, worse.
+- **Packages** (borg, restic) add deduplication and their own encryption.
+  The encryption is already softraid's, below the filesystem, and
+  deduplication matters for many snapshots on a network store, not for a
+  USB disk with a few gzipped dumps. Not a strong enough reason to leave
+  base.
+
+What dump cannot do:
+
+- **No snapshot.** OpenBSD's FFS has no filesystem snapshots, so dump reads
+  /home while it is in use. A file written during the dump may be caught
+  half written, and restore.8 warns that incremental restores "can get
+  confused" by dumps of active filesystems. For a copy that is certainly
+  consistent, run it with the session quiet: close the browser, mail and
+  anything else writing to /home, and leave the machine alone until it is
+  done. The console with no X session running is quieter still.
+- **One whole filesystem.** It backs up all of /home, not chosen
+  directories. To leave something out (caches, downloads), mark it with
+  `chflags nodump DIR`; incrementals skip it, but a full dump still takes it
+  (dump's `-h` default is level 1; bk does not change it).
+- **Not browsable.** The files are dump images; you need restore to see
+  inside (`restore -i`, below).
+- **dumpdates records the dump, not the file.** If dump finishes but gzip
+  or the disk then fails, /etc/dumpdates already says the dump happened and
+  the next incremental starts from it. bk removes the broken file and says
+  so; after a failed full, run `bk full` again before the next `bk incr`.
+
+### The backup disk, once
+
+A USB disk with softraid CRYPTO on it and an FFS filesystem inside. Commands
+from memory of the OpenBSD FAQ's softraid page; `disklabel -E` is
+interactive (`a a`, accept the defaults, set the type, `w`, `q`). With the
+disk plugged in as sd2 (`sysctl hw.disknames` shows the names):
+
+    doas fdisk -iy sd2                     # one OpenBSD partition, whole disk
+    doas disklabel -E sd2                  # a: whole disk, fstype RAID
+    doas bioctl -c C -l sd2a softraid0     # set the passphrase; attaches as sd3
+    doas dd if=/dev/zero of=/dev/rsd3c bs=1m count=1
+    doas fdisk -iy sd3
+    doas disklabel -E sd3                  # a: whole disk, fstype 4.2BSD
+    doas newfs sd3a
+    sysctl hw.disknames                    # sd3:DUID, the volume's DUID
+    doas mkdir /mnt/backup
+
+Then one line in /etc/fstab, by the DUID of the unlocked volume (sd3), not
+of the USB disk (sd2):
+
+    0123456789abcdef.a /mnt/backup ffs rw,noauto,nodev,nosuid 0 0
+
+`noauto`: the disk is often absent, so boot must not wait for it. mounter
+tries `mount DUID.a` first, so after unlocking it lands at /mnt/backup
+every time. Once, while mounted: `doas chown YOU /mnt/backup`, so the dump
+files are written as you.
+
+### Using it
+
+Plug the disk in, Super+F9, pick the 🔒 line, type the passphrase. Then, in
+a terminal or from dmenu:
+
+- `bk full`: level 0, all of /home. Monthly, and always **before a
+  sysupgrade**, including the move from snapshots to the 8.0 release: an
+  upgrade that goes wrong then costs nothing but time.
+- `bk incr`: level 1, everything changed since the last full. Weekly or
+  more. Each level 1 replaces the one before for restoring, so a restore
+  needs only the newest full and the newest level 1.
+- `bk restore-test`: reads the newest full with `restore -t` and checks
+  that the files in `~/.config/bk/keyfiles` (one per line, relative to your
+  home; default `.profile`) are in it, then reads the newest incremental
+  through. Writes nothing but restore's scratch files, in a temporary
+  directory it removes.
+- `bk status`: how old the newest full and incremental are.
+
+Super+F10 unmounts the disk and locks it again. Only dump runs as root
+(it reads the raw disk); from a key, bk reopens in a small terminal for
+doas, as mounter does. It refuses to run when /mnt/backup is not a mount
+point, so a backup never fills the laptop's own disk. Files are
+`HOST-YYYYmmdd-HHMM-lN.dump.gz`, mode 600, in /mnt/backup/dump; delete old
+ones by hand, and keep the previous full until the new one passes
+`bk restore-test`. `BK_DIR` and `BK_FS` change the disk and the filesystem.
+
+**Reminder.** xprofile runs `bk remind` at login: a notification when the
+newest dump, full or incremental, is older than `BK_DAYS` (7) days, or when
+there is none. It reads one small file per kind in `~/.local/state/bk`,
+written after each good run, so it works with the disk unplugged; no daemon,
+no cron. Base's own view is `dump -W`, which reads /etc/dumpdates and the
+dump-frequency field of /etc/fstab; bk keeps its own record because it
+knows the file reached the disk, and because `-W` does not list a
+filesystem that was never dumped (dump.8, BUGS). Whether `dump -W` runs
+without root: not checked.
+
+### Restoring
+
+One file or directory, into an empty directory, never over the live one:
+
+    mkdir ~/restored && cd ~/restored
+    gzip -dc /mnt/backup/dump/x220-...-l0.dump.gz | restore -if -
+    restore > cd YOU/Documents
+    restore > add report.odt
+    restore > extract           # "set owner/mode for '.'?" answer n
+    restore > quit
+
+restore reads the dump from the pipe and your commands from the terminal
+(tape.c opens /dev/tty when the input is `-`). If the file changed after
+the full, do the same with the newest incremental. Then move the file where
+it belongs.
+
+All of /home, onto a new disk or after a failure, as root, on a freshly
+made filesystem:
+
+    newfs sd1k && mount /dev/sd1k /home && cd /home
+    gzip -dc /mnt/backup/dump/x220-...-l0.dump.gz | restore -rf -
+    gzip -dc /mnt/backup/dump/x220-...-l1.dump.gz | restore -rf -
+    rm restoresymtable
+
+restore leaves `restoresymtable` to carry state between the full and the
+incremental; remove it after the last one. Then run `bk full` at once:
+restore cannot keep the old inode numbers, so later incrementals need a new
+level 0 (restore.8, BUGS).
+
+**Tested** against mocked mount, doas, dump and restore, with real gzip:
+full and incremental files, names and modes, refusal with the disk
+unmounted, a failed dump leaving no file and no record, the terminal
+reopen, restore-test finding a missing key file and a broken incremental, the
+reminder's threshold, status. Not yet on the machine: dump and restore
+themselves, and the disk setup.
+
 ## Everyday conveniences
 
 - **Idle lock.** xidle(1), in base, starts from xprofile and runs xlock
