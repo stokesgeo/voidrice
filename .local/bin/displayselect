@@ -11,7 +11,7 @@ twoscreen() { # If multi-monitor is selected and there are two screens.
     # version for the internal display
     if [ "$mirror" = "yes" ]; then
         external=$(echo "$screens" | dmenu -i -p "Optimize resolution for:")
-        internal=$(echo "$screens" | grep -v "$external")
+        internal=$(echo "$screens" | grep -v ^"$external"$)
 
         res_external=$(xrandr --query | sed -n "/^$external/,/\+/p" | \
             tail -n 1 | awk '{print $1}')
