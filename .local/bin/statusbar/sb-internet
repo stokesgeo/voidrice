@@ -28,7 +28,7 @@ ifconfig -a | awk '
 	/status: active/	{ active[ifc] = 1 }
 	/ieee80211:/ {
 		for (i = 1; i <= NF; i++)
-			if ($i ~ /^[0-9]+%$/) sig = $i
+			if ($i ~ /^[0-9]+%$|dBm$/) sig = $i	# iwn(4) gives dBm
 	}
 	END {
 		if (wifi != "") {

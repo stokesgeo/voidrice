@@ -1,8 +1,8 @@
 # Codex config for cdxb, copied to ~/.codex/config.toml on first use.
 
 # Codex has no sandbox of its own on OpenBSD; the cdxb box is the wall, so it
-# runs commands without asking unless one looks dangerous (cdxb -a: always ask).
-approval_policy = "on-request"
+# runs commands without asking unless one looks dangerous. No approval_policy:
+# one set here would override cdxb -a, whose untrusted project asks first.
 sandbox_mode = "workspace-write"
 # pkg_add -u updates Codex.
 check_for_update_on_startup = false

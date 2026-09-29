@@ -44,7 +44,7 @@ while read -r p; do try "package $p" pkg_info -qe "$p-*"; done <~/.local/share/o
 print "== X"
 try "cwm accepts the cwmrc" cwm -n -c ~/.config/cwm/cwmrc
 try "TrackPoint wheel emulation on (remaps)" eval 'xinput list-props /dev/wsmouse | grep -Eq "Wheel Emulation \([0-9]+\):[[:space:]]*1$"'
-for b in sb-battery sb-brightness sb-cpu sb-memory sb-nettraf sb-volume sb-clock sb-disk; do
+for b in sb-battery sb-brightness sb-cpu sb-memory sb-nettraf sb-internet sb-volume sb-clock sb-disk; do
 	try "$b prints" eval "[ -n \"\$($b)\" ]"
 done
 

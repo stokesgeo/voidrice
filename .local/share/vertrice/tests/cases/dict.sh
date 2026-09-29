@@ -78,7 +78,6 @@ _____
 Bee
 Bee, n. An insect.' "$(cat "$VT_STATE/dictfmt.gcide")"
 	logged '^ftp -o pg22.txt https://www.gutenberg.org/cache/epub/22/pg22.txt$'
-	eq "Roget's sha256 kept" 'SHA256 (pg22.txt) = 00ff' "$(cat "$R/share/dictd/pg22.sha256")"
 	logged "^dictfmt -c5 -q --utf8 --without-headword --headword-separator %%% -s Roget's Thesaurus \\(1911\\) roget\$"
 	logged '^dictzip roget.dict$'
 	eq "roget: a heading's words find it" '_____

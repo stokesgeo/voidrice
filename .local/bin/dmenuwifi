@@ -16,6 +16,7 @@ print -r -- "$nets" | grep -qxF -- "$chosen" || exit 1
 name=${chosen#* } key=
 [ "${chosen%% *}" = 🔒 ] && { print -n "Key for $name: "; stty -echo; IFS= read -r key; stty echo; print; }
 doas ifconfig "$if" join "$name" ${key:+wpakey "$key"} || { notify-send "📶 Join failed." "$name"; exit 1; }
+doas ifconfig "$if" inet autoconf	# dhcpleased(8) asks for an address
 notify-send "📶 Joining $name"
 
 # netstart(8) evals hostname.if as root: never write " $ ` or \ into it.

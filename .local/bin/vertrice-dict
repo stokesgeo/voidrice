@@ -10,7 +10,7 @@
 #	other symbols (<hand/, <root/) and the tags go.
 #	roget: one entry per heading (#914. Pity.), whose headwords are all
 #	the words in it, so a word finds each heading that holds it.
-# Roget is Project Gutenberg #22; its sha256 is kept in pg22.sha256.
+# Roget is Project Gutenberg #22.
 
 install -m 644 "$(dirname "$0")/../share/openbsd/dictd.conf" /etc/dictd.conf
 mkdir -p /usr/local/share/dictd && cd /usr/local/share/dictd || exit
@@ -22,7 +22,7 @@ sed -E 's/<--[^>]*-->//g; s/<[lr]dquo\//"/g; s/<(ae|oe|AE|OE)\//\1/g
 	s/<([A-Za-z])[a-z]?(cr|mac|acute|grave|um|til|cir|ring|dot|dd|sl|it|ced)\//\1/g
 	s/<[^ <>\/]+\///g; s/<[^>]*>//g' |
 dictfmt -c5 -q --without-headword --headword-separator %%% -s GCIDE gcide && dictzip gcide.dict || exit
-ftp -o pg22.txt https://www.gutenberg.org/cache/epub/22/pg22.txt && sha256 pg22.txt | tee pg22.sha256 || exit
+ftp -o pg22.txt https://www.gutenberg.org/cache/epub/22/pg22.txt || exit
 awk 'function out(	s, w, n, i, h, seen) {
 		s = t; gsub(/\[[^]]*\]|&c\.|—/, " ", s)
 		n = split(tolower(s), w, /[ \t\n0-9.,;:!?()"_&+=\/*#{}[\]]+/)

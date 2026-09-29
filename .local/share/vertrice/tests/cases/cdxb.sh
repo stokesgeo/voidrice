@@ -110,8 +110,8 @@ t_cdxb_walls() {
 	wall "hooks.json read-only" "r:$HOME/.codex/hooks.json"
 	wall "grants read-only" "r:$HOME/.config/cdxb"
 	wall "cdxb's state hidden" ":$state"
-	# -H: the top of home cannot be changed; ~/.config and ~/.local are
-	# read-only; the folders beside them may be changed.
+	# -H: the top of home cannot be changed; ~/.cache, ~/.config and
+	# ~/.local are read-only; the folders beside them may be changed.
 	out=$(cdxb -H "$HOME" 2>&1 </dev/null) || fail "cdxb -H failed: $out"
 	wall "home is read and run" "rx:$HOME"
 	nowall "home is not rwxc" "rwxc:$HOME"
@@ -119,7 +119,9 @@ t_cdxb_walls() {
 	wall "~/.local read-only" "r:$HOME/.local"
 	wall "the dotfiles repo read-only" "r:$HOME/.local/share/vertrice.git"
 	wall "Documents may change" "rwxc:$HOME/Documents"
-	wall "cache may change" "rwxc:$HOME/.cache"
+	wall "~/.cache read-only: cron and mpv run what is in it" "r:$HOME/.cache"
+	nowall "~/.cache not rwxc" "rwxc:$HOME/.cache"
+	wall "cdxb's own state still hidden" ":$state"
 	wall "-H: the deny list still hides" ":$HOME/.ssh"
 	# A write grant that holds a protected path, or a denied one, is refused.
 	out=$(cdxb -w "$HOME/.local" 2>&1) && fail "-w ~/.local was accepted: $out"

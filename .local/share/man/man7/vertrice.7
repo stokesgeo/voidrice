@@ -222,7 +222,8 @@ It is not named rec because sox has a rec command.
 .It Ic 4S-F11
 .Ic dmenuwifi :
 join a wireless network picked in dmenu, and offer to add it to
-.Pa /etc/hostname.\& Ns Ar if .
+.Pa /etc/hostname.\& Ns Ar if
+when that file exists.
 .It Ic 4-F12
 .Ic remaps :
 the keyboard and TrackPoint settings again.
@@ -322,8 +323,12 @@ of
 .Pa /home ,
 compressed, to
 .Pa /mnt/backup/dump .
-Mount the backup disk first
+Mount the backup disk on
+.Pa /mnt/backup
+first
 .Pq Ic 4-F9 .
+On a new FFS disk, make the folder yours once:
+.Ic doas install -d -o $USER -m 700 /mnt/backup/dump .
 .Ic dump -W
 shows the last dumps.
 At login,
@@ -418,7 +423,7 @@ shows the diff and applies it on y.
 .Op Ar dir Op Ar codex-arg ...
 .Bl -tag -width "-w path" -offset indent
 .It Fl a
-Codex asks before each command.
+Codex asks before any command it does not know to be safe.
 .It Fl d
 Codex may run the nopass rules of
 .Pa doas-agent.conf ,
@@ -429,6 +434,12 @@ through a relay outside the box.
 Allow
 .Ar dir
 to be the home directory.
+All of home but the deny list becomes readable, and each folder in it
+writable but
+.Pa ~/.cache ,
+.Pa ~/.config
+and
+.Pa ~/.local .
 .It Fl r Ar path
 Codex may read
 .Ar path .
@@ -459,8 +470,7 @@ and
 The keys.
 .It Pa ~/.config/shell/profile
 .Ev WM ,
-.Ev TERMINAL ,
-.Ev PALETTE
+.Ev TERMINAL
 and
 .Ev MANPATH .
 .It Pa ~/.calendar/calendar
@@ -475,6 +485,8 @@ starts with a colon, so
 .Xr man 1
 searches the standard path first, then
 .Pa ~/.local/share/man .
+.It Pa ~/.local/share/vertrice/reading
+Small base programs worth reading: the manual first, then the source.
 .It Pa ~/.local/share/vertrice/tests/
 The regression suite
 .Pq Pa run ,
@@ -562,6 +574,17 @@ and
 on the backup disk, the update count's reading of
 .Ic pkg_add -u -n -v ,
 the dictionary build, the Codex box's walls and the TrackPoint scroll.
+.Pp
+Git runs what a repository's
+.Pa .git/config
+and
+.Pa .git/hooks
+name.
+The box keeps them read-only only at the top of each path it may change;
+treat any other repository Codex may write in as untrusted, and read its
+.Pa .git
+before running git there.
+.Pp
 After the first boot, run
 .Pa ~/.local/share/vertrice/tests/check ,
 once, as the user, inside X.

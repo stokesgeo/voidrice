@@ -66,7 +66,8 @@ deep() { print -r -- "$2" | while read -r q; do anc "${q%/*/*}"; done | grep -qx
 
 # protected: read-only in every box ("-" hides). Codex 0.157 reads the
 # ~/.codex files as settings, instructions or commands to run. With -H
-# also ~/.config and the dotfiles repository, which run outside the box.
+# also ~/.config, ~/.cache and the dotfiles repository, which run outside
+# the box: cron reads ~/.cache/session-env; mpv's socket runs commands.
 protected() {
 	typeset f
 	print -r -- "- $state"
@@ -77,6 +78,7 @@ protected() {
 		print -r -- "r $HOME/.codex/$f"
 	done
 	[ -z "$Hflag" ] || print -r -- "r $conf
+r $HOME/.cache
 r $HOME/.local/share/vertrice.git"
 }
 

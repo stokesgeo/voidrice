@@ -41,7 +41,8 @@ t_install_system() {
 	cmp -s "$data/hotplug-attach" "$R/etc/hotplug/attach" || fail "no /etc/hotplug/attach"
 	eq "root's crontab: kept, plus the update count" "$(printf '0\t*\t*\t*\t*\t/usr/bin/newsyslog\n'; cat "$data/updates.cron")" \
 		"$(cat "$VT_STATE/crontab.user")"
-	logged '^rcctl enable apmd hotplugd messagebus obsdfreqd unwind$'
+	logged '^rcctl enable apmd hotplugd unwind$'
+	logged '^rcctl enable messagebus obsdfreqd$'
 	logged '^rcctl set apmd flags -z 7$'
 	logged '^rcctl set obsdfreqd flags -m 100,50 -r 50,90 -T 85,65$'
 	cmp -s "$data/wsconsctl.conf" "$R/etc/wsconsctl.conf" || fail "wsconsctl.conf"
@@ -70,6 +71,7 @@ t_install_twice() {
 	eq "one update job" 1 "$(grep -c '^~.*/var/db/updates' "$VT_STATE/crontab.user")"
 	eq "one update comment" 1 "$(grep -c '^#.*/var/db/updates' "$VT_STATE/crontab.user")"
 	eq "one calendar job" 1 "$(grep -c 'calendar$' "$VT_STATE/crontab.puffy")"
+	eq "one calendar comment" 1 "$(grep -c 'calendar(1)' "$VT_STATE/crontab.puffy")"
 	eq "the owner's own job kept" 1 "$(grep -c 'logger monday' "$VT_STATE/crontab.puffy")"
 	eq "one root alias" 1 "$(grep -c '^root:' "$R/etc/mail/aliases")"
 }
@@ -107,13 +109,11 @@ t_install_staff_class() {
 
 t_install_pf_sample() {
 	# The active rules, comments stripped: nothing opens inbound but IPv6
-	# neighbour discovery, and OpenBSD's X11 and _pbuild blocks stay.
+	# neighbour discovery, and OpenBSD's _pbuild block stays.
 	eq "active rules" "set skip on lo
 block in
 pass out
 pass in inet6 proto icmp6 icmp6-type { neighbrsol neighbradv routeradv }
-antispoof quick for lo0
-block return in quick on ! lo0 proto tcp to port 6000:6010
 block return out log proto {tcp udp} user _pbuild" \
 		"$(sed 's/[[:space:]]*#.*//' "$REPO/.local/share/openbsd/pf.conf" | grep .)"
 }
