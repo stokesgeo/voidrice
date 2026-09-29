@@ -37,6 +37,22 @@ t_shortcuts_leaves_dev_null() {
 	notlogged '^rm-devnull'
 }
 
+# lf's delete runs as `sh -eu` (lfrc's shellopts) with $fx the selection.
+# Enter alone is the default no: nothing deleted, and no error.
+t_lf_delete() {
+	printf '#!/bin/sh\nexit 0\n' >"$T/bin/clear"; printf '#!/bin/sh\necho 24\n' >"$T/bin/tput"
+	chmod +x "$T/bin/clear" "$T/bin/tput"
+	body=$(sed -n '/^cmd delete \${{$/,/^}}$/p' "$REPO/.config/lf/lfrc" | sed '1d;$d')
+	[ -n "$body" ] || fail "no delete command in lfrc"
+	: >"$T/f"
+	err=$(echo | fx=$T/f "$VT_SH" -eu -c "$body" 2>&1 >/dev/null)
+	eq "empty answer: no error" "" "$err"
+	[ -f "$T/f" ] || fail "empty answer deleted the file"
+	echo y | fx=$T/f "$VT_SH" -eu -c "$body" >/dev/null 2>&1
+	[ -f "$T/f" ] && fail "y did not delete"
+	return 0
+}
+
 t_cwmrc_accepted() {
 	[ -x "$CWM" ] || skip "no cwm binary (set CWM)"
 	out=$("$CWM" -n -c "$REPO/.config/cwm/cwmrc" 2>&1) || fail "cwm -n: $out"
