@@ -500,10 +500,12 @@ packages.
 
 ## Packages
 
-The rule: base first; a package is added only for a feature we want that
-base does not provide. `pkglist` is the core: what the default session,
-its autostart and its keys call. `pkglist.extra` is one feature per
-package, each one you can skip; `vertrice-install -e system` installs it.
+Two rules. Base first: a package is added only for a feature we want that
+base does not provide. Keep it simple: a package or script nobody will use
+on purpose is cruft and is left out, not kept as an option. `pkglist` is
+the core: what the default session, its autostart and its keys call.
+`pkglist.extra` holds features you would plausibly want but can skip, one
+per package; `vertrice-install -e system` installs it.
 
 Core (`pkglist`), and why base does not cover it:
 
@@ -532,16 +534,25 @@ Core (`pkglist`), and why base does not cover it:
 
 Extra (`pkglist.extra`): mutt-wizard (mail: neomutt, isync, msmtp and pass
 come with it; Super+e, sb-mailbox), newsboat (Super+Shift+n, sb-news),
-calcurse, password-store and pass-otp (Super+Shift+d, otp), transmission
-(torrents), yt-dlp (web video in mpv, qndl), xwallpaper (setbg; without
-it the root window keeps its colour), unclutter (hides an idle pointer),
-socat (pauseallmpv), bash (rssget and sb-ticker), libiconv (iconv(1) for
-booksplit; base has none), noto-fonts (wider Unicode), ntfs_3g and
-simple-mtpfs (mounter: NTFS disks and Android phones), 7zip (ext: 7z, rar).
+password-store and pass-otp (Super+Shift+d, otp), transmission
+(torrents), yt-dlp (web video in mpv), xwallpaper (setbg; without it the
+root window keeps its colour), unclutter (hides an idle pointer), ntfs_3g
+and simple-mtpfs (mounter: NTFS disks and Android phones), 7zip (ext: 7z,
+rar).
 
-Not listed: curl and highlight. The scripts' curl calls could all go
-through base ftp(1); curl stays installed now only because git needs it.
-Nothing runs highlight; lf's previewer calls bat, which is not listed.
+Left out:
+
+- curl: the scripts' curl calls could all go through base ftp(1); curl
+  stays installed now only because git needs it.
+- highlight: nothing runs it; lf's previewer calls bat, which is not
+  listed.
+- socat: only pauseallmpv uses it, and base nc(1) -U can talk to mpv's
+  socket. Until pauseallmpv changes, Super+Shift+p pauses mpd but not mpv.
+- bash: only rssget and sb-ticker, neither in the default bar or keys.
+- calcurse: only sb-clock's click, and sbar blocks take no clicks.
+- libiconv: only booksplit. git installs it anyway.
+- noto-fonts: no config names it; IBM Plex and Noto Color Emoji cover
+  the session.
 
 ## Not ported, or not tested
 
