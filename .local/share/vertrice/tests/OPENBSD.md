@@ -33,8 +33,8 @@ OpenBSD command output under BWK awk (OpenBSD's awk), and getbib's rewrite
 matches the old output, and vertrice-install ran its dry run, apply and
 re-apply against mocked rcctl, pkg_add, doas, sysctl, usermod and
 cap_mkdb under a fake root. Nothing has run on OpenBSD yet.
-`~/.local/share/openbsd/check` tests on the machine each assumption that
-could not be tested here.
+`~/.local/share/vertrice/tests/check` tests on the machine each assumption
+that could not be tested here.
 
 **Tests.** `~/.local/share/vertrice/tests/run` is the regression suite: run
 it after every change. It runs the scripts from this tree against fake
@@ -1131,9 +1131,8 @@ unasked, everything may go out. It is checked with `pfctl -nf` first, the
 old file is kept as /etc/pf.conf.orig, and the new one is loaded. Read the
 file before installing it; see "Security".
 
-**3. Check.** Log in on the console and run `vertrice-install check`
-(which runs `~/.local/share/openbsd/check`), once on the console and once
-inside X.
+**3. Check.** Log in and run `~/.local/share/vertrice/tests/check`, once
+on the console and once inside X.
 
 **Wi-Fi** is not configured by the installer. For iwn0 (the X220's usual
 card; `ifconfig` shows yours), /etc/hostname.iwn0 with one `join` line per
