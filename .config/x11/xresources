@@ -12,8 +12,11 @@ XTerm*selectToClipboard: true
 !! xterm's default minus SetSelection: programs may set the clipboard (OSC 52,
 !! Codex's /copy from the cdxb box) but never read it.
 XTerm*disallowedWindowOps: GetChecksum,GetIconTitle,GetSelection,GetWinTitle,SetXprop
+!! xlock: blank the screen.
 XLock.mode: blank
 
+/* Unused palettes, kept to copy from. `theme` sets the live colours (x11/themes).
+   Colour names, normal then bright: */
 /* name		dark	light */
 /* black	0	8 */
 /* red		1	9 */

@@ -1,3 +1,4 @@
+# Copied by `theme` to dunstrc.d/theme.conf; matches the day palette.
 [urgency_low]
     background = "#f5f1e8"
     foreground = "#383642"

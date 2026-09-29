@@ -1,6 +1,6 @@
-# kshrc: interactive ksh(1), in place of voidrice's .zshrc. The profile sets ENV to it.
+# kshrc: setup for interactive ksh(1). The profile's ENV points here.
 
-# [user@host dir]$ in the voidrice colours; \[ \] mark the escapes as zero-width.
+# Prompt: [user@host dir]$ in colour. \[ \] mark the escapes as zero-width.
 PS1='\[\e[1;31m\][\[\e[33m\]\u\[\e[32m\]@\[\e[34m\]\h \[\e[35m\]\w\[\e[31m\]]\[\e[0m\]\$ '
 
 set -o vi		# vi line editing; v in command mode opens $EDITOR
@@ -8,6 +8,7 @@ set -o vi-tabcomplete	# Tab completes in insert mode too
 stty stop undef		# free ctrl-s from freezing the terminal
 HISTSIZE=10000		# the profile exports HISTFILE
 
+# Bookmarks and aliases; a missing file is skipped.
 for f in shortcutrc shortcutenvrc aliasrc; do
 	[ -f "${XDG_CONFIG_HOME:-$HOME/.config}/shell/$f" ] &&
 		. "${XDG_CONFIG_HOME:-$HOME/.config}/shell/$f"
