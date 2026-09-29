@@ -6,7 +6,10 @@ secs=600 # Download a new doppler radar if one hasn't been downloaded in $secs s
 radarloc="${XDG_CACHE_HOME:-$HOME/.cache}/radar"
 doppler="${XDG_CACHE_HOME:-$HOME/.cache}/doppler.gif"
 
-pickloc() { chosen="$(echo "US: CONUS: Continental United States
+# Voidrice's dmenu has -r (only an entry from the list may be picked), a
+# patch of Luke's build; the dmenu package is suckless dmenu without it
+# (-r there is not an option). So the pick is checked against the list.
+pickloc() { locs="US: CONUS: Continental United States
 US: Northeast
 US: Southeast
 US: PacNorthWest
@@ -198,10 +201,12 @@ DE: SAA: Saxony-Anhalt
 DE: SHH: Schleswig-Holstein
 DE: SHH: Hamburg
 DE: THU: Thuringia
-NL: The Netherlands" | dmenu -r -i -l 50 -p "Select a radar to use as default:")"
+NL: The Netherlands"
+chosen="$(printf '%s\n' "$locs" | dmenu -i -l 50 -p "Select a radar to use as default:")"
 
-# Ensure user did not escape.
+# Ensure user did not escape or type something not in the list.
 [ -z "$chosen" ] && exit 1
+printf '%s\n' "$locs" | grep -qxF -- "$chosen" || exit 1
 
 # Set country code and radar code.
 countrycode=${chosen%%:*}

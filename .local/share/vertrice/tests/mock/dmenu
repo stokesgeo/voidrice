@@ -4,10 +4,26 @@
 # $VT_STATE/menu.N and answers line N of $VT_STATE/answers (see answers in
 # lib.sh). No line N: the user pressed Escape, so it prints nothing and
 # exits 1, as dmenu does.
+#
+# Options: those of suckless dmenu 5.4, the x11/dmenu package (its ports
+# patches change only colours, the font and build paths; checked). The
+# option list itself is from memory of dmenu.c's main(). An unknown option
+# (-r from Luke's patched build) makes dmenu print usage and exit 1.
+
+args=$*
+while [ $# -gt 0 ]; do
+	case $1 in
+	-b|-f|-i|-v) shift ;;
+	-l|-m|-p|-fn|-nb|-nf|-sb|-sf|-w) shift 2 ;;
+	*) echo "dmenu $args (refused: $1)" >>"$VT_STATE/log"
+	   echo "usage: dmenu [-bfiv] [-l lines] [-p prompt] [-fn font] [-m monitor]" >&2
+	   exit 1 ;;
+	esac
+done
 
 n=$(( $(cat "$VT_STATE/dmenu.n" 2>/dev/null || echo 0) + 1 ))
 echo "$n" >"$VT_STATE/dmenu.n"
 cat >"$VT_STATE/menu.$n"
-echo "dmenu $*" >>"$VT_STATE/log"
+echo "dmenu $args" >>"$VT_STATE/log"
 [ "$(wc -l <"$VT_STATE/answers" 2>/dev/null || echo 0)" -ge "$n" ] || exit 1
 sed -n "${n}p" "$VT_STATE/answers"
