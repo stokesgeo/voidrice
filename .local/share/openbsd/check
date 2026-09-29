@@ -84,6 +84,8 @@ print -r -- "$boot" | grep -E '^(pms|wsmouse)[0-9]' | sed 's/^/INFO  /'
 n=$(print -r -- "$boot" | grep -c '^wsmouse[0-9]* at pms')
 [ "$n" -ge 2 ] && pass "touchpad and TrackPoint are two wsmice ($n at pms)" ||
 	fail "touchpad and TrackPoint are two wsmice" "$n at pms; see the lines above"
+[ "$(wsconsctl -n mouse.tp.disable 2>/dev/null)" = 1 ] && pass "touchpad off (mouse.tp.disable=1)" ||
+	fail "touchpad off" "mouse.tp.disable is not 1 (vertrice-install system adds it to wsconsctl.conf; reboot)"
 print -r -- "$boot" | grep -q '^acpithinkpad0 at' && pass "acpithinkpad attached (Fn keys, fan sensor)" ||
 	fail "acpithinkpad attached"
 v=$(sysctl -n hw.cpuspeed 2>/dev/null); num "$v" && pass "hw.cpuspeed ($v MHz)" || fail "hw.cpuspeed" "$v"
@@ -95,7 +97,6 @@ id -Gn | grep -qw wheel && pass "you are in wheel (apmd's socket is 0660 root:wh
 if [ -n "$DISPLAY" ]; then
 	try "xinput is installed" command -v xinput
 	xinput list --name-only | grep -E '^/dev/wsmouse[0-9]*$' | sed 's/^/INFO  X pointer: /'
-	try "X has the touchpad as /dev/wsmouseN (touchpad script)" eval 'xinput list --name-only | grep -Eq "^/dev/wsmouse[0-9]+$"'
 	try "TrackPoint wheel emulation is on (remaps)" eval 'xinput list-props /dev/wsmouse | grep -Eq "Wheel Emulation \([0-9]+\):[[:space:]]*1$"'
 else
 	skip "X pointers" "run inside the X session"

@@ -129,7 +129,7 @@ against cwm's source, and `cwm -n` accepts the file.
 | w / Shift+w | browser / nmtui | qutebrowser (`$BROWSER`) / chromium |
 | e, r, n, m, c, Shift+d/e/n/r | mail, lf, wiki, music, chat, passmenu, abook, news, top | same programs (top from base for htop) |
 | F9 / F10 | mounter / unmounter | same, OpenBSD versions, in a terminal for doas |
-| F11 / F12 | webcam / remaps | `touchpad toggle`: touchpad off/on, TrackPoint stays / remaps (keys and TrackPoint scrolling again) |
+| F11 / F12 | webcam / remaps | unbound / remaps (keys and TrackPoint scrolling again) |
 | F4 | pulsemixer | `nightlight`: warm screen on/off (sct) |
 | F8 | mailsync | `theme toggle`: day / night palette |
 | p, [, ], comma, period | mpc | mpc |
@@ -726,21 +726,16 @@ src). "From memory" marks what was not read.
   Opening a wsmouse directly takes it out of the mux, so the TrackPoint is
   the mux device and no xorg.conf.d file is needed. `check` prints the
   pms/wsmouse boot lines and the X devices, to confirm which is which.
-- **Touchpad off, TrackPoint on.** `touchpad on|off|toggle` runs
-  `xinput enable/disable` on the numbered device; Super+F11 toggles
-  (F11 was voidrice's webcam key, unbound here). In xprofile,
-  `touchpad_at_login=off` starts every session with it off; the default
-  is on. xinput is in base X.
+- **Touchpad off, TrackPoint only.** The system stage puts
+  `mouse.tp.disable=1` in `/etc/wsconsctl.conf`: the kernel drops the
+  touchpad's movement, tapping and scrolling; its buttons still click
+  ([wsmouse(4)](https://man.openbsd.org/wsmouse.4)). Only a touchpad has
+  `tp.*` fields, so the line cannot reach the TrackPoint. `mouse` is
+  wsmouse0, where pms attaches the touchpad.
 - **TrackPoint scrolling.** `remaps` (run at login, again by Super+F12)
   turns on the ws driver's wheel emulation on `/dev/wsmouse`: hold the
   middle button and push the stick, both axes. A middle press shorter than
   200 ms is still a click, so paste works.
-- **Touchpad below X.** `wsconsctl mouse.tp.tapping=1` turns on tapping (one,
-  two, three fingers for left, right, middle); it stays off unless set.
-  `mouse.tp.disable=1` stops all touchpad output except clicks in a top
-  button area; it acts in the kernel, so in X too. `mouse` is wsmouse0,
-  `mouse1` wsmouse1; the check shows which is the touchpad. Put the lines in
-  `/etc/wsconsctl.conf` to keep them.
 - **Fn keys.** acpithinkpad handles, below X: brightness up/down, volume
   up/down/mute, mic mute, Fn+F5 (Bluetooth), Fn+F4 (suspend) and Fn+F12
   (hibernate). The ThinkVantage button is not in its list, so it does

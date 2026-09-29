@@ -18,11 +18,6 @@ done >/dev/null 2>&1
 # plugged in (via udevadm); OpenBSD has no udev. Run `remaps` again by hand.
 remaps &
 
-# Touchpad at login: on, or off to use only the TrackPoint. Super+F11
-# switches it either way during the session.
-touchpad_at_login=on
-[ "$touchpad_at_login" = off ] && touchpad off
-
 # Lock after 10 idle minutes: xidle(1), from base, runs xlock (mode blank,
 # set in xresources).
 pgrep -x xidle >/dev/null || xidle -timeout 600 &

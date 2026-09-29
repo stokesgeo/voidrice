@@ -445,9 +445,11 @@ system() {
 	daemon unwind	# resolvd then points resolv.conf at it
 
 	# Console: Caps Lock is Escape, and X's key repeat (300 ms, then 50
-	# a second). wsconsctl.conf is read at boot.
+	# a second). The touchpad is off, the TrackPoint the only pointer:
+	# only a touchpad's wsmouse has tp.* fields (wsmouse(4)), so this
+	# cannot reach the TrackPoint. wsconsctl.conf is read at boot.
 	for p in 'keyboard.map+="keysym Caps_Lock = Escape"' \
-	    keyboard.repeat.del1=300 keyboard.repeat.deln=20; do
+	    keyboard.repeat.del1=300 keyboard.repeat.deln=20 mouse.tp.disable=1; do
 		if grep -qxF "$p" "$R/etc/wsconsctl.conf" 2>/dev/null; then
 			ok "$p in /etc/wsconsctl.conf"
 		else

@@ -133,8 +133,9 @@ Look
 
 ThinkPad X220
 
-- `touchpad` on/off (Super+F11), TrackPoint wheel scrolling in
-  `remaps`, notes on Fn keys, backlight, lid, battery and console.
+- Touchpad off for good (mouse.tp.disable=1 in /etc/wsconsctl.conf,
+  from the system stage), TrackPoint wheel scrolling in `remaps`, notes
+  on Fn keys, backlight, lid, battery and console.
 
 Install and tests
 
