@@ -1,4 +1,5 @@
-# login.conf's staff class with room for a browser: more memory and open files.
+# The staff login class (login.conf(5)) with room for a browser: more memory,
+# open files and processes. tc=default stays last: it supplies the rest.
 staff:\
 	:datasize-cur=4096M:\
 	:datasize-max=infinity:\
