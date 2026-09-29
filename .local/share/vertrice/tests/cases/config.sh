@@ -80,8 +80,8 @@ t_parse_shell_files() {
 }
 
 t_parse_check() {
-	err=$("$VT_KSH" -n "$REPO/.local/share/openbsd/check" 2>&1) || fail "check: $err"
-	has "check is ksh" "#!/bin/ksh" "$(sed -n 1p "$REPO/.local/share/openbsd/check")"
+	err=$("$VT_KSH" -n "$REPO/.local/share/vertrice/tests/check" 2>&1) || fail "check: $err"
+	has "check is ksh" "#!/bin/ksh" "$(sed -n 1p "$REPO/.local/share/vertrice/tests/check")"
 }
 
 t_parse_scripts() {

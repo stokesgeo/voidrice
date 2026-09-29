@@ -75,7 +75,7 @@ export VT_KSH VT_SH CWM CWM_SRC REPO
 wrap=$RUN/wrap
 mkdir -p "$wrap"
 for f in "$REPO"/.local/bin/* "$REPO"/.local/bin/statusbar/* \
-    "$REPO"/.local/share/openbsd/check "$REPO"/.local/share/openbsd/hotplug-attach; do
+    "$REPO"/.local/share/openbsd/hotplug-attach; do
 	[ -f "$f" ] || continue
 	case $(sed -n 1p "$f") in
 	'#!/bin/ksh'*) i=$VT_KSH ;;

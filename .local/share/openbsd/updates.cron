@@ -1,0 +1,2 @@
+# /var/db/updates: what syspatch and pkg_add -u would install, one a line; sb-updates counts them.
+~	*/4	*	*	*	-ns (syspatch -c; pkg_add -u -n -v | grep "^Adding.*->" | sort -u) >/var/db/updates
