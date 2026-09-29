@@ -250,3 +250,19 @@ t_opout_pdf() {
 	xdg-open ./doc.pdf
 	logged '^zathura \./doc\.pdf$'
 }
+
+# otp's add path: scan, insert under a temporary name, ask for the real
+# name, rename to NAME-otp. Upstream's "prinf" typo fed the name prompt
+# from a command that does not exist.
+t_otp_add() {
+	export PASSWORD_STORE_DIR="$T/store"; mkdir -p "$PASSWORD_STORE_DIR"
+	for v in pass maim xclip; do ln -s "$VT_MOCKS/_log" "$T/bin/$v"; done
+	printf '#!/bin/sh\necho "QR-Code:otpauth://totp/x?secret=ABC"\n' >"$T/bin/zbarimg"
+	printf '#!/bin/sh\nexit 0\n' >"$T/bin/pkg_info"	# ifinstalled: pass-otp, zbar
+	chmod +x "$T/bin/zbarimg" "$T/bin/pkg_info"
+	answers "🆕add" github
+	otp 2>"$T/err"
+	logged '^pass otp insert otp-test-script$'
+	logged '^pass mv otp-test-script github-otp$'
+	hasnt "no missing command" "not found" "$(cat "$T/err")"
+}
