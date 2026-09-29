@@ -1,23 +1,26 @@
 # hotplug-attach and hotplug-watch, theme, nightlight, scratch.
 
-# The hotplug pair shares /var/run/hotplug-disk, which only root may write;
-# here it is $T/hotplug-disk (see derived in lib.sh). Real entr watches it.
+# The hotplug pair shares /var/db/hotplug-disk, which only root may write;
+# here it is $T/hotplug-disk (see derived in lib.sh), made empty as
+# vertrice-install makes it. Real entr watches it.
 hp_setup() {
 	command -v entr >/dev/null 2>&1 || skip "no entr on this host"
-	sub="s|/var/run/hotplug-disk|$T/hotplug-disk|g"
+	sub="s|/var/db/hotplug-disk|$T/hotplug-disk|g"
 	watch=$(derived .local/bin/hotplug-watch hotplug-watch "$sub")
 	attach=$(derived .local/share/openbsd/hotplug-attach hotplug-attach "$sub")
+	: >"$T/hotplug-disk"
 }
 attached() { grep -c "^notify-send 💾 $1 attached Super+F9 to mount it\.\$" "$VT_STATE/log"; }
 seen() { [ "$(attached "$1")" -ge 1 ]; }
 entrs() { "$VT_REAL_PGREP" -f "entr .*$T/hotplug-disk" | wc -l | tr -d ' '; }
 watching() { [ "$(entrs)" -ge 1 ]; }
 
-t_hotplug_first_attach_after_boot() {
+t_hotplug_first_attach() {
 	hp_setup
-	# /var/run is empty after boot: the watcher waits for the file.
-	VT_SLEEP=0.2 "$VT_SH" "$watch" >/dev/null 2>&1 &
+	"$VT_SH" "$watch" >/dev/null 2>&1 &
+	waitfor 5 watching || fail "entr never started"
 	"$VT_REAL_SLEEP" 0.3
+	eq "no notice before an attach" 0 "$(grep -c '^notify-send' "$VT_STATE/log")"
 	"$VT_SH" "$attach" 2 sd1
 	eq "file written" sd1 "$(cat "$T/hotplug-disk")"
 	waitfor 5 seen sd1 || fail "no notice for the first attach"
@@ -34,7 +37,8 @@ t_hotplug_first_attach_after_boot() {
 
 t_hotplug_login_after_attach() {
 	hp_setup
-	# A disk was attached before this login: no stale notice for it.
+	# A disk was attached before this login, or before a reboot, as the
+	# file lasts: no stale notice for it.
 	"$VT_SH" "$attach" 2 sd9
 	"$VT_SH" "$watch" >/dev/null 2>&1 &
 	waitfor 5 watching || fail "entr never started"
@@ -49,7 +53,7 @@ t_hotplug_attach_non_disk() {
 	hp_setup
 	"$VT_SH" "$attach" 3 iwn0
 	"$VT_SH" "$attach" 5 uhidev0
-	[ -e "$T/hotplug-disk" ] && fail "non-disk device wrote the file"
+	[ -s "$T/hotplug-disk" ] && fail "non-disk device wrote the file"
 	return 0
 }
 

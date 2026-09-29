@@ -4,4 +4,4 @@
 # the device class in $1 and its name in $2. Class 2 is a disk: write its name
 # (sd1) to the file that hotplug-watch reads.
 
-[ "$1" = 2 ] && echo "$2" >/var/run/hotplug-disk
+[ "$1" = 2 ] && echo "$2" >/var/db/hotplug-disk

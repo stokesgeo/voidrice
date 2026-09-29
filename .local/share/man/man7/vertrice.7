@@ -99,7 +99,10 @@ installs
 with
 .Pa /etc/apm/hibernate
 as a link to it, and
-.Pa /etc/hotplug/attach ;
+.Pa /etc/hotplug/attach ,
+which writes each new disk's name to
+.Pa /var/db/hotplug-disk
+for the notice;
 .It
 adds a line to root's crontab that counts waiting updates;
 .It
