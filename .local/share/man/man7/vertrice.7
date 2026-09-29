@@ -1,0 +1,568 @@
+.\" vertrice(7): voidrice on OpenBSD for the ThinkPad X220.
+.\" Licensed under the GNU GPL, version 3, as the rest of vertrice.
+.Dd $Mdocdate: September 29 2026 $
+.Dt VERTRICE 7
+.Os
+.Sh NAME
+.Nm vertrice
+.Nd voidrice dotfiles for OpenBSD on the ThinkPad X220
+.Sh DESCRIPTION
+.Nm
+is voidrice, a set of dotfiles for Linux, ported to
+.Ox
+and set up for a ThinkPad X220.
+It keeps the voidrice layout: scripts in
+.Pa ~/.local/bin ,
+configuration in
+.Pa ~/.config ,
+dmenu for every menu and one status line.
+It uses the base system first:
+.Xr ksh 1
+is the shell,
+.Xr cwm 1
+the window manager and
+.Xr xterm 1
+the terminal.
+A package is added only for a feature base does not have.
+.Ss Install
+The dotfiles are a bare git repository whose work tree is the home
+directory.
+On a fresh system, as root:
+.Pp
+.Dl # pkg_add git
+.Pp
+Then, as the user:
+.Bd -literal -offset indent
+$ git clone --bare https://github.com/stokesgeo/vertrice.git \e
+    ~/.local/share/vertrice.git
+$ git --git-dir=$HOME/.local/share/vertrice.git \e
+    --work-tree=$HOME checkout -f
+$ git --git-dir=$HOME/.local/share/vertrice.git \e
+    config status.showUntrackedFiles no
+.Ed
+.Pp
+The checkout replaces the
+.Pa .profile
+that
+.Xr adduser 8
+copied in.
+The system half is
+.Pa ~/.local/bin/vertrice-install ,
+a plain list of commands.
+Read it, then run it as root:
+.Pp
+.Dl $ doas sh ~/.local/bin/vertrice-install
+.Pp
+The first time there is no
+.Xr doas.conf 5
+yet: use
+.Ic su -
+and run the file by its full path.
+It uses the files in
+.Pa ~/.local/share/openbsd
+and does the following:
+.Bl -dash
+.It
+installs the packages in
+.Pa pkglist
+with
+.Xr pkg_add 1 ;
+.It
+writes
+.Pa /etc/doas.conf
+from
+.Pa doas.conf
+and
+.Pa doas-agent.conf ,
+after
+.Ic doas -C
+accepts them;
+.It
+installs
+.Pa /root/.kshrc
+(vi editing and a red prompt for
+.Ic doas -s ) ;
+.It
+installs
+.Pa /etc/login.conf.d/staff ,
+which raises the memory and open-file limits of the staff class for
+the browsers;
+.It
+installs
+.Pa /etc/pf.conf
+after
+.Ic pfctl -nf
+accepts it, and loads it;
+.It
+installs
+.Pa /etc/apm/suspend ,
+with
+.Pa /etc/apm/hibernate
+as a link to it, and
+.Pa /etc/hotplug/attach ;
+.It
+adds a line to root's crontab that counts waiting updates, and a
+.Xr calendar 1
+line to the user's crontab;
+.It
+adds
+.Dq root: Ar user
+to
+.Pa /etc/mail/aliases ,
+unless root already has an alias, and runs
+.Xr newaliases 8 ;
+.It
+enables
+.Xr apmd 8
+(with
+.Fl z Ar 7 ) ,
+.Xr hotplugd 8 ,
+messagebus,
+.Xr obsdfreqd 1
+and
+.Xr unwind 8 ;
+.It
+appends its lines to
+.Pa /etc/wsconsctl.conf
+and
+.Pa /etc/fbtab .
+.El
+.Pp
+Reboot afterwards.
+Running it again is safe: the appended lines repeat, and the last one
+read wins.
+.Pp
+The optional packages (mail, news, passwords, torrents, downloads, the
+dictionary and others) are in a second list:
+.Pp
+.Dl $ doas pkg_add -l ~/.local/share/openbsd/pkglist.extra
+.Pp
+After them,
+.Ic doas sh ~/.local/bin/vertrice-dict
+builds the dictionary once.
+.Pp
+The shell function
+.Ic config
+is
+.Xr git 1
+with that repository and the home directory as its work tree.
+Update with:
+.Pp
+.Dl $ config pull origin master
+.Pp
+The bare clone has no fetch refspec, so the remote and branch are named.
+Add files by name, never with
+.Ic config add .\&
+in the home directory.
+After an update that changes
+.Pa ~/.local/share/openbsd ,
+run the installer again.
+.Ss Session
+Logging in on
+.Pa /dev/ttyC0
+runs
+.Xr startx 1 ;
+.Xr xenodm 1
+works too, through
+.Pa ~/.xsession .
+The session starts a D-Bus session bus, runs
+.Pa ~/.config/x11/xprofile ,
+then
+.Xr cwm 1 .
+.Ev WM Ns = Ns Cm dwm
+in the profile runs dwm instead, with
+.Ic sbar
+writing the status line; dwm and st are built by hand into
+.Pa ~/.local/src .
+.Pp
+The xprofile sets the wallpaper and palette, starts mpd and dunst,
+runs
+.Ic remaps ,
+starts
+.Xr xidle 1 ,
+which locks the screen after ten idle minutes or when the pointer
+rests in the top-left corner, and shows a notice when a USB disk is
+attached or a backup is due.
+.Ss Keys
+The key list is
+.Pa ~/.config/cwm/cwmrc ;
+.Ic 4-F1
+shows it in dmenu.
+In its notation 4 is Super, S is Shift and C is Control.
+voidrice's dwm keys are kept: groups are dwm's tags, and windows float
+until
+.Ic 4-t
+tiles them.
+cwm has no bar, so
+.Ic 4-b
+shows the status line as a notification.
+The keys that differ from voidrice:
+.Bl -tag -width "4C-F11" -offset indent
+.It Ic 4S-F1
+.Ic manpick :
+pick any manual page in dmenu.
+.It Ic 4S-F2
+.Ic writemode :
+full-screen nvim in Goyo on the last file changed in
+.Pa ~/writing .
+.It Ic 4-F4
+.Ic nightlight :
+a warm screen, on or off.
+.It Ic 4-F8
+.Ic theme toggle :
+the day or night palette.
+.It Ic 4-F11
+.Xr video 1 :
+the webcam view.
+.It Ic 4C-F11
+.Ic rectoggle :
+turn the microphone and camera on for a call, or off again.
+It asks for the doas password in a terminal.
+It is not named rec because sox has a rec command.
+.It Ic 4S-F11
+.Ic dmenuwifi :
+join a wireless network picked in dmenu, and offer to add it to
+.Pa /etc/hostname.\& Ns Ar if .
+.It Ic 4-F12
+.Ic remaps :
+the keyboard and TrackPoint settings again.
+.El
+.Ss Machine settings
+.Bl -tag -width Ds
+.It Touchpad
+Off:
+.Cm mouse.tp.disable=1
+in
+.Pa /etc/wsconsctl.conf .
+The TrackPoint is the pointer; hold its middle button and push to
+scroll.
+.It Caps Lock
+Types Escape on the console
+.Pq Xr wsconsctl.conf 5 .
+In X,
+.Ic remaps
+makes it Escape when tapped and Super when held, as in voidrice.
+.It Recording
+Off, as
+.Ox
+ships it
+.Pq Va kern.audio.record , kern.video.record .
+.Ic rectoggle
+turns both on and off.
+.Pa /etc/fbtab
+gives the camera to whoever logs in on the console.
+.It Suspend
+.Xr apmd 8
+runs
+.Pa /etc/apm/suspend
+before sleeping, and it locks X first.
+.Ic zzz
+suspends,
+.Ic ZZZ
+hibernates, and apmd suspends at 7% battery.
+.It CPU speed
+.Xr obsdfreqd 1 ,
+at full speed on power and half on battery.
+.It Firewall
+.Xr pf.conf 5
+blocks all that comes in unasked and passes all that goes out.
+.Ic pfctl -sr
+shows the rules.
+.El
+.Ss Mail
+Root's mail, from
+.Xr daily 8
+and root's
+.Xr cron 8
+jobs, goes to the user, in
+.Pa /var/mail/ Ns Ar user ,
+with the user's own cron mail.
+Read it with
+.Xr mail 1 .
+For neomutt, add
+.Ql mailboxes /var/mail/ Ns Ar user
+to your own muttrc.
+.Ss Reminders
+Reminders go in
+.Pa ~/.calendar/calendar ,
+one to a line: a date, a tab, the text.
+Comments are written
+.Ql /* ... */ .
+Cron runs
+.Xr calendar 1
+at 08:00 and mails the lines for today and tomorrow; on Friday, through
+Monday.
+.Pa ~/.calendar/nomail
+stops the 01:30 run in
+.Xr daily 8
+from mailing the same lines again.
+Codex in
+.Ic cdxb
+may add reminders there.
+.Ss Dictionary
+.Ic dict Ar word
+shows the definitions from GCIDE and the Roget's Thesaurus (1911)
+headings that hold the word.
+.Ic dict -d gcide Ar word
+shows the definitions only;
+.Ic roget Ar word
+shows the Roget headings only.
+In nvim,
+.Ic K
+on a word in Markdown or text looks it up.
+.Xr dictd 8
+listens on localhost only.
+.Ss Backups
+.Ic bk full
+and
+.Ic bk incr
+write a level 0 or level 1
+.Xr dump 8
+of
+.Pa /home ,
+compressed, to
+.Pa /mnt/backup/dump .
+Mount the backup disk first
+.Pq Ic 4-F9 .
+.Ic dump -W
+shows the last dumps.
+At login,
+.Ic dump -w
+decides whether to show the reminder.
+It follows the dump-frequency field of the
+.Pa /home
+line in
+.Xr fstab 5 :
+the
+.Ox
+installer writes 1, a daily reminder; set it to 7 for a weekly one.
+Read a dump back with
+.Ic gzip -dc Ar file | Ic restore -tf - .
+.Ss Writing
+.Bl -tag -width "writemode" -compact
+.It Ic spellcheck Ar file
+.Xr spell 1 ,
+each flagged word shown in its line.
+Your own words go in
+.Pa ~/.local/share/spell/words ,
+sorted with
+.Ic sort -f .
+.It Ic dupwords Ar file
+Doubled words, across line ends.
+.It Ic proof Op Ar file
+spellcheck, dupwords,
+.Xr diction 1
+and
+.Xr style 1
+in one pager.
+.It Ic writemode
+Full-screen writing
+.Pq Ic 4S-F2 .
+.It Ic sb-words
+The word count of the last file changed in
+.Pa ~/writing .
+.El
+.Ss Downloads and archives
+.Ic qndl
+queues downloads with
+.Xr nq 1 ,
+one after another;
+.Ic sb-tasks
+counts them.
+.Ic ext Ar file ...
+extracts archives with
+.Xr bsdtar 1
+and keeps existing files.
+.Ss Themes
+.Ic theme day
+and
+.Ic theme night
+set the palette of the terminals, dunst and zathura.
+At login the palette follows the clock: day from 07:00, night from 19:00.
+.Ev PALETTE Ns = Ns Cm wal
+in the profile takes the colours from the wallpaper with pywal instead.
+.Ss Updates
+Every four hours root's crontab writes what
+.Xr syspatch 8
+and
+.Ic pkg_add -u
+would install to
+.Pa /var/db/updates .
+.Ic sb-updates
+counts it in the status line;
+.Ic sb-popupgrade
+installs the updates in a terminal.
+.Ss Codex in a box
+.Ic cdxb
+runs Codex from your own terminal in a box made with
+.Xr unveil 2
+and
+.Xr pledge 2 .
+Codex and all it runs see the system read-only,
+.Pa ~/.codex ,
+the working directory, the paths in
+.Pa ~/.config/cdxb/grants
+and those given with options.
+The paths in
+.Pa ~/.config/cdxb/deny
+stay hidden, and the box's own settings and your dotfiles stay
+read-only.
+Codex proposes a change to a settings file by writing it whole;
+.Ic cdxb review
+shows the diff and applies it on y.
+.Pp
+.Ic cdxb
+.Op Fl adH
+.Op Fl r Ar path
+.Op Fl w Ar path
+.Op Ar dir Op Ar codex-arg ...
+.Bl -tag -width "-w path" -offset indent
+.It Fl a
+Codex asks before each command.
+.It Fl d
+Codex may run the nopass rules of
+.Pa doas-agent.conf ,
+as
+.Ic cdxb doas Ar command ,
+through a relay outside the box.
+.It Fl H
+Allow
+.Ar dir
+to be the home directory.
+.It Fl r Ar path
+Codex may read
+.Ar path .
+.It Fl w Ar path
+Codex may change
+.Ar path .
+.El
+.Pp
+.Ic cdxb add
+.Op Fl r
+.Ar path Op Ar session
+gives a running session one more path: quit that Codex and it resumes
+with the path.
+.Ic cdxb ls
+lists the running sessions.
+.Sh FILES
+.Bl -tag -width Ds -compact
+.It Pa ~/.local/share/vertrice.git
+The bare repository.
+.It Pa ~/.local/bin/vertrice-install
+The system half of the install.
+.It Pa ~/.local/share/openbsd/
+The files it installs, and the package lists
+.Pa pkglist
+and
+.Pa pkglist.extra .
+.It Pa ~/.config/cwm/cwmrc
+The keys.
+.It Pa ~/.config/shell/profile
+.Ev WM ,
+.Ev TERMINAL ,
+.Ev PALETTE
+and
+.Ev MANPATH .
+.It Pa ~/.calendar/calendar
+Reminders.
+.It Pa ~/.config/cdxb/grants , ~/.config/cdxb/deny
+What the Codex box may use, and what it hides.
+.It Pa ~/.local/share/man/man7/vertrice.7
+This page.
+The profile's
+.Ev MANPATH
+starts with a colon, so
+.Xr man 1
+searches the standard path first, then
+.Pa ~/.local/share/man .
+.It Pa ~/.local/share/vertrice/tests/
+The regression suite
+.Pq Pa run ,
+the check on the machine
+.Pq Pa check
+and the porting notes
+.Pq Pa OPENBSD.md .
+.It Pa /var/db/updates
+Waiting updates, one to a line.
+.It Pa /etc/dumpdates
+The dumps done so far.
+.El
+.Sh EXAMPLES
+A reminder for the third of October, in
+.Pa ~/.calendar/calendar ,
+with a tab after the date:
+.Bd -literal -offset indent
+Oct 3	Return the library books
+.Ed
+.Pp
+Look a word up in the thesaurus:
+.Pp
+.Dl $ roget pity
+.Pp
+Proofread the last file changed in
+.Pa ~/writing :
+.Pp
+.Dl $ proof
+.Pp
+Run Codex in a project with read access to a reference tree:
+.Pp
+.Dl $ cdxb -r ~/src/lib ~/src/project
+.Pp
+Make
+.Xr apropos 1
+and
+.Ic manpick
+find this page:
+.Pp
+.Dl $ makewhatis ~/.local/share/man
+.Sh SEE ALSO
+.Xr calendar 1 ,
+.Xr cwm 1 ,
+.Xr dict 1 ,
+.Xr doas 1 ,
+.Xr ksh 1 ,
+.Xr mail 1 ,
+.Xr nq 1 ,
+.Xr obsdfreqd 1 ,
+.Xr spell 1 ,
+.Xr video 1 ,
+.Xr xidle 1 ,
+.Xr pledge 2 ,
+.Xr unveil 2 ,
+.Xr doas.conf 5 ,
+.Xr fbtab 5 ,
+.Xr fstab 5 ,
+.Xr login.conf 5 ,
+.Xr pf.conf 5 ,
+.Xr wsconsctl.conf 5 ,
+.Xr hier 7 ,
+.Xr afterboot 8 ,
+.Xr apmd 8 ,
+.Xr daily 8 ,
+.Xr dictd 8 ,
+.Xr dump 8 ,
+.Xr restore 8 ,
+.Xr syspatch 8 ,
+.Xr unwind 8
+.Pp
+voidrice:
+.Lk https://github.com/LukeSmithxyz/voidrice
+.Sh HISTORY
+.Nm
+was ported from Luke Smith's voidrice in 2026.
+.Sh CAVEATS
+.Nm
+has been tested off the machine, against mocked
+.Ox
+commands, and not yet on an X220.
+Not yet run there: the installer, the suspend lock on a lid close,
+.Xr dump 8
+and
+.Xr restore 8
+on the backup disk, the update count's reading of
+.Ic pkg_add -u -n -v ,
+the dictionary build, the Codex box's walls and the TrackPoint scroll.
+After the first boot, run
+.Pa ~/.local/share/vertrice/tests/check ,
+once, as the user, inside X.
+It changes nothing and prints PASS or FAIL for each item.

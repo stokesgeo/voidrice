@@ -1,9 +1,12 @@
-# vertrice: voidrice on OpenBSD
+# vertrice: porting notes
 
-[README.md](README.md) says what vertrice is, the base-first rule, and the
-short install. This file is the detail. Upstream voidrice targets Arch and
-Void Linux; "The walk" below names each Linux mechanism and the OpenBSD one
-that replaced it.
+Agents' notes from the port: the reasons, the sources read, and what is
+untested. The reference is `man vertrice`
+(`.local/share/man/man7/vertrice.7`). These notes lag the tree: the
+installer, bk, cdxb and the update counter have since been cut down (see
+`git log`). Where they disagree, the tree and the man page are right.
+Upstream voidrice targets Arch and Void Linux; "The walk" below names each
+Linux mechanism and the OpenBSD one that replaced it.
 
 **The default session.** ksh, cwm and xterm, all from base. voidrice's
 tiling keys are carried into cwm (see "Keys" below). Luke's dwm and st are
