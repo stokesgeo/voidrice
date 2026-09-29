@@ -312,3 +312,15 @@ t_slider_convert() {
 	logged '^ffmpeg -hide_banner -y -f concat -safe 0 -i '
 	notlogged '^magick'
 }
+
+# No audio: the last slide shows for -e seconds, else 5.
+t_slider_last_slide() {
+	im_setup
+	cd "$T" || fail "no dir"
+	printf '00:00:00\tOne\n00:00:03\tTwo\n' >list
+	prep=$XDG_CACHE_HOME/slider/list/list.prep
+	slider -i list >/dev/null 2>&1
+	eq "default" "duration 5" "$(grep '^duration' "$prep" | tail -n 1)"
+	slider -i list -e 10 >/dev/null 2>&1
+	eq "-e 10" "duration 10" "$(grep '^duration' "$prep" | tail -n 1)"
+}
