@@ -1,5 +1,7 @@
 #!/bin/sh
 
-# /etc/hotplug/attach: hotplugd(8) runs it as root; a new disk's name goes where hotplug-watch sees it.
+# /etc/hotplug/attach: hotplugd(8) runs it as root when a device attaches, with
+# the device class in $1 and its name in $2. Class 2 is a disk: write its name
+# (sd1) to the file that hotplug-watch reads.
 
 [ "$1" = 2 ] && echo "$2" >/var/run/hotplug-disk
