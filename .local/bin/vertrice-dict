@@ -1,4 +1,5 @@
 #!/bin/sh
+
 # vertrice-dict: GCIDE's definitions and Roget's Thesaurus (1911) from dictd
 # on localhost, for `dict word`, `dict -d roget word` and K in nvim. Run it
 # once as root, after pkg_add -l pkglist.extra:

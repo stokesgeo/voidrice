@@ -28,6 +28,3 @@ lfcd() {
 # The bare clone has no fetch refspec: update with `config pull origin master`.
 # Add files by name, never `config add .` from $HOME.
 config() { git --git-dir="$HOME/.local/share/vertrice.git" --work-tree="$HOME" "$@"; }
-
-# Not carried over from .zshrc: key macros (ksh binds keys only in emacs
-# mode), the cursor shape per vi mode, autocd and syntax highlighting.

@@ -14,10 +14,9 @@ esac
 top -b -d 1 | awk -v phys="$(sysctl -n hw.physmem)" '
 	/^Memory:/ {
 		split($3, r, "/"); act = r[1]
-		u = substr(act, length(act)); n = act + 0
+		u = substr(act, length(act)); n = act + 0	# 450M, 2G: to GiB
 		if (u == "K") n /= 1024 * 1024
 		else if (u == "M") n /= 1024
-		else if (u == "G") n += 0
 		printf "🧠%.2fGiB/%.2fGiB\n", n, phys / 1024 / 1024 / 1024
 		exit
 	}'

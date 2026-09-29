@@ -1,3 +1,5 @@
 #!/bin/sh
+
 # detach: voidrice's setsid -f. OpenBSD has no setsid(1); nohup outlives the terminal.
+
 nohup "$@" >/dev/null 2>&1 &
