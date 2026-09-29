@@ -83,6 +83,34 @@ t_fetch_getbib() {
 	has "HTTP error: no entry" "Failed to fetch bibtex entry for DOI: 10.1000/abc" "$out"
 }
 
+# getbib's DOI filter under a sed that takes only what OpenBSD sed takes. On
+# a GNU host the guard runs GNU sed with --posix, which refuses GNU-only
+# commands such as T (upstream's "T; q"); OpenBSD sed has no T at all
+# (usr.bin/sed/compile.c). The PDF's metadata has two DOIs: the first wins.
+t_fetch_getbib_posix_sed() {
+	realsed=$(PATH=$syspath command -v sed)
+	if "$realsed" --version 2>/dev/null | grep -q GNU; then
+		printf '#!/bin/sh\nexec %s --posix "$@"\n' "$realsed" >"$T/bin/sed"
+	else
+		printf '#!/bin/sh\nexec %s "$@"\n' "$realsed" >"$T/bin/sed"
+	fi
+	printf '#!/bin/sh\nprintf "Title: x\\nSubject: doi:10.1000/first\\nKeywords: DOI 10.1000/second\\n"\n' >"$T/bin/pdfinfo"
+	# find: OpenBSD's has no -quit (usr.bin/find/option.c); GNU's does.
+	realfind=$(PATH=$syspath command -v find)
+	printf '#!/bin/sh\nfor a; do [ "$a" = -quit ] && { echo "find: -quit: unknown primary" >&2; exit 1; }; done\nexec %s "$@"\n' "$realfind" >"$T/bin/find"
+	chmod +x "$T/bin/sed" "$T/bin/pdfinfo" "$T/bin/find"
+	echo x | sed -n 's/x/y/p; T; q' >/dev/null 2>&1 &&
+		fail "the guard sed took GNU's T: the case would prove nothing"
+	# No ~/latex/uni.bib: getbib finds a .bib file under $HOME.
+	mkdir -p "$HOME/refs"; : >"$HOME/refs/mine.bib"; : >"$T/paper.pdf"
+	echo '@article{A_2020, DOI={10.1000/first} }' | fx out.ftp
+	out=$(getbib "$T/paper.pdf" 2>&1)
+	logged '^ftp -MV -o - https://api\.crossref\.org/works/10\.1000/first/transform/application/x-bibtex$'
+	notlogged 'second'
+	has "added" "Added bibtex entry for DOI: 10.1000/first" "$out"
+	has "written to the .bib file found" "@article{a20," "$(cat "$HOME/refs/mine.bib")"
+}
+
 t_fetch_rssget() {
 	printf '<link rel="alternate" type="application/rss+xml" href="/feed.xml">\n' | fx out.ftp
 	out=$(rssget https://example.com/blog/post news)
