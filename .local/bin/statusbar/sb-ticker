@@ -18,9 +18,9 @@ tickerfile="${XDG_CONFIG_HOME:-$HOME/.config}/tickers"
 
 [ -f "$tickerfile" ] && tickers="$(cat "$tickerfile")" || tickers="^GSPC,^DJI,^IXIC";
 
-# True when the cache is not from this hour.
+# True when there is no cache, or it is not from this hour.
 checkprice() {
-    [ -s "$pricefile" ] && [ "$(stat -f %Sm -t '%Y-%m-%d %H' "$pricefile" 2>/dev/null)" != "$(date '+%Y-%m-%d %H')" ]
+    [ "$(stat -f %Sm -t '%Y-%m-%d %H' "$pricefile" 2>/dev/null)" != "$(date '+%Y-%m-%d %H')" ]
 }
 
 getchange() {	# the nth change after a colour escape goes with the nth ticker

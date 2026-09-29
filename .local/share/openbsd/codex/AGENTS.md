@@ -21,8 +21,10 @@ around the box.
 - diff(1) and patch(1) call unveil themselves and fail here: use
   `git diff --no-index a b`, and your own patch tool.
 - Run git yourself, here in the box; never hand the owner a git command
-  to run outside it. The box holds no push credential yet: when a push is
-  needed, say so.
+  to run outside it. Pushes go over https to github.com, with a token the
+  owner made for the repositories they chose: those you can push to, no
+  others. There is no ssh key; for a remote named by ssh, push to its
+  https URL. If a push is refused, say so.
 
 ## Changing the box's own settings
 

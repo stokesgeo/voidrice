@@ -286,3 +286,49 @@ t_cdxb_review_doas() {
 	eq "written once installed" "$rules" "$(cat "$HOME/.local/share/openbsd/doas-agent.conf")"
 	return 0
 }
+
+# The GitHub token: git's credential helper is set in the box only when
+# ~/.config/cdxb/github-token exists and is not denied; the file is inside
+# a read-only wall and never hidden.
+t_cdxb_github_token() {
+	cdxb_setup
+	unset GIT_CONFIG_COUNT GIT_CONFIG_KEY_0 GIT_CONFIG_VALUE_0
+	tok=$HOME/.config/cdxb/github-token
+	cat >"$T/fakecodex" <<'EOF'
+#!/bin/sh
+echo "codex count=$GIT_CONFIG_COUNT key=$GIT_CONFIG_KEY_0" >>"$VT_STATE/log"
+command -v git >/dev/null 2>&1 &&
+	printf 'protocol=https\nhost=github.com\n\n' | GIT_TERMINAL_PROMPT=0 git credential fill 2>/dev/null |
+	sed -n 's/^password=/git password=/p' >>"$VT_STATE/log"
+exit 0
+EOF
+	cd "$HOME/src/proj" || fail "no project"
+	cdxb </dev/null >/dev/null 2>&1 || fail "cdxb failed"
+	logged '^codex count= key=$'
+	notlogged '^git password='
+	printf 'github_pat_example\n' >"$tok"; chmod 600 "$tok"
+	: >"$VT_STATE/log"
+	cdxb </dev/null >/dev/null 2>&1 || fail "cdxb failed"
+	logged '^codex count=1 key=credential\.https://github\.com\.helper$'
+	if command -v git >/dev/null 2>&1; then logged '^git password=github_pat_example$'; fi
+	wall "the token's folder is read-only" "r:$HOME/.config/cdxb"
+	nowall "not writable" "rwxc:$HOME/.config/cdxb"
+	nowall "not writable" "rwxc:$tok"
+	nowall "not hidden" ":$tok"
+	# On the deny list: hidden, and git is not pointed at it.
+	echo '~/.config/cdxb/github-token' >>"$HOME/.config/cdxb/deny"
+	: >"$VT_STATE/log"
+	out=$(cdxb 2>&1 </dev/null) || fail "cdxb failed: $out"
+	has "says why" "github-token is on the deny list" "$out"
+	logged '^codex count= key=$'
+	wall "denied: hidden" ":$tok"
+	# The dotfiles never take the token: git add of the folder skips it.
+	command -v git >/dev/null 2>&1 || return 0
+	mkdir "$T/repo" && cd "$T/repo" && git init -q . || fail "no git repository"
+	mkdir -p .config/cdxb
+	cp "$REPO/.config/cdxb/.gitignore" "$REPO/.config/cdxb/deny" .config/cdxb/
+	: >.config/cdxb/github-token
+	git add .config/cdxb || fail "git add failed"
+	hasnt "token not added" "github-token" "$(git ls-files)"
+	return 0
+}

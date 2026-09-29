@@ -24,7 +24,8 @@
 # TMPDIR is the session's own; no X display (/copy uses OSC 52).
 # Git runs the hooks and commands a repository's .git names, and Codex may
 # change any .git it can write: in those repositories, git is Codex's job,
-# in the box.
+# in the box. With a GitHub token in ~/.config/cdxb/github-token (read-only
+# in the box), git in the box pushes over https; git outside it never uses it.
 
 conf=${XDG_CONFIG_HOME:-$HOME/.config}
 cfg=$conf/cdxb
@@ -185,6 +186,21 @@ review() {
 	priv=
 }
 
+# gittoken: in the box, git's https credential for github.com is the token
+# in $cfg/github-token, if there is one and it is not denied. The helper
+# reads the file when git asks, so the token is in no environment. Codex
+# must pass GIT_CONFIG_KEY_0 on: its shell_environment_policy does unless
+# ignore_default_excludes = false, which drops names with KEY in them.
+gittoken() {
+	typeset n=${GIT_CONFIG_COUNT:-0} t
+	[ -f "$cfg/github-token" ] || return 0
+	t=$(path token "$cfg/github-token") || return 0
+	if under "$t" "$deny"; then say "github-token is on the deny list: no push"; return 0; fi
+	export GIT_CONFIG_KEY_$n=credential.https://github.com.helper
+	export GIT_CONFIG_VALUE_$n='!f() { [ "$1" = get ] && printf "username=x-access-token\npassword=%s\n" "$(cat "${XDG_CONFIG_HOME:-$HOME/.config}/cdxb/github-token")"; }; f'
+	export GIT_CONFIG_COUNT=$((n + 1))
+}
+
 # live: the running sessions, named by their cdxb's pid; removes dead ones.
 live() {
 	typeset d
@@ -269,8 +285,8 @@ while :; do
 	walls >"$S/walls"
 	set -A argv --
 	while read -r w; do argv[${#argv[*]}]=-u; argv[${#argv[*]}]=$w; done <"$S/walls"
-	# TMPDIR is set for the box alone.
-	(cd -- "$dir" && export TMPDIR=$S/tmp && exec "$box" "${argv[@]}" -- "$codex" -c "$project" "$@")
+	# TMPDIR and the GitHub token are set for the box alone.
+	(cd -- "$dir" && export TMPDIR=$S/tmp && gittoken && exec "$box" "${argv[@]}" -- "$codex" -c "$project" "$@")
 	[ -e "$S/restart" ] || break
 	set -- resume --last
 	say "starting again with the new paths; the conversation resumes"

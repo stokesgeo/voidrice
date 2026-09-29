@@ -10,23 +10,30 @@ ifinstalled geoiplookup || exit 1
 
 getip() {
 	route -n get default >/dev/null 2>&1 &&
-		ftp -MV -o "$ipfile" https://api.ipify.org 2>/dev/null
+		ftp -MV -o "$ipfile" https://api.ipify.org 2>/dev/null &&
+		touch "$ipfile"
 }
 
-# The background fetch saves the address here; it is used once, then deleted.
+# The address is kept here and fetched again once it is an hour old.
 ipfile="${XDG_CACHE_HOME:-$HOME/.cache}/iplocate"
-# No saved address: fetch one in the background (see sbar) and print nothing.
-addr=$(cat "$ipfile" 2>/dev/null) && addr=$(geoiplookup "$addr" 2>/dev/null) && rm "$ipfile" ||
-	( mkdir "${lock:=/tmp/sb-iplocate-$(id -u).lock}" 2>/dev/null &&
-		( trap 'rmdir "$lock"' EXIT; tries=0; while [ $tries -ne 100 ]; do
+checkip() { [ -n "$(find "$ipfile" -mmin -60 2>/dev/null)" ]; }
+
+# Fresh address: look it up. Otherwise fetch in the background (see sbar)
+# and print nothing. The fetcher lets go of stdout, which sbar reads.
+# shellcheck disable=SC2015
+checkip ||
+	{ ( exec >/dev/null 2>&1; lock=/tmp/sb-iplocate-$(id -u).lock
+		mkdir "$lock" || exit
+		trap 'rmdir "$lock"' EXIT; tries=0; while [ $tries -ne 100 ]; do
 			getip && break ||
 				{ tries=$((tries+1)); sleep .1; }
 		done
-		! [ -f "$ipfile" ] &&
-			until getip; do sleep 60; done &&
+		! checkip &&
+			until getip; do sleep 60; done
 		sb-refresh
 		) &
-	echo; exit )
+	echo; exit; }
+addr=$(geoiplookup "$(cat "$ipfile")" 2>/dev/null) || exit 1
 name="${addr##*, }"
 flag="$(grep "flag: $name" "${XDG_DATA_HOME:-$HOME/.local/share}/larbs/chars/emoji")"
 flag="${flag%% *}"
