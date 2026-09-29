@@ -20,7 +20,7 @@ do
 				dmenu -l 20 -i -p "Move file(s) to where?")")"
 			[ ! -d "$destdir" ] && notify-send "$destdir is not a directory, cancelled." && exit
 			mv "$file" "$destdir" && notify-send -i "$(readlink -f "$file")" "$file moved to $destdir." & ;;
-		# ImageMagick 6 on OpenBSD: use mogrify, not magick.
+		# ImageMagick 6 here: mogrify, no magick.
 		"r" )
 			ifinstalled ImageMagick && mogrify -rotate 90 "$file" ;;
 		"R" )

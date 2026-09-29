@@ -39,7 +39,7 @@ colorscheme vim
 	syntax on
 	set encoding=utf-8
 	set number relativenumber
-" Command-line completion: longest match, then a list, then cycle:
+" Enable autocompletion:
 	set wildmode=longest,list,full
 " Disables automatic commenting on newline:
 	autocmd FileType * setlocal formatoptions-=c formatoptions-=r formatoptions-=o
@@ -53,10 +53,10 @@ colorscheme vim
 	autocmd FileType markdown,text setlocal keywordprg=dict
 " Spell-check set to <leader>o, 'o' for 'orthography':
 	map <leader>o :setlocal spell! spelllang=en_us<CR>
-" New splits open below and to the right, where the eye expects them:
+" Splits open at the bottom and right, which is non-retarded, unlike vim defaults.
 	set splitbelow splitright
 
-" NERDTree: <leader>n toggles it. Vim quits when it is the last window left.
+" Nerd tree
 	map <leader>n :NERDTreeToggle<CR>
 	autocmd bufenter * if (winnr("$") == 1 && exists("b:NERDTree") && b:NERDTree.isTabTree()) | q | endif
 	let NERDTreeBookmarksFile = stdpath('data') . '/NERDTreeBookmarks'
@@ -69,23 +69,23 @@ colorscheme vim
 	let g:airline_symbols.linenr = ' L:'
 	let g:airline_symbols.maxlinenr = '☰ '
 
-" Move between splits with Ctrl-h, j, k, l:
+" Shortcutting split navigation, saving a keypress:
 	map <C-h> <C-w>h
 	map <C-j> <C-w>j
 	map <C-k> <C-w>k
 	map <C-l> <C-w>l
 
-" Q reformats text (gq) in place of ex mode:
+" Replace ex mode with gq
 	map Q gq
 
-" Lint the file with shellcheck:
+" Check file in shellcheck:
 	map <leader>s :!clear && shellcheck -x %<CR>
 
-" Open the bibliography ($BIB) or the refer database ($REFER) in a split:
+" Open my bibliography file in split
 	map <leader>b :vsp<space>$BIB<CR>
 	map <leader>r :vsp<space>$REFER<CR>
 
-" S starts a substitute over the whole file:
+" Replace all is aliased to S.
 	nnoremap S :%s//g<Left><Left>
 
 " Compile document, be it groff/LaTeX/markdown/etc.
@@ -94,10 +94,10 @@ colorscheme vim
 " Open corresponding .pdf/.html or preview
 	map <leader>p :!opout "%:p"<CR>
 
-" Delete LaTeX build files when leaving a .tex file:
+" Runs a script that cleans out tex build files whenever I close out of a .tex file.
 	autocmd VimLeave *.tex !latexmk -c %
 
-" Filetype and vimwiki setup (notes are markdown, man/ms/me/mom are groff):
+" Ensure files are read as what I want:
 	let g:vimwiki_ext2syntax = {'.Rmd': 'markdown', '.rmd': 'markdown','.md': 'markdown', '.markdown': 'markdown', '.mdown': 'markdown'}
 	map <leader>v :VimwikiIndex<CR>
 	let g:vimwiki_list = [{'path': '~/.local/share/nvim/vimwiki', 'syntax': 'markdown', 'ext': '.md'}]
@@ -107,31 +107,33 @@ colorscheme vim
 
 " No w!!: doas cannot ask for a password inside nvim. Use `doas vi file`.
 
-" Mail written in neomutt opens in Goyo at 80 columns. ZZ and ZQ close Goyo first:
+" Enable Goyo by default for mutt writing
 	autocmd BufRead,BufNewFile /tmp/neomutt* :Goyo 80 | call feedkeys("jk")
 	autocmd BufRead,BufNewFile /tmp/neomutt* map ZZ :Goyo!\|x!<CR>
 	autocmd BufRead,BufNewFile /tmp/neomutt* map ZQ :Goyo!\|q!<CR>
 
-" On save: strip trailing whitespace and extra blank lines at end of file, then put the cursor back:
+" Automatically deletes all trailing whitespace and newlines at end of file on save. & reset cursor position
  	autocmd BufWritePre * let currPos = getpos(".")
 	autocmd BufWritePre * %s/\s\+$//e
 	autocmd BufWritePre * %s/\n\+\%$//e
-  autocmd BufWritePre *.[ch] %s/\%$/\r/e " add trailing newline for ANSI C standard
-  autocmd BufWritePre *neomutt* %s/^--$/-- /e " dash-dash-space signature delimiter in emails
+" Add trailing newline for ANSI C standard:
+  autocmd BufWritePre *.[ch] %s/\%$/\r/e
+" Dash-dash-space signature delimiter in emails:
+  autocmd BufWritePre *neomutt* %s/^--$/-- /e
   	autocmd BufWritePre * cal cursor(currPos[1], currPos[2])
 
-" When bm-files or bm-dirs is saved, regenerate the shortcut files (see the shortcuts script):
+" When shortcut files are updated, renew shell, lf and vim configs with new material:
 	autocmd BufWritePost bm-files,bm-dirs !shortcuts
-" Load X resources with xrdb(1) on save:
+" Run xrdb whenever Xdefaults or Xresources are updated.
 	autocmd BufRead,BufNewFile Xresources,Xdefaults,xresources,xdefaults set filetype=xdefaults
 	autocmd BufWritePost Xresources,Xdefaults,xresources,xdefaults !xrdb %
 
-" In diff mode, mark the changed text inside a changed line with MatchParen, so it stays readable:
+" Turns off highlighting on the bits of code that are changed, so the line that is changed is highlighted but the actual text that has changed stands out on the line and is readable.
 if &diff
     highlight! link DiffText MatchParen
 endif
 
-" <leader>h hides or shows the status line, mode, ruler and command echo:
+" Function for toggling the bottom statusbar:
 let s:hidden_all = 0
 function! ToggleHiddenAll()
     if s:hidden_all  == 0
@@ -149,7 +151,8 @@ function! ToggleHiddenAll()
     endif
 endfunction
 nnoremap <leader>h :call ToggleHiddenAll()<CR>
-" Command-line shortcuts that the shortcuts script generates from bm-dirs and bm-files.
-" Their prefix is ";". Typed fast, ":vs ;cfx" expands to
-" ":vs /home/<user>/.config/x11/xresources".
+" Load command shortcuts generated from bm-dirs and bm-files via shortcuts script.
+" Here leader is ";".
+" So ":vs ;cfx" will expand into ":vs /home/<user>/.config/x11/xresources"
+" if typed fast without the timeout.
 silent! source ${XDG_CONFIG_HOME:-$HOME/.config}/nvim/shortcuts.vim

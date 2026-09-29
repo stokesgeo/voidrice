@@ -14,11 +14,13 @@ image() {
 	fi
 }
 
-# Archives: bsdtar(1) lists their contents. The name patterns match the ones ext extracts.
+# Archives by name, as ext takes them: bsdtar lists them all (atool has no port).
 case $1 in *.tar*|*.t[abgx]z|*.tbz2|*.tzst|*.zip|*.jar|*.7z|*.rar|*.iso) bsdtar -tf "$1"; exit 1 ;; esac
 
-# Thumbnails are cached under a name built from stat(1) data (path, inode,
-# type, size, block size, mtime), so a changed file gets a new thumbnail.
+# Note that the cache file name is a function of file information, meaning if
+# an image appears in multiple places across the machine, it will not have to
+# be regenerated once seen. (The name comes from stat(1) data: path, inode,
+# type, size, block size, mtime; a changed file gets a new thumbnail.)
 
 case "$(file -biL -- "$1" | cut -d';' -f1)" in
 	image/avif) CACHE="${XDG_CACHE_HOME:-$HOME/.cache}/lf/thumb.$(stat -f '%N %i %HT %z %B %m' -- "$(readlink -f "$1")" | md5)" CACHE="${CACHE%% *}"
