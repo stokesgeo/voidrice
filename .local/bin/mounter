@@ -1,8 +1,9 @@
 #!/bin/ksh
 
-# mounter: voidrice's mounter on OpenBSD's tools: 💾 disklabel partitions,
-# 🔒 softraid CRYPTO volumes (bioctl), 📱 phones (simple-mtpfs). An fstab
-# line for the disk's DUID wins. doas asks in a terminal: it has no askpass.
+# mounter: mount a drive picked in dmenu: 💾 disklabel(8) partitions,
+# 🔒 softraid(4) CRYPTO volumes (unlocked with bioctl(8)), 📱 phones
+# (simple-mtpfs). An fstab(5) line for the disk's DUID wins. doas(1) has no
+# askpass, so it asks in a terminal: hence the xterm.
 
 [ -t 0 ] || exec xterm -name floatterm -geometry 64x4 -e "$0"
 doas true || exit 1
@@ -47,7 +48,7 @@ alldrives=$(printf '%s\n%s\n' "$phones" "$drives" | sed '/^$/d')
 chosen=$(print -r -- "$alldrives" | dmenu -i -p "Mount which drive?") || exit 1
 print -r -- "$alldrives" | grep -qxF -- "$chosen" || exit 1	# only what was offered
 
-# getmount NAME: ask where to mount, as voidrice does; create it on request.
+# getmount NAME: ask where to mount, offering /mnt/NAME; create it on request.
 getmount() {
 	mp=$({ print "/mnt/$1"; find /mnt /media /mount /home -maxdepth 1 -type d 2>/dev/null; } |
 		dmenu -i -p "Mount this drive where?") || exit 1
