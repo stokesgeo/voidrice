@@ -1,3 +1,5 @@
+# latexmk settings: build in out/, make the PDF with xelatex, print little,
+# and delete generated files on `latexmk -c`.
 $bibtex_use = 1.5;
 $cleanup_includes_cusdep_generated = 1;
 $cleanup_includes_generated = 1;
@@ -5,6 +7,6 @@ $out_dir = "out";
 $pdf_mode = 5;
 $silent = 1;
 
-# SyncTeX
+# SyncTeX: lets the editor and the PDF viewer jump to each other. Clean its files too.
 push(@generated_exts, ("synctex.*"));
 push(@extra_xelatex_options, '-synctex=1') ;

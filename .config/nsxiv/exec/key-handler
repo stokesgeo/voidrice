@@ -1,4 +1,8 @@
 #!/bin/sh
+
+# nsxiv key handler: Ctrl-x, then a key below, acts on the marked images.
+# $1 is the key; nsxiv sends one image path per line on stdin.
+
 while read -r file
 do
 	case "$1" in
@@ -16,7 +20,7 @@ do
 				dmenu -l 20 -i -p "Move file(s) to where?")")"
 			[ ! -d "$destdir" ] && notify-send "$destdir is not a directory, cancelled." && exit
 			mv "$file" "$destdir" && notify-send -i "$(readlink -f "$file")" "$file moved to $destdir." & ;;
-		# ImageMagick 6 here: mogrify, no magick.
+		# ImageMagick 6 on OpenBSD: use mogrify, not magick.
 		"r" )
 			ifinstalled ImageMagick && mogrify -rotate 90 "$file" ;;
 		"R" )
