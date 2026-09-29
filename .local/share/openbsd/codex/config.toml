@@ -1,0 +1,36 @@
+# Codex config for OpenBSD, used with cdxb. cdxb copies this file to
+# ~/.codex/config.toml on first use if there is none, and never overwrites.
+# Inside the box ~/.codex/config.toml is read-only: Codex proposes changes
+# through `cdxb review`.
+#
+# Every key below was checked against the config schema of Codex 0.157.0,
+# the version in OpenBSD ports (codex-rs/core/config.schema.json).
+
+# Codex has no sandbox of its own on OpenBSD (openai/codex issue #21977):
+# its sandbox code knows macOS Seatbelt, Linux Landlock/seccomp and
+# Windows, and runs commands unconfined elsewhere. cdxb's unveil box is
+# the wall here. With these two settings Codex runs ordinary commands
+# without asking (the box contains them) and asks only when a command
+# looks dangerous or the model asks for more access.
+approval_policy = "on-request"
+sandbox_mode = "workspace-write"
+
+# To be asked before EVERY command, start with `cdxb -a`. It marks the
+# project "untrusted", which in 0.157 means: ask for every command, and
+# skip the project's own AGENTS.md. (approval_policy = "untrusted" in this
+# file is refused by 0.157, and `codex -a` takes only on-request or never.)
+
+# The package is updated by pkg_add -u, not by Codex. The port already
+# makes this the default; it is here so the file says so.
+check_for_update_on_startup = false
+
+# Keep the login token in ~/.codex/auth.json (mode 0600). OpenBSD has no
+# system keyring for Codex to use.
+cli_auth_credentials_store = "file"
+
+# A choice, not a requirement: no usage analytics and no feedback uploads.
+[analytics]
+enabled = false
+
+[feedback]
+enabled = false

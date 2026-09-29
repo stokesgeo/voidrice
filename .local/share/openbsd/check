@@ -2,8 +2,9 @@
 
 # check: test, on the OpenBSD machine itself, every assumption the port made
 # that could not be tested off the machine. Prints one PASS/FAIL/SKIP line
-# per assumption and exits nonzero if anything failed. Changes nothing:
-# the one write, a brightness step of +0, leaves the value as it was.
+# per assumption and exits nonzero if anything failed. Changes nothing
+# that matters: a brightness step of +0 leaves the value as it was, and
+# codex-box is built in ~/.local/src/codex-box if it is not already.
 #
 # Run as the desktop user, inside the X session for the X items:
 #	~/.local/share/openbsd/check
@@ -107,6 +108,27 @@ if [ -r "$list" ]; then
 	done <"$list"
 else
 	skip "packages" "no pkglist beside this script"
+fi
+
+print "== Codex box (cdxb)"
+src=$HOME/.local/src/codex-box
+box=$src/codex-box
+sys="-u rx:/bin -u rx:/usr -u r:/var/run/ld.so.hints -u rw:/dev/null"	# split on purpose
+try "codex is installed" command -v codex
+if (cd "$src" && make) >/dev/null 2>&1; then
+	pass "codex-box builds with base cc and make"
+	# ls is a new program: it sees /usr only if the box survives execve.
+	# shellcheck disable=SC2086
+	try "box: unveil survives exec (ls sees /usr)" "$box" $sys -- /bin/ls /usr
+	try "box: your home is hidden" eval "! $box $sys -- /bin/ls '$HOME'"
+	try "box: setuid programs refused (doas)" \
+	    eval "$box $sys -- /usr/bin/doas -C /etc/doas.conf 2>&1 | grep -q 'Permission denied'"
+	# shellcheck disable=SC2086
+	try "box: pseudo-terminals work (/dev/ptm, script -c)" \
+	    "$box" $sys -u rw:/dev/ptm -u rw:/dev/tty -- /usr/bin/script -c true /dev/null
+	try "cdxb -n shows the walls" eval '(cd /tmp && cdxb -n) </dev/null'
+else
+	fail "codex-box builds with base cc and make" "cd $src && make"
 fi
 
 print "== blocks (each should print something)"

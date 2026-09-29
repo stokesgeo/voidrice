@@ -342,6 +342,208 @@ src). "From memory" marks what was not read.
   only needed for a font file not in the kernel. All of these go in
   `/etc/wsconsctl.conf`.
 
+## Codex, in a box
+
+Codex is OpenAI's coding agent (the `codex` package, 0.157.0 in ports).
+`cdxb` runs it in a box: from your own terminal, as you, with low
+friction, but able to reach only the files you choose.
+
+### What a sandbox is
+
+A program you start can do anything you can: read every file in your
+home, change it, delete it. A coding agent runs many programs on its own
+judgement, and a web page or a file it reads can steer that judgement. A
+sandbox is a wall around the program, so that a mistake or a trick costs
+only what is inside the wall. There are two kinds of wall on this system:
+
+- **The view wall: unveil(2).** The program is given a list of paths,
+  each with what it may do there: read, write, run, create or remove.
+  Everything else looks as if it did not exist. The kernel enforces the
+  list for the program and for every program it starts. Once set, the list
+  is locked: no one can widen it for a running program, not even you. So
+  giving Codex a new path means restarting it, and cdxb resumes the same
+  conversation (below).
+- **The user wall: file permissions.** Each file belongs to a user. A
+  program running as another user can touch only what that user may, and
+  cannot kill or trace your programs. It is stronger, but that user needs
+  its own files, group and login. It is not built here (see "A stronger
+  mode" below).
+
+What neither wall does: stop the program from using the network, or from
+sending out what it can read. A wall limits what it can reach, not what it
+does with it. Keep secrets out of the box, and grant paths, not your home.
+
+### Everyday use
+
+    cdxb                          Codex in this directory
+    cdxb ~/src/site               Codex in another directory
+    cdxb -w ~/Documents/letters   also let it change your letters
+    cdxb -r ~/Downloads/spec.pdf  also let it read one file
+    cdxb -H                       your whole home, minus the deny list
+    cdxb -d                       it may run your chosen doas rules
+    cdxb -a                       Codex asks before every command
+    cdxb -s                       a shell in the same box, to try the walls
+    cdxb -n                       print the walls, run nothing
+    cdxb add ~/notes              give the running session one more path
+    cdxb review                   see and answer Codex's proposals
+    cdxb ls                       list running sessions
+
+### What is inside the box
+
+- The directory you start in: read, change, create, run.
+- The paths in `~/.config/cdxb/grants`, which every session gets
+  (`rw PATH` or `r PATH`; the default is ~/src, ~/Documents and ~/notes to
+  change, ~/Downloads to read), and the `-w`/`-r` paths.
+- The system, to read and run: /bin, /sbin, /usr, /etc (certificates, DNS,
+  time zone), the dynamic linker's hints file, /dev/null, /dev/tty, and
+  /dev/ptm, which makes the pseudo-terminals Codex runs commands in.
+- ~/.codex (Codex's settings, login and history), ~/.gitconfig to read,
+  a private temporary directory as TMPDIR (the shared /tmp stays hidden:
+  it holds the X server and ssh-agent sockets), and the proposal outbox.
+
+Hidden, always: the paths in `~/.config/cdxb/deny` (keys, password store,
+mail, browser profiles, shell history). A grant at or inside one is refused
+with a message. `-H` does not lift it; `-X` does, for one session.
+
+Read-only, always, whatever the flags: `~/.config/cdxb`, `~/.local/bin`
+and `~/.local/src` (cdxb itself), `~/.local/share/openbsd` (the doas
+rules), `~/.codex/config.toml` and `AGENTS.md`, and your startup files
+(`.profile`, `.config/shell`, `.config/ksh`, `.config/x11`, `.xsession`,
+`.xprofile`). The reason: code you run later outside the box must not be
+writable from inside it. To work on your dotfiles with Codex, use a clone
+(for example in ~/src), not the live copy.
+
+No X display and no ssh-agent: cdxb clears DISPLAY and SSH_AUTH_SOCK, and
+their sockets are hidden. A program on your X display can read every key
+you type, and one with your ssh-agent can log in where you can.
+
+### How it works
+
+`codex-box` (`~/.local/src/codex-box`, about 220 lines of C and as many
+of comments, built with base cc and make the first time you run cdxb)
+calls unveil(2) once per
+path, locks the list, and then calls exec to become Codex. The catch is in
+that last step: exec normally throws the unveil list away, so the new
+program would see everything. The kernel keeps the list only when the
+process has *execpromises*, the second argument of pledge(2)
+(sys/kern/kern_exec.c: with `PS_EXECPLEDGE` the list stays, otherwise
+`unveil_destroy()`). fork(2) copies both to children, so every command
+Codex runs is in the same box. codex-box therefore sets wide execpromises,
+chosen to carry the box, not to restrict Codex: file access, network, and
+starting programs are all allowed; the files are what the unveil list
+decides. The `error` promise makes a forbidden call fail instead of
+killing the program.
+
+What the pledge still forbids: tracing your other programs, and running
+setuid programs. The kernel refuses a setuid program to a process with
+execpromises, so doas and su cannot run in the box. That is why `-d`
+needs a relay (below).
+
+Side effect of the lock: diff(1) and patch(1) from base call unveil
+themselves, get refused, and stop. In the box, use `git diff --no-index`;
+Codex edits files with its own patch tool.
+
+### Adding a path to a running session
+
+The view of a running program cannot be widened, so `cdxb add PATH`
+(`add -r` for read-only) records the path in the session's grant list,
+under ~/.cache/cdxb, and asks you to type `/quit` in Codex. cdxb then
+starts Codex again with the old paths plus the new one and runs
+`codex resume --last`, which continues the most recent conversation in
+that directory. Run `add` from another terminal, or after quitting. Codex
+cannot run it for itself: ~/.cache/cdxb is hidden in the box.
+
+For one file there is a shortcut: a hard link, `ln ~/taxes/form.pdf .`,
+gives the file a second name inside the project, and the box sees it
+there. Files only, on the same file system. An editor that saves by
+writing a new file and renaming it breaks the link, so changes can land
+on one name only. A symbolic link does not work: unveil checks where the
+link points, and that is outside the box.
+
+### Proposals: Codex asks, you affirm
+
+Codex cannot change the box's own settings, but it can propose: it writes
+a full new version of the grants file, the deny list, `config.toml`,
+`AGENTS.md` or the doas rules into the outbox (~/.cache/cdxb/proposals),
+with a one-line reason. At every start and restart, after `cdxb add`, at
+the end of a session, and with `cdxb review`, cdxb shows the reason and a
+`diff -u` and asks `Apply it? [y/N]`. Only a typed `y` applies it;
+anything else discards it. With no terminal, nothing is applied. Links,
+directories and files with control characters are rejected unread (a
+link could point at a secret; control characters could hide lines from
+the diff). cdxb reviews a private copy, so what you see is what is
+applied. Every decision goes to ~/.cache/cdxb/log. A proposal for the
+doas rules is checked with `doas -C` and installed with doas, which asks
+for your password: a second affirm.
+
+### Root commands: copy, or a short allowlist
+
+Inside the box doas cannot run. Two ways around it:
+
+1. **Copy and run it yourself.** Codex prints the command; `/copy` copies
+   its last answer. In the box Codex cannot reach X, so it sends the text
+   with the OSC 52 escape sequence, and xterm puts it on the clipboard.
+   xresources allows programs to *set* the clipboard that way (it is off
+   by default) but not to *read* it: reading would let any program, or any
+   file you cat, see your last copied password. Paste with Shift+Insert
+   or the middle button (`selectToClipboard` is on). st: recent versions
+   accept OSC 52 only when `allowwindowops` is set in config.h (from
+   memory, not checked).
+2. **A short allowlist, `cdxb -d`.** `~/.local/share/openbsd/doas-agent.conf`
+   holds `permit nopass` rules with exact commands and arguments; it is
+   empty by default. /etc/doas.conf is doas.conf followed by that file. In
+   a `-d` session Codex runs `cdxb doas /usr/sbin/rcctl restart sndiod`;
+   a relay outside the box (in codex-box, pledged and unveiled to its
+   socket and doas) runs `doas -n` with those words. `-n` never asks for a
+   password and fails for any rule without nopass, even when you typed
+   your password a minute ago (doas.c checks -n before the persist
+   ticket). doas cannot tell Codex from you, since both are your user:
+   the nopass rules work for any program you run. Keep them few and exact,
+   always with `args`.
+
+### Codex's own settings
+
+cdxb copies `~/.local/share/openbsd/codex/config.toml` and `AGENTS.md`
+into ~/.codex on first use, if none are there. Codex has no sandbox of
+its own on OpenBSD (issue #21977: its sandbox code knows macOS, Linux and
+Windows), so the config lets it run ordinary commands without asking
+(`approval_policy = "on-request"`, `sandbox_mode = "workspace-write"`);
+the box is the wall. For a prompt before every command, `cdxb -a` marks
+the project untrusted, which in 0.157 also skips the project's AGENTS.md.
+cdxb always tells Codex whether the project is trusted, so Codex never
+asks and never tries to write that answer into the read-only config.toml.
+Keys were checked against Codex 0.157.0's source and config schema.
+AGENTS.md tells Codex about the box, the proposals and OpenBSD habits.
+
+### Limits
+
+- The network is open. Whatever Codex can read, it can send.
+- Codex's login token (~/.codex/auth.json) is inside the box: Codex needs
+  it. Log in with `codex login --device-auth` (no browser redirect).
+- Codex runs as you. It can kill your other programs (pledge "proc"
+  allows it), but not trace them.
+- It writes to your terminal. A program it leaves running after you quit
+  could still write there, but not type into your shell: OpenBSD removed
+  the TIOCSTI call that allowed that (it is gone from sys/kern/tty.c).
+- The kernel keeps at most 128 unveiled paths per process.
+- Not yet run on OpenBSD, so to test on the machine (`check` does most):
+  that the promises are enough for Codex, git, cc and python; that
+  /dev/ptm is all Codex's terminals need; how Codex behaves when it cannot
+  write config.toml (for example after `/model`); and that the `-c
+  projects=...` trust setting takes effect. If something fails in the
+  box, try it in `cdxb -s`; with process accounting on (accton(8)),
+  lastcomm(1) marks a program that unveil refused a file with U.
+
+### A stronger mode (not built)
+
+A separate `agent` user that Codex runs as (`doas -u agent`, with a
+nopass rule only for becoming that less privileged user), sharing a
+group-writable workspace with you. Grants then change at once, by group
+permissions, without a restart, and pf(4) can limit its network by user.
+The cost is two owners for every file in the workspace, a umask to agree
+on, and its own login and token. Prefer it for long unattended runs, or
+when limiting the network matters more than convenience.
+
 ## Installing on the X220
 
 `~/.local/bin/vertrice-install` does the setup in two stages. Each stage
@@ -488,6 +690,13 @@ each once.
     echo kern.audio.record=1 >>/etc/sysctl.conf
 
 `sysctl.conf` lines take effect at boot; `sysctl name=value` sets one now.
+
+Codex: the `codex` package's pkg-readme warns that it needs a lot of memory
+(256 MB per worker thread) and many open files, so the staff class limits
+above matter for it too. Once you add rules to `doas-agent.conf`,
+/etc/doas.conf is doas.conf and doas-agent.conf joined (the command is at
+the top of doas-agent.conf; `cdxb review` runs it). `cdxb` builds
+codex-box the first time it runs.
 
 Optional, for Luke's dwm and st: they are separate repos. They build on
 OpenBSD once `config.mk` points at `/usr/X11R6` (their config.mk has
