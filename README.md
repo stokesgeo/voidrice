@@ -2,49 +2,71 @@
 
 vertrice is [voidrice](https://github.com/LukeSmithxyz/voidrice), Luke
 Smith's dotfiles, ported to OpenBSD and set up for a ThinkPad X220. It keeps
-voidrice's organization: scripts in `~/.local/bin`, config in `~/.config`,
-bookmarks compiled to shell shortcuts, dmenu for every menu, one status line.
-It runs on OpenBSD's base system: ksh for the shell, cwm with voidrice's dwm
-keys for the window manager, xterm for the terminal. Luke's dwm and st are
-opt-ins.
+voidrice's layout: scripts in `~/.local/bin`, configuration in `~/.config`,
+dmenu for every menu, one status line. It uses the base system first: ksh,
+cwm with voidrice's keys, and xterm. A package is added only for a feature
+base does not have.
 
-Tracks the latest OpenBSD release, or -current (snapshots); not pinned to a version.
-See "Which OpenBSD" in [OPENBSD.md](OPENBSD.md). It has been tested off the
-machine against mocked OpenBSD commands, not yet on an X220.
-
-## Base first
-
-Use what OpenBSD ships. A package is added only for a feature we want that
-base does not provide, and the reason is written down. The package lists
-are in `~/.local/share/openbsd`: `pkglist` is the core that the default
-session and its keys need; `pkglist.extra` holds features you can skip
-(mail, news, torrents, web video and others).
+It tracks the latest OpenBSD release or -current. It has been tested
+against mocked OpenBSD commands, not yet on an X220.
 
 ## Install
 
-On a fresh OpenBSD install, as root: `pkg_add git`. Then, as your user:
+As root on a fresh system:
+
+    pkg_add git
+
+As your user:
 
     git clone --bare https://github.com/stokesgeo/vertrice.git ~/.local/share/vertrice.git
-    git --git-dir=$HOME/.local/share/vertrice.git show HEAD:.local/bin/vertrice-install >/tmp/vertrice-install
-    ksh /tmp/vertrice-install -y home
-    doas ~/.local/bin/vertrice-install -y system    # first time: su -, then the full path
+    git --git-dir=$HOME/.local/share/vertrice.git --work-tree=$HOME checkout -f
+    git --git-dir=$HOME/.local/share/vertrice.git config status.showUntrackedFiles no
 
-Add `-e` to the system stage to install `pkglist.extra` too. Without `-y`,
-each stage prints its plan and changes nothing. The full steps, and what
-each one does, are in [OPENBSD.md](OPENBSD.md), "Installing on the X220".
+Then read `~/.local/bin/vertrice-install`, the system half, and run it as
+root. The first time there is no doas rule yet: `su -`, then
+`sh /home/YOU/.local/bin/vertrice-install`. Later:
+
+    doas sh ~/.local/bin/vertrice-install
+
+Reboot. Optional packages (mail, news, torrents, the dictionary and others),
+then the dictionary:
+
+    doas pkg_add -l ~/.local/share/openbsd/pkglist.extra
+    doas sh ~/.local/bin/vertrice-dict
+
+Update with `config pull origin master`. After an update that changes
+`~/.local/share/openbsd`, run the installer again.
 
 ## Documentation
 
-- [OPENBSD.md](OPENBSD.md): what changed from voidrice and why, the
-  dwm-to-cwm key table, X220 details, the install, the packages, and what
-  is not ported.
-- `~/.local/share/vertrice/CHANGES`: the changes relative to voidrice,
-  grouped.
-- Super+F1 lists the window manager's keys, read from
-  `~/.config/cwm/cwmrc`.
-- `~/.local/share/openbsd/check` tests on the machine what could not be
-  tested off it; `~/.local/share/vertrice/tests/run` is the regression
-  suite.
+`man vertrice` is the reference: the install and what the installer
+changes in `/etc`, the session, the keys, the machine settings, the tools
+and the Codex box. Super+F1 lists the keys from `~/.config/cwm/cwmrc`.
+
+On the X220, after the first boot, run `~/.local/share/vertrice/tests/check`
+once, inside X. `~/.local/share/vertrice/tests/run` is the regression suite.
+
+## What differs from voidrice
+
+| | voidrice | vertrice |
+|---|---|---|
+| Shell | zsh | ksh |
+| Window manager | dwm | cwm, with dwm's keys; dwm with `WM=dwm` |
+| Terminal | st | xterm |
+| Root | sudo | doas |
+| Status bar | dwmblocks | sbar under dwm; Super+b under cwm |
+| Sound | PipeWire | sndio |
+| Wi-Fi | nmtui | `dmenuwifi`, Super+Shift+F11 |
+| Download queue | task-spooler | nq |
+| Archives | tar, unzip, 7z, unrar | bsdtar |
+| Updates | pacman | syspatch and `pkg_add -u`, counted in the bar |
+| Camera and microphone | on | off; `rectoggle`, Super+Ctrl+F11 |
+| Touchpad | on | off; the TrackPoint scrolls |
+| Backups | none | `bk`: dump(8) to a USB disk |
+| Reminders | none | calendar(1), mailed at 08:00 |
+| Dictionary | none | `dict` and `roget`, from dictd on localhost |
+| Codex | none | `cdxb`: Codex in an unveil(2) box |
+| Key list, Super+F1 | the LARBS guide | the cwmrc in dmenu |
 
 ## Credits
 
