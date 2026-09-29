@@ -121,7 +121,7 @@ What does not carry over, because cwm has no equivalent:
   floating toggle (cwm windows are always floating).
 - The XF86 media and brightness keys. The X220's volume, mute and
   brightness keys are handled below X (acpithinkpad), so they work without
-  a binding (to check on the machine). F8 (mailsync) and  F11 (webcam) are unbound.
+  a binding (to check on the machine). F8 (mailsync) and F11 (webcam) are unbound.
 
 ## Editors: vi and nvim, side by side
 
