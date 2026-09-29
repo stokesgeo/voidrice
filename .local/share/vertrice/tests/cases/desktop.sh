@@ -344,6 +344,24 @@ EOF
 	logged '^xrandr --output DP-1 --auto --scale 1\.0x1\.0 --output eDP-1 --auto --same-as DP-1 '
 }
 
+# The mirror scale comes from each screen's preferred mode. The sed range
+# that finds DP-1's modes also started at DP-1-1 (an MST port) and ran to
+# the end, so DP-1's "resolution" was the last line's first word.
+t_displayselect_mirror_prefix() {
+	for v in xrandr setbg; do ln -s "$VT_MOCKS/_log" "$T/bin/$v"; done
+	fx out.xrandr <<'EOF'
+eDP-1 connected primary 1280x720+0+0 (normal left inverted right x axis y axis) 309mm x 174mm
+   1280x720      60.00*+
+DP-1 connected (normal left inverted right x axis y axis)
+   2560x1440     59.95 +
+DP-1-1 disconnected (normal left inverted right x axis y axis)
+HDMI-1 disconnected (normal left inverted right x axis y axis)
+EOF
+	answers multi-monitor yes DP-1
+	displayselect >/dev/null 2>&1
+	logged '^xrandr --output DP-1 --auto --scale 1\.0x1\.0 --output eDP-1 --auto --same-as DP-1 --scale 2\.0+x2\.0+$'
+}
+
 # A selected area is grabbed from $DISPLAY, as the whole screen is.
 t_dmenurecord_selected_display() {
 	ln -s "$VT_MOCKS/_log" "$T/bin/ffmpeg"

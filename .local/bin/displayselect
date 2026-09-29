@@ -13,9 +13,10 @@ twoscreen() { # If multi-monitor is selected and there are two screens.
         external=$(echo "$screens" | dmenu -i -p "Optimize resolution for:")
         internal=$(echo "$screens" | grep -v ^"$external"$)
 
-        res_external=$(xrandr --query | sed -n "/^$external/,/\+/p" | \
+        # The space ends the name: DP-1 is not DP-1-1.
+        res_external=$(xrandr --query | sed -n "/^$external /,/\+/p" | \
             tail -n 1 | awk '{print $1}')
-        res_internal=$(xrandr --query | sed -n "/^$internal/,/\+/p" | \
+        res_internal=$(xrandr --query | sed -n "/^$internal /,/\+/p" | \
             tail -n 1 | awk '{print $1}')
 
         res_ext_x=$(echo "$res_external" | sed 's/x.*//')
