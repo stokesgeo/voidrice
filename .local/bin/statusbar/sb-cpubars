@@ -4,8 +4,9 @@
 # Just like in polybar.
 # Each bar represents amount of load on one core since
 # last run.
-# The ticks come from sysctl kern.cp_time2.N; hw.ncpu counts online cores only,
-# so SMT threads (off by default) get no bar.
+# The ticks come from sysctl kern.cp_time2.N for each N below hw.ncpu, which
+# counts every CPU configured, SMT threads too. With SMT off (the default)
+# those threads are offline (hw.ncpuonline leaves them out) but still get a bar.
 
 # The previous run's ticks, kept to take the difference.
 cache="${XDG_CACHE_HOME:-$HOME/.cache}"/cpubarscache
