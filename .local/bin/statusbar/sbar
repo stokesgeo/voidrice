@@ -12,7 +12,7 @@
 #
 # Edit $blocks to choose the modules. Order is left to right.
 
-blocks="sb-music sb-news sb-mailbox sb-cpu sb-memory sb-volume sb-battery sb-internet sb-clock"
+blocks="sb-music sb-news sb-mailbox sb-cpu sb-memory sb-volume sb-battery sb-internet sb-words sb-clock"
 interval=5
 pidfile=${XDG_CACHE_HOME:-$HOME/.cache}/sbar.pid
 
