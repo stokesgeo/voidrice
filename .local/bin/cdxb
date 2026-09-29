@@ -1,15 +1,6 @@
 #!/bin/ksh
 
-# cdxb: run Codex in a box, from your own terminal.
-#
-#	cdxb [-adH] [-r path] [-w path] [dir [codex-arg ...]]
-#		Codex in dir (default: here), which it may change; also
-#		-w path to change, -r path to read, -H your home's folders
-#		to change; -d your nopass doas rules; -a asks before each command
-#	cdxb add [-r] path [session]	give a running session one more path
-#	cdxb review			show Codex's proposals; apply each on y
-#	cdxb ls				the running sessions
-#	cdxb doas command [arg ...]	in a -d box: run a nopass doas rule
+# cdxb: run Codex in a box, from your own terminal. Usage below.
 #
 # How it works: codex-box (~/.local/src/codex-box, built on first use)
 # unveils the walls cdxb lists, locks them and sets execpromises, so Codex
@@ -27,6 +18,20 @@
 # change any .git it can write: in those repositories, git is Codex's job,
 # in the box. With a GitHub token in ~/.config/cdxb/github-token (read-only
 # in the box), git in the box pushes over https; git outside it never uses it.
+
+usage() {
+	cat >&2 <<'EOF'
+	cdxb [-adH] [-r path] [-w path] [dir [codex-arg ...]]
+		Codex in dir (default: here), which it may change; also
+		-w path to change, -r path to read, -H your home's folders
+		to change; -d your nopass doas rules; -a asks before each command
+	cdxb add [-r] path [session]	give a running session one more path
+	cdxb review			show Codex's proposals; apply each on y
+	cdxb ls				the running sessions
+	cdxb doas command [arg ...]	in a -d box: run a nopass doas rule
+EOF
+	exit 1
+}
 
 conf=${XDG_CONFIG_HOME:-$HOME/.config}
 cfg=$conf/cdxb
@@ -255,7 +260,7 @@ while getopts adHr:w: o; do
 	r|w) p=$(path "-$o" "$OPTARG") || exit
 	     [ -e "$p" ] || die "$OPTARG: no such file or directory"
 	     [ $o = w ] && o=rw; print -r -- "$o $p" >>"$S/added" ;;
-	*) sed -n '5,12s/^#//p' "$0" >&2; exit 1 ;;
+	*) usage ;;
 	esac
 done
 shift $((OPTIND - 1))
