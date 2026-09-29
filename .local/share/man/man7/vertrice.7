@@ -289,14 +289,12 @@ Reminders go in
 one to a line: a date, a tab, the text.
 Comments are written
 .Ql /* ... */ .
-Cron runs
-.Xr calendar 1
-at 08:00 and mails the lines for today and tomorrow; on Friday, through
-Monday.
-.Pa ~/.calendar/nomail
-stops the 01:30 run in
+The nightly run of
 .Xr daily 8
-from mailing the same lines again.
+at 01:30 calls
+.Ql calendar -a
+and mails you the lines for today and tomorrow; on Friday, through
+Monday.
 Codex in
 .Ic cdxb
 may add reminders there.
