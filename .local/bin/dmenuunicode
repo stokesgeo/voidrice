@@ -2,6 +2,7 @@
 
 # dmenuunicode [ANY]: pick an emoji or symbol in dmenu. It goes to the
 # clipboard; with an argument, it is typed into the focused window instead.
+# The famous "get a menu of emojis to copy" script.
 
 # Each line of the char files is a character and its name. dmenu shows the
 # line (text from ";" on is cut); the first word is the character.

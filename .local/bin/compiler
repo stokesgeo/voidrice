@@ -3,6 +3,7 @@
 # compiler FILE: build or run FILE, chosen by its extension. Documents (groff,
 # md, org, rmd, tex) become a PDF beside FILE; programs are built and run;
 # .sent opens as a presentation. Any other file runs itself through its #! line.
+# I have this script run via vim.
 
 file="${1}"
 ext="${file##*.}"
