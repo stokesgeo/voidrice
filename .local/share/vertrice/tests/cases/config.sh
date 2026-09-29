@@ -91,13 +91,13 @@ t_cwmrc_function_names() {
 		bad="$bad $w"
 	done
 	eq "unknown bare words" "" "${bad# }"
-	# And every function the key table in tests/OPENBSD.md names exists.
-	for w in $(grep -o '`[a-z]*-[a-z0-9-]*`' "$REPO/.local/share/vertrice/tests/OPENBSD.md" | tr -d '`' | sort -u); do
+	# And every cwm function SPEC.md's walk names exists.
+	for w in $(grep -o '`[a-z]*-[a-z0-9-]*`' "$REPO/.local/share/vertrice/SPEC.md" | tr -d '`' | sort -u); do
 		case $w in window-*|group-*|menu-*)
 			printf '%s\n' "$funcs" | grep -qx -- "$w" || bad="$bad $w" ;;
 		esac
 	done
-	eq "OPENBSD.md names only real functions" "" "${bad# }"
+	eq "SPEC.md names only real functions" "" "${bad# }"
 }
 
 t_parse_shell_files() {

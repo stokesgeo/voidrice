@@ -46,6 +46,9 @@ and the Codex box. Super+F1 lists the keys from `~/.config/cwm/cwmrc`.
 On the X220, after the first boot, run `~/.local/share/vertrice/tests/check`
 once, inside X. `~/.local/share/vertrice/tests/run` is the regression suite.
 
+What vertrice is and why, in short: [OPENBSD.md](.local/share/vertrice/OPENBSD.md).
+For agents, the spec and the decisions: [SPEC.md](.local/share/vertrice/SPEC.md).
+
 ## What differs from voidrice
 
 | | voidrice | vertrice |
