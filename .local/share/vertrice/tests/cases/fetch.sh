@@ -148,21 +148,30 @@ t_fetch_linkhandler_image() {
 
 t_fetch_pauseallmpv() {
 	command -v python3 >/dev/null 2>&1 || skip "no python3 to make a Unix socket"
-	p=$(derived .local/bin/pauseallmpv pauseallmpv "s|/tmp/mpvSockets|$T/mpvSockets|g")
-	mkdir "$T/mpvSockets"
+	# The sockets are in the cache directory the mpvSockets script uses.
+	d=$XDG_CACHE_HOME/mpvSockets
+	mkdir "$d"
 	for s in 111 222; do
-		python3 -c 'import socket,sys; socket.socket(socket.AF_UNIX).bind(sys.argv[1])' "$T/mpvSockets/$s"
+		python3 -c 'import socket,sys; socket.socket(socket.AF_UNIX).bind(sys.argv[1])' "$d/$s"
 	done
-	: >"$T/mpvSockets/not-a-socket"
-	"$VT_SH" "$p"
+	: >"$d/not-a-socket"
+	pauseallmpv
 	eq "one nc per socket" 2 "$(nlogged '^nc ')"
-	logged "^nc -NU -w 1 $T/mpvSockets/111\$"
-	logged "^nc -NU -w 1 $T/mpvSockets/222\$"
+	logged "^nc -NU -w 1 $d/111\$"
+	logged "^nc -NU -w 1 $d/222\$"
 	notlogged 'not-a-socket'
 	eq "pause sent to each" 2 "$(nlogged '^nc< \{ "command": \["set_property", "pause", true\] \}$')"
-	"$VT_REAL_RM" -r "$T/mpvSockets"
-	"$VT_SH" "$p" || fail "no sockets: failed"
+	"$VT_REAL_RM" -r "$d"
+	pauseallmpv || fail "no sockets: failed"
 	eq "no sockets: no nc" 2 "$(nlogged '^nc ')"
+	# The script and pauseallmpv agree on the directory; nothing is in /tmp.
+	lua=$REPO/.config/mpv/scripts/mpvSockets.lua
+	grep -q '"XDG_CACHE_HOME"' "$lua" && grep -q '"mpvSockets"' "$lua" ||
+		fail "mpvSockets.lua does not use the cache directory"
+	grep -rq '/tmp/mpvSockets' "$REPO/.local/bin" "$REPO/.config" &&
+		fail "something still reads /tmp/mpvSockets"
+	[ -e "$REPO/.gitmodules" ] && fail ".gitmodules is back"
+	return 0
 }
 
 t_fetch_setbg_no_xwallpaper() {
