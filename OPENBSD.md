@@ -11,6 +11,16 @@ cwm and xterm. voidrice's tiling keys are carried into cwm (see "Keys"
 below). Luke's dwm and st are opt-ins: build them into `~/.local/src`, then
 set `WM="dwm"` and `TERMINAL="st"` in `.config/shell/profile`.
 
+**Release target.** vertrice targets OpenBSD 8.0 release. Until 8.0 ships,
+it tracks -current (snapshots): update with `sysupgrade -s` then
+`pkg_add -u`; there is no syspatch on snapshots. On 8.0 release: `syspatch`
+for base errata and `pkg_add -u` for package updates. Moving from
+snapshots to the release: when 8.0 ships, snapshots move on to 8.1-current,
+and going back from there to 8.0 is a downgrade OpenBSD does not support.
+So either `sysupgrade` to the 8.0 release as soon as it is out (while the
+snapshot still says 8.0), or reinstall 8.0 (from memory; check the 8.0
+upgrade guide). Take a level 0 `bk full` first either way.
+
 **State.** Written and tested off the machine: every shell file parses under
 oksh (the portable OpenBSD ksh), the status blocks run against mocked
 OpenBSD command output under BWK awk (OpenBSD's awk), and getbib's rewrite
