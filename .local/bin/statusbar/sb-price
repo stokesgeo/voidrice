@@ -56,15 +56,17 @@ case $BLOCK_BUTTON in
 esac
 
 # Middle click updates now, with notices. A stale price with a SIGNAL argument
-# is fetched in the background; without one, now.
+# is fetched in the background; without one, now. The background fetcher
+# lets go of stdout, which sbar reads.
 [ -n "$updateme" ] &&
 	if [ -n "$showupdate" ]; then
 		updateprice && notify-send "$icon Update complete." "$name price is now \$$(cat "$pricefile")"
 	else
 		# shellcheck disable=SC2015
 		[ -n "$4" ] &&
-			( mkdir "${lock:=/tmp/sb-price-$(id -u).lock}" 2>/dev/null &&
-				( trap 'rmdir "$lock"' EXIT; tries=0; while [ $tries -ne 100 ]; do
+			( ( exec >/dev/null 2>&1; lock=/tmp/sb-price-$(id -u).lock
+				mkdir "$lock" || exit
+				trap 'rmdir "$lock"' EXIT; tries=0; while [ $tries -ne 100 ]; do
 					updateprice && break ||
 						{ tries=$((tries+1)); sleep .1; }
 				done

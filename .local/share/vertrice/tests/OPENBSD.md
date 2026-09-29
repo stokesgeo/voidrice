@@ -66,9 +66,11 @@ The commits follow the same order.
    OpenBSD has no real-time signals, so the signal cannot be named. New
    `sbar` (ksh) runs the blocks and writes the root window name; it
    sleeps in the background and `wait`s, so SIGUSR1 interrupts the wait
-   and it redraws. `sb-refresh` sends SIGUSR1, after checking that the
-   pid in the pidfile is still sbar (SIGUSR1 kills a process that does
-   not catch it). Cost: a refresh redraws every block. Clickable blocks
+   and it redraws. `sb-refresh` sends SIGUSR1 with `pkill -f`, matched
+   on sbar's own command line (`statusbar/sbar`, or `sbar -t` for the
+   bar under cwm), so no other process gets it (SIGUSR1 kills a process
+   that does not catch it). There is no pidfile. Cost: a refresh redraws
+   every block. Clickable blocks
    rode on sigqueue(3), also absent, so clicks do nothing for now.
 4. **The shell.** ksh is base. `~/.profile` (a symlink to
    `.config/shell/profile`) is read by login shells and sets `ENV` to
@@ -82,9 +84,14 @@ The commits follow the same order.
    symlink to xinitrc). xinitrc starts the D-Bus session bus first, so
    dunst and notify-send share one bus; then `$WM`: cwm with
    `.config/cwm/cwmrc` by default, or dwm plus sbar when `WM=dwm` and dwm
-   is installed. It starts ssh-agent only if none is running (xenodm may
+   is installed. Under cwm the bar is a one-line xterm (st when
+   `TERMINAL=st`) named vbar along the top, running `sbar -t`; cwmrc's
+   `gap`, `ignore` and `autogroup 0` lines keep it clear of maximized and
+   tiled windows, frameless, and on every group (cwmrc(5)). It starts ssh-agent only if none is running (xenodm may
    have started one). xprofile now loads xresources, where xterm gets
-   voidrice's font and Alt-as-Meta.
+   voidrice's font and Alt-as-Meta. It starts no compositor: xterm has no
+   transparency, so xcompmgr (in base xenocara) only cost work. st's
+   `alpha` needs one; run xcompmgr by hand for it.
 6. **Sound.** sndiod(8) is the base sound server, started by rc(8).
    mpd outputs to sndio, volume goes through sndioctl(1), recording
    through ffmpeg's sndio input.
@@ -129,7 +136,7 @@ against cwm's source, and `cwm -n` accepts the file.
 | Tab, \ / g, ; / PgUp, PgDn | last tag / prev, next tag | `group-last` / `group-rcycle`, `group-cycle` |
 | Return / Shift+Return / ' | terminal / scratch terminal / scratch calculator | `$TERMINAL` / `scratch term` / `scratch calc` |
 | d | dmenu_run | `menu-exec`, cwm's own run prompt |
-| b | toggle bar | `sb-show`: the status line as a notification |
+| b | toggle bar | `sb-show`: the status line as a notification (the bar itself stays) |
 | w / Shift+w | browser / nmtui | qutebrowser (`$BROWSER`) / chromium |
 | e, r, n, m, c, Shift+d/e/n/r | mail, lf, wiki, music, chat, passmenu, abook, news, top | same programs (top from base for htop) |
 | F9 / F10 | mounter / unmounter | same, OpenBSD versions, in a terminal for doas |
@@ -153,7 +160,9 @@ What does not carry over, because cwm has no equivalent:
 - Automatic layouts. cwm tiles only when asked; after opening or closing
   a window, press Super+t again. Spiral, dwindle, deck and centered
   master (y, u, i) and the master count (o) are gone.
-- Gaps (a, z, x) and the bar. Super+b shows the status line instead.
+- Gaps between windows (a, z, x), and hiding the bar. cwm does not keep
+  the bar on top: a window moved over it by hand covers it (maximized
+  and tiled windows do not), and Super+b shows the status line then.
 - Moving a window to the next or previous tag (Shift+g, Shift+;), and
   floating toggle (cwm windows are always floating).
 - The XF86 media and brightness keys. The X220's volume, mute and
@@ -625,7 +634,10 @@ replaces it:
   session already running keeps the old guess until you restart it.
 - **Font.** IBM Plex Mono everywhere (the ibm-plex package): terminals,
   cwm menus, dmenu and dunst through fontconfig; Plex Sans and Serif for
-  the rest. IBM's own family, drawn for legibility (slashed zero, distinct
+  the rest. The dmenu package reads no Xresources (its ports patch sets
+  Terminus 8 and grey), so `~/.local/bin/wrap/dmenu`, first in PATH,
+  passes it Plex Mono and the palette `theme` last set (day, night or
+  wal); the caller's options come after and win. IBM's own family, drawn for legibility (slashed zero, distinct
   l 1 I). Noto Color Emoji fills in the emoji.
 - **Frames: fvwm's.** OpenBSD's fvwm (xenocara system.fvwmrc) draws 7-pixel
   frames in dark red and blue with grey menus. cwm does the same: 7 pixels,
@@ -635,10 +647,10 @@ replaces it:
   round, by choice. The frames stay the same in day and night.
 - **Notifications.** dunst in Plex Mono, slate with pastel text, framed in
   the window-border colours.
-- **dunst, zathura and the root window follow the palette.** Each switch
-  writes `~/.config/dunst/dunstrc.d/theme.conf` (then `dunstctl reload`)
-  and `~/.config/zathura/theme` (zathurarc includes it), and without
-  xwallpaper sets the root window's colour.
+- **dunst and zathura follow the palette.** Each switch writes
+  `~/.config/dunst/dunstrc.d/theme.conf` (then `dunstctl reload`) and
+  `~/.config/zathura/theme` (zathurarc includes it). The root window
+  keeps the wallpaper, which setbg sets with xwallpaper.
 - **pywal instead, if you want it.** Colours from the wallpaper, as in
   voidrice. pywal has no package, and base Python refuses `pip install`
   (EXTERNALLY-MANAGED), so: `doas pkg_add py3-pipx ImageMagick; pipx
@@ -1205,7 +1217,7 @@ Core (`pkglist`), and why base does not cover it:
 | lf, fzf | file manager (lfub, `ext` on E); fzf for lf's bookmark moves and `se` | none |
 | nsxiv, mpv, zathura, zathura-pdf-mupdf | images, video, PDF: lf, linkhandler, dmenuhandler, compiler | no viewers in base |
 | mpd, mpc, ncmpcpp | music: autostart, sb-music, Super+m, p, [, ] and the rest | sndiod plays sound, but base has no music player |
-| dunst, libnotify, dbus | notify-send in about 30 scripts; sb-show is the status line under cwm | no notifications in base |
+| dunst, libnotify, dbus | notify-send in about 30 scripts; sb-show (Super+b) | no notifications in base |
 | xclip | clipboard: maimpick, otp, dmenuunicode, lf, linkhandler | no command-line clipboard in X |
 | xdotool | scratchpads (Super+Shift+Return, Super+'), dmenuunicode, maimpick | none |
 | xcape | remaps: Super tapped alone is Escape | setxkbmap maps keys, not taps |
@@ -1214,6 +1226,7 @@ Core (`pkglist`), and why base does not cover it:
 | entr | hotplug-watch (USB notices), podentr | no file-watch command |
 | noto-emoji | emoji in blocks, menus and notifications | none in X fonts |
 | dmenu | every menu | cwm's menu-exec runs commands only |
+| xwallpaper | setbg: the wallpaper, at login and on change | xsetroot(1) sets a colour or a bitmap, not a picture |
 | qutebrowser, chromium | `$BROWSER` and Super+Shift+w | none |
 | exfat-fuse | mounter: exFAT sticks and SD cards | base has no exFAT |
 | unzip, bzip2, xz, zstd | ext | tar, gzip and compress cover the rest |
@@ -1227,8 +1240,7 @@ password-store and pass-otp (Super+Shift+d, otp), pinentry-dmenu (the
 passphrase prompt passmenu needs without a terminal), zbar (otp: reads the
 QR code; it pulls in ImageMagick), transmission (torrents), tremc
 (Super+F6; stig has no port), yt-dlp (web video in mpv), nq (qndl's
-download queue), xwallpaper (setbg; without it the
-root window takes the theme's background colour), unclutter (hides an idle pointer), ntfs_3g
+download queue), unclutter (hides an idle pointer), ntfs_3g
 and simple-mtpfs (mounter: NTFS disks and Android phones), 7zip (ext: 7z,
 rar), highlight (coloured text: lf previews and `ccat`), ImageMagick
 (slider, nsxiv's rotate and flip, lf's avif/djvu/xcf thumbnails;
@@ -1249,8 +1261,6 @@ Left out:
 - pandoc: compiler uses it for Markdown only when lowdown or groff is
   missing and you installed pandoc yourself (a large Haskell build).
 - groffdown, atool, youtube-viewer, gnome-epub-thumbnailer: no port.
-- xwallpaper is extra: without it, setbg sets the root window to the
-  current theme's background colour with xsetroot(1).
 - calcurse: only sb-clock's click, and sbar blocks take no clicks.
 - libiconv: only booksplit. git installs it anyway.
 - noto-fonts: no config names it; IBM Plex and Noto Color Emoji cover

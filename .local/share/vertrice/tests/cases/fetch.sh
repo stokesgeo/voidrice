@@ -75,6 +75,34 @@ t_fetch_sb_iplocate() {
 	return 0
 }
 
+# Offline, a block with a stale cache starts a fetcher that retries until
+# the net is back. The block itself must return at once: $(block) and sbar's
+# pipe wait for every holder of their stdout, so a fetcher that keeps it
+# hangs the bar until the fetch ends. Then the net comes back and the
+# fetcher ends by itself.
+offline_returns() {	# NAME LOCK BLOCK [ARG...]
+	_b=$1 _lock=$2; shift 2
+	fx_stat
+	printf '#!/bin/sh\n[ -e "$T/online" ]\n' >"$T/bin/route"; chmod +x "$T/bin/route"
+	mkdir -p "$HOME/.local/share"
+	export VT_SLEEP=0.1
+	( out=$("$@" 2>/dev/null); echo "[$out]" >"$T/$_b.out" ) &
+	waitfor 3 test -s "$T/$_b.out"; _done=$?
+	: >"$T/online"	# let the fetcher end, so no lock is left behind
+	waitfor 20 test ! -d "$_lock" || fail "$_b: the fetch never ended"
+	[ "$_done" -eq 0 ] || fail "$_b: \$($_b) waited on its background fetch"
+	eq "$_b prints an empty line" "[]" "$(cat "$T/$_b.out")"
+}
+t_fetch_offline_forecast() {
+	offline_returns sb-forecast "/tmp/sb-forecast-$(id -u).lock" sb-forecast
+}
+t_fetch_offline_moonphase() {
+	offline_returns sb-moonphase "/tmp/sb-moonphase-$(id -u).lock" sb-moonphase
+}
+t_fetch_offline_price() {
+	offline_returns sb-price "/tmp/sb-price-$(id -u).lock" sb-price btc-usd Bitcoin B 24
+}
+
 t_fetch_sb_price() {
 	fx_stat
 	echo 61234.567 | fx out.ftp

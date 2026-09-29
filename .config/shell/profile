@@ -4,8 +4,9 @@
 # Profile file, runs on login. Environmental variables are set here.
 # (~/.profile links to this file.)
 
-# Add all directories in `~/.local/bin` to $PATH
-export PATH="$PATH:$(find ~/.local/bin -type d | paste -sd ':' -)"
+# Add all directories in `~/.local/bin` to $PATH, after the system's; but
+# ~/.local/bin/wrap goes first: its dmenu wraps the system one.
+export PATH="$HOME/.local/bin/wrap:$PATH:$(find ~/.local/bin -name wrap -prune -o -type d -print | paste -sd ':' -)"
 
 # Default programs. The key bindings and scripts read these names: change a
 # program here, not in each script. WM="dwm" makes xinitrc start dwm, not cwm.

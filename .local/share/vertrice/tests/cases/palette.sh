@@ -57,3 +57,42 @@ t_palette_wal() {
 	setbg -s; notlogged '^wal'
 	PALETTE=wal setbg -s; logged '^wal -n -i '
 }
+
+# The dmenu wrapper (wrap/dmenu): Plex Mono and the palette theme last set,
+# then the caller's own options; the menu, answer and exit status pass
+# through. The real dmenu is the mock, by its full path.
+dm_setup() {
+	th_setup
+	dm=$(derived .local/bin/wrap/dmenu dmenu "s|/usr/local/bin/dmenu|$VT_MOCKS/dmenu|")
+}
+t_dmenu_wrap_palette() {
+	dm_setup
+	"$VT_KSH" "$theme" night >/dev/null
+	answers b
+	out=$(printf 'a\nb\n' | "$dm" -i -p Pick:) || fail "dmenu wrapper failed"
+	eq "answer" b "$out"
+	eq "menu" "a b" "$(paste -sd ' ' - <"$VT_STATE/menu.1")"
+	logged '^dmenu -fn IBM Plex Mono:size=10 -nb #24232e -nf #dcd6ca -sb #9db8e3 -sf #24232e -i -p Pick:$'
+	"$VT_KSH" "$theme" day >/dev/null
+	printf 'a\n' | "$dm" -sb '#000000' -l 3
+	logged '^dmenu -fn IBM Plex Mono:size=10 -nb #f5f1e8 -nf #383642 -sb #3c639c -sf #f5f1e8 -sb #000000 -l 3$'
+	: | "$dm" && fail "Escape must exit 1, as dmenu does"
+	return 0
+}
+t_dmenu_wrap_wal() {
+	dm_setup
+	mkdir -p "$XDG_CACHE_HOME/wal"
+	printf '*background:        #202020\n*.foreground:       #eeeeee\n*.background:       #101010\n*.color4: #4488cc\n*color4:  #4488cc\n' \
+		>"$XDG_CACHE_HOME/wal/colors.Xresources"
+	echo wal >"$XDG_CACHE_HOME/theme"
+	: | "$dm"
+	logged '^dmenu -fn IBM Plex Mono:size=10 -nb #101010 -nf #eeeeee -sb #4488cc -sf #101010$'
+}
+t_dmenu_wrap_no_theme() {
+	dm_setup
+	: | "$dm" -l 5
+	logged '^dmenu -fn IBM Plex Mono:size=10 -l 5$'
+	# By full path: through PATH it would find itself.
+	grep -q '^exec /usr/local/bin/dmenu ' "$REPO/.local/bin/wrap/dmenu" ||
+		fail "the wrapper must run the package's dmenu by its full path"
+}
