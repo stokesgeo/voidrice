@@ -920,7 +920,16 @@ files in `~/.local/share/openbsd` and does:
   aside for them. With unwind running, resolvd(8) points
   /etc/resolv.conf at it (127.0.0.1).
 - Console: `keyboard.map+="keysym Caps_Lock = Escape"` in
-  /etc/wsconsctl.conf, read at boot.
+  /etc/wsconsctl.conf, read at boot. This maps one way: the Escape key
+  stays Escape. Voidrice's `ttymaps.kmap` (Linux loadkeys, removed)
+  swapped the two. For the other half, add after that line
+  `keyboard.map+="keycode 1 = Caps_Lock"` (keycode 1 is Escape in the
+  PC keyboard map, sys/dev/pckbc/wskbdmap_mfii.c). It must come after the
+  keysym line: `keysym A = B` gives the key that now types A the entry of
+  the key that types B, finding each by its keysym (map_parse.y in
+  sbin/wsconsctl), so it must run while only one key types Caps_Lock.
+  A second keysym line cannot do it: once both keys type Escape, no key
+  types Caps_Lock to copy from.
 - Battery charge limit: only if the machine has the sysctl
   `hw.battery.chargestop` (newer ThinkPads do; whether the X220 does is
   not known). Then `hw.battery.chargestop=80` and, if present,
