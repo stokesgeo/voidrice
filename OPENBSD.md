@@ -14,7 +14,9 @@ set `WM="dwm"` and `TERMINAL="st"` in `.config/shell/profile`.
 **State.** Written and tested off the machine: every shell file parses under
 oksh (the portable OpenBSD ksh), the status blocks run against mocked
 OpenBSD command output under BWK awk (OpenBSD's awk), and getbib's rewrite
-matches the old output. Nothing has run on OpenBSD yet.
+matches the old output, and vertrice-install ran its dry run, apply and
+re-apply against mocked rcctl, pkg_add, doas, sysctl, usermod and
+cap_mkdb under a fake root. Nothing has run on OpenBSD yet.
 `~/.local/share/openbsd/check` tests on the machine each assumption that
 could not be tested here.
 
@@ -268,49 +270,148 @@ replaces it:
 
 ## Installing on the X220
 
-System side (root, typed by the owner):
+`~/.local/bin/vertrice-install` does the setup in two stages. Each stage
+prints its plan first and changes nothing; add `-y` to apply it. Each
+step looks at the current state first and is skipped when already done,
+so running a stage again is safe and changes nothing. Every system file it
+edits is first copied to `FILE.orig`, once.
 
-- Packages: `doas pkg_add -l ~/.local/share/openbsd/pkglist`. Names are
-  from memory, not checked against the current ports tree; `check`
-  reports any that did not install.
-- `rcctl enable apmd && rcctl start apmd` for zzz/ZZZ and battery data,
-  with no flags: `-A`, `-L` and `-H` set the CPU speed policy, which is
-  obsdfreqd's job here, and the two would fight. Whether a normal user
-  may run `zzz` depends on apmd's socket permissions: not checked.
-- CPU speed, obsdfreqd (package), throttled hard on battery:
+**0. Get git.** A fresh OpenBSD has no git and no doas rule yet. As root
+(`su -`, the root password from the install): `pkg_add git`, then `exit`.
+Your user must be in group wheel; the installer puts the first user there.
 
-      rcctl enable obsdfreqd
-      rcctl set obsdfreqd flags -m 100,50 -r 50,90 -T 85,65
-      rcctl start obsdfreqd
+**1. Home stage, as you.** The dotfiles are not on the machine yet, so
+take the installer out of the repository by hand:
 
-  Each flag takes `on AC,on battery`. `-m` caps the speed in percent (full
-  on AC, half on battery). `-r` is the CPU use that makes it step up: 50%
-  on AC for a quick response, 90% on battery so only sustained load raises
-  the clock. `-T` is a temperature ceiling in °C: past it, the cap drops
-  each cycle until the CPU cools (85 on AC, 65 on battery, which also keeps
-  the X220's fan quiet). Flag letters are from obsdfreqd's documentation
-  as quoted in search results; `man obsdfreqd` on the machine is the
-  authority.
-- `rcctl enable messagebus && rcctl start messagebus` (the system D-Bus
-  from the dbus package; see its readme in /usr/local/share/doc/pkg-readmes
-  for the machine-id step).
-- doas: `install -o root -g wheel -m 0640 ~/.local/share/openbsd/doas.conf
-  /etc/doas.conf`, then `doas -C /etc/doas.conf` to check it.
-- Root's shell: `install -o root -g wheel -m 0644
-  ~/.local/share/openbsd/root.kshrc /root/.kshrc`, and add
-  `export ENV=/root/.kshrc` to /root/.profile (for console logins as root;
-  `doas -s` gets it from the doas rule).
-- USB notices: `install -o root -g wheel -m 0755
-  ~/.local/share/openbsd/hotplug-attach /etc/hotplug/attach`, then
-  `rcctl enable hotplugd && rcctl start hotplugd`.
-- Console caps-to-escape: `keyboard.map+="keysym Caps_Lock = Escape"`
-  in `/etc/wsconsctl.conf`.
-- Screen recording with sound: `sysctl kern.audio.record=1` (off by
-  default; `/etc/sysctl.conf` to keep it).
+    git clone --bare https://github.com/stokesgeo/vertrice.git ~/.local/share/vertrice.git
+    git --git-dir=$HOME/.local/share/vertrice.git show HEAD:.local/bin/vertrice-install >/tmp/vertrice-install
+    ksh /tmp/vertrice-install home       # the plan
+    ksh /tmp/vertrice-install -y home    # do it
 
-Home side: check the branch out into `$HOME` (for example as a bare repo
-with `$HOME` as its work tree), then log in on the console and run
-`~/.local/share/openbsd/check`, once on the console and once inside X.
+It uses the bare repository (history only, no files of its own) with
+`$HOME` as its work tree: the dotfiles land where programs look for them,
+and `$HOME` is not itself a git checkout. Files already in `$HOME` that
+the repository also has (a fresh install's `~/.profile`) are moved to
+`~/.local/share/vertrice-backup/DATE/`, never overwritten. It sets
+`status.showUntrackedFiles=no` and tells git to ignore its own directory.
+Then log out and in again.
+
+Manage the dotfiles with `config`, a function in the kshrc that is git
+pointed at that pair: `config status`, `config diff`, `config add FILE`,
+`config commit`, `config pull`. Add files by name; `config add .` in
+`$HOME` would add everything you own.
+
+**2. System stage, as root.** The first time, doas has no rule yet, so
+use su and the full path:
+
+    su -
+    /home/YOU/.local/bin/vertrice-install system       # the plan
+    /home/YOU/.local/bin/vertrice-install -y system    # do it
+
+Later runs: `doas ~/.local/bin/vertrice-install -y system`. It reads the
+files in `~/.local/share/openbsd` and does:
+
+- Packages: `pkg_add -l pkglist`, if any are missing. Most names match
+  a port directory; zathura-pdf-mupdf, noto-emoji, noto-fonts and ntfs_3g
+  do not (a package name can differ from its directory) and are not
+  checked. `check` reports any that did not install.
+- doas: installs `doas.conf` as /etc/doas.conf only after `doas -C`
+  accepts it, and only if your user is in wheel (the rule permits wheel,
+  so anyone else would be locked out). The new file is renamed into place,
+  so there is always a working /etc/doas.conf.
+- Root's shell: `root.kshrc` to /root/.kshrc, and `export
+  ENV=/root/.kshrc` in /root/.profile (for console logins as root;
+  `doas -s` gets ENV from the doas rule).
+- USB notices: `hotplug-attach` to /etc/hotplug/attach, and hotplugd.
+- Browser memory: puts you in login class `staff` (`usermod -L staff`)
+  and gives that class in /etc/login.conf `datasize-cur=4096M`,
+  `datasize-max=infinity`, `openfiles-cur=4096`, `openfiles-max=8192`.
+  OpenBSD's default limits are small (datasize is the most memory a
+  process may take); Chromium and qutebrowser reach them and crash, and
+  Chromium's many processes run out of open files. The values are the
+  ones commonly given for browsers (from memory, not from a pkg-readme).
+  The edited file is checked with cap_mkdb before it replaces the old one,
+  and login.conf.db is rebuilt if the system has one. The limits apply
+  from your next login. If Chromium still runs out of files, the
+  system-wide `kern.maxfiles` may need raising too (not done here).
+- apmd, with flags `-z 7`: suspend when the battery reaches 7% with no
+  AC. No `-A`, `-L` or `-H`: those set the CPU speed policy, which is
+  obsdfreqd's job here, and the two would fight. apmd also gives zzz/ZZZ
+  and the battery data. Whether a normal user may run `zzz` depends on
+  apmd's socket permissions: not checked.
+- obsdfreqd (package), CPU speed, with flags `-m 100,50 -r 50,90 -T
+  85,65`. Each flag takes `on AC,on battery`. `-m` caps the speed in
+  percent (full on AC, half on battery). `-r` is the CPU use that makes it
+  step up: 50% on AC for a quick response, 90% on battery so only
+  sustained load raises the clock. `-T` is a temperature ceiling in °C:
+  past it, the cap drops each cycle until the CPU cools (85 on AC, 65 on
+  battery, which also keeps the X220's fan quiet). Flag letters are from
+  obsdfreqd's documentation as quoted in search results; `man obsdfreqd`
+  on the machine is the authority.
+- hotplugd, messagebus (the system D-Bus, from the dbus package) and
+  sndiod (already on by default): enabled and started.
+- unwind(8): a validating, caching DNS resolver on the laptop itself,
+  which also notices captive portals (hotel and café logins) and steps
+  aside for them. With unwind running, resolvd(8) points
+  /etc/resolv.conf at it (127.0.0.1).
+- Console: `keyboard.map+="keysym Caps_Lock = Escape"` in
+  /etc/wsconsctl.conf, read at boot.
+- Battery charge limit: only if the machine has the sysctl
+  `hw.battery.chargestop` (newer ThinkPads do; whether the X220 does is
+  not known). Then `hw.battery.chargestop=80` and, if present,
+  `hw.battery.chargestart=75` are set now and in /etc/sysctl.conf, so the
+  battery rests between 75 and 80%. Without it, the step is skipped with
+  a note.
+- Audio recording stays off (`kern.audio.record=0`, OpenBSD's default).
+  `-r` turns it on, now and in /etc/sysctl.conf; dmenurecord records
+  silence without it.
+
+A daemon whose flags changed is restarted. If a step fails, the others
+still run, the failure is listed, and the exit status is nonzero; fix it
+and run again.
+
+**3. Check.** Log in on the console and run `vertrice-install check`
+(which runs `~/.local/share/openbsd/check`), once on the console and once
+inside X.
+
+**Wi-Fi** is not configured by the installer. For iwn0 (the X220's usual
+card; `ifconfig` shows yours), /etc/hostname.iwn0 with one `join` line per
+network; ifconfig picks the best one in range:
+
+    join homenet wpakey "home passphrase"
+    join "cafe wifi"
+    join worknet wpakey "work passphrase"
+    inet autoconf
+
+Then `sh /etc/netstart iwn0`. The file holds passphrases: keep it mode
+0640, owned by root (from memory: netstart warns when it is readable by
+others).
+
+### By hand, for reading before running
+
+What the system stage does, as commands. They are not idempotent: run
+each once.
+
+    pkg_add -l ~/.local/share/openbsd/pkglist
+    install -o root -g wheel -m 0640 ~/.local/share/openbsd/doas.conf /etc/doas.conf.new
+    doas -C /etc/doas.conf.new && mv /etc/doas.conf.new /etc/doas.conf
+    install -o root -g wheel -m 0644 ~/.local/share/openbsd/root.kshrc /root/.kshrc
+    echo 'export ENV=/root/.kshrc' >>/root/.profile
+    install -d /etc/hotplug
+    install -o root -g wheel -m 0755 ~/.local/share/openbsd/hotplug-attach /etc/hotplug/attach
+    usermod -L staff YOU    # then edit the staff class in /etc/login.conf;
+                            # cap_mkdb /etc/login.conf if login.conf.db exists
+    rcctl enable apmd obsdfreqd hotplugd messagebus unwind
+    rcctl set apmd flags -z 7
+    rcctl set obsdfreqd flags -m 100,50 -r 50,90 -T 85,65
+    rcctl start apmd obsdfreqd hotplugd messagebus unwind
+    echo 'keyboard.map+="keysym Caps_Lock = Escape"' >>/etc/wsconsctl.conf
+    # only if sysctl hw.battery.chargestop exists:
+    echo hw.battery.chargestop=80 >>/etc/sysctl.conf
+    # only for sound in screen recordings:
+    echo kern.audio.record=1 >>/etc/sysctl.conf
+
+`sysctl.conf` lines take effect at boot; `sysctl name=value` sets one now.
 
 Optional, for Luke's dwm and st: they are separate repos. They build on
 OpenBSD once `config.mk` points at `/usr/X11R6` (their config.mk has
