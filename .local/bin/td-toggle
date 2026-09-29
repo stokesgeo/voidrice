@@ -1,6 +1,7 @@
 #!/bin/sh
 
-# If transmission-daemon is running, will ask to kill, else will ask to start.
+# td-toggle: ask in dmenu to stop transmission-daemon if it runs, or to start
+# it if it does not.
 
 ifinstalled transmission-daemon || exit 1
 
@@ -10,4 +11,5 @@ pgrep -x transmission-daemon >/dev/null &&
 	{ [ "$(printf "No\nYes" | dmenu -i -p "Turn on transmission daemon?")" = Yes ] &&
 		transmission-daemon && notify-send "transmission-daemon enabled." ;}
 
+# Wait for the daemon to settle before the status bar looks.
 sleep 3; sb-refresh

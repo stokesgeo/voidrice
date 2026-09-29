@@ -1,14 +1,13 @@
 #!/bin/sh
 
-# Give a file with images and timecodes and creates a video slideshow of them.
+# slider -i LIST [options]: make a slideshow video. Each line of LIST is a
+# timecode (00:00:00), a tab, then an image file or the text of a text slide.
 #
-# Timecodes must be in format 00:00:00.
-#
-# Imagemagick and ffmpeg required. ImageMagick 6 here: convert, not magick.
+# Needs ImageMagick 6 (convert, not magick) and ffmpeg.
 
 ifinstalled ImageMagick ffmpeg || exit 1
 
-# Application cache if not stated elsewhere.
+# Prepared slide images stay here between runs.
 cache="${XDG_CACHE_HOME:-$HOME/.cache}/slider"
 
 while getopts "hvrpi:c:a:o:d:f:t:e:x:s:" o; do case "${o}" in
@@ -62,7 +61,7 @@ Timecodes and filenames must be separated by Tabs." &&
 	exit 1
 	}
 
-# HH:MM:SS[.frac] to seconds, as GNU date -d did.
+# secs HH:MM:SS: whole seconds. Any fraction is cut off.
 secs() { echo "$1" | awk -F: '{printf "%d\n", $1 * 3600 + $2 * 60 + $3}'; }
 
 if [ -n "${audio+x}" ]; then
@@ -87,7 +86,7 @@ do
 	# Get the time from the first column.
 	time="${x%%	*}"
 	seconds="$(secs "$time")"
-	# Duration is not used on the first looped item.
+	# How long the previous slide ran. The first line has no previous slide.
 	duration="$((seconds - prevseconds))"
 
 	# Get the filename/text content from the rest.
@@ -105,7 +104,7 @@ do
 			convert -size "${res:-1920x1080}" -background "${bgc:-black}" -fill "${fgc:-white}" -font "${font:-Sans}" -pointsize "${ppt:-150}" -gravity center label:"$content" "$prepdir/$base"
 	fi
 
-	# If the first line, do not write yet.
+	# Each slide is written when the next timecode gives its length.
 	[ "$time" = "00:00:00" ] || echo "file '$prevbase'
 duration $duration"
 
@@ -114,7 +113,8 @@ duration $duration"
 	prevtime="$time"
 	prevseconds="$(secs "$prevtime")"
 done < "$file"
-# Do last file which must be given twice as follows
+# List the last slide twice: ffmpeg's concat demuxer ignores the duration of
+# the final entry.
 endtime="$((totseconds-seconds))"
 echo "file '$base'
 duration ${endtime:-5}

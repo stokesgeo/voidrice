@@ -1,7 +1,9 @@
 #!/bin/sh
 
-#original artwork by http://www.sanderfocus.nl/#/portfolio/tech-heroes
-#converted to shell by #nixers @ irc.unix.chat
+# unix: print the "Unix is very simple" poster in colour.
+#
+# Original artwork by http://www.sanderfocus.nl/#/portfolio/tech-heroes
+# Converted to shell by #nixers @ irc.unix.chat
 
 cat << 'eof'
                      [38;5;255m,_ ,_==▄▂[0m

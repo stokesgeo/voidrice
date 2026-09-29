@@ -1,8 +1,7 @@
 #!/bin/sh
 
-# This gives the user a list of videos they can select and watch without a
-# browser. If you want to check a tutorial video, it makes it easy. I'll
-# add/remove videos from this list as I go on.
+# tutorialvids: pick a tutorial video in dmenu and play it in mpv. Add or
+# remove videos in the list below: a title, a tab, then the URL.
 
 vidlist="
 dwm (window manager)	https://videos.lukesmith.xyz/videos/watch/f6b78db7-b368-4647-bc64-28c08fff1988
@@ -23,6 +22,6 @@ colorschemes with pywal	https://videos.lukesmith.xyz/videos/watch/1b476003-61b2-
 vi mode in shell	https://videos.lukesmith.xyz/videos/watch/228aa50c-836f-456f-9f0d-a45157fe4313
 pass (password manager)	https://videos.lukesmith.xyz/videos/watch/432fc942-5e28-4682-9beb-f5cb237a1dd6
 "
-# awk -F'\t': OpenBSD's grep has no -P, nor its sed \t.
+# awk splits on the tab: OpenBSD grep has no -P and its sed has no \t.
 choice="$(echo "$vidlist" | awk -F'\t' '/https:/ {print $1}' | dmenu -i -p "Learn about what? (ESC to cancel)" -l 20 | awk '{print $1}')"
 [ -n "$choice" ] && echo "$vidlist" | awk -F'\t' -v c="$choice" '$1 == c || index($1, c " ") == 1 {print $NF}' | xargs -r mpv
