@@ -192,27 +192,45 @@ t_fetch_setbg_no_xwallpaper() {
 	notlogged '^xsetroot'
 }
 
-t_fetch_scope_no_bat() {
-	command -v bat >/dev/null 2>&1 && skip "this host has bat"
+t_fetch_scope_no_highlight() {
+	command -v highlight >/dev/null 2>&1 && skip "this host has highlight"
 	printf 'one\ntwo\nthree\nfour\n' >"$T/notes.txt"
 	eq "first screenful" "one
 two
 three" "$("$VT_SH" "$REPO/.config/lf/scope" "$T/notes.txt" 80 3 0 0)"
 }
 
-# lf passes file, width, height, x, y. bat's width is the width ($2) less
-# two; upstream used $4, the x position.
-t_fetch_scope_bat_width() {
-	# scope runs under set -C; ksh then refuses ">/dev/null" when
-	# /dev/null is a regular file (seen on a broken Linux host), so bat
-	# would never be found. There, point the redirections at a scratch file.
-	scope=$REPO/.config/lf/scope
-	[ -c /dev/null ] || scope=$(derived .config/lf/scope scope "s|/dev/null|$T/null|g")
-	printf '#!/bin/sh\necho "bat $*" >>"$VT_STATE/log"\n' >"$T/bin/bat"
-	chmod +x "$T/bin/bat"
+# scope runs under set -C; ksh then refuses ">/dev/null" when /dev/null is
+# a regular file (seen on a broken Linux host), so "command -v highlight
+# >/dev/null" would fail. There, point the redirections at a scratch file.
+scope_path() {
+	if [ -c /dev/null ]; then printf '%s\n' "$REPO/.config/lf/scope"
+	else derived .config/lf/scope scope "s|/dev/null|$T/null|g"; fi
+}
+
+# With highlight: coloured (ANSI), plain for an unknown syntax, cut to
+# the pane's height ($3). lf passes file, width, height, x, y.
+t_fetch_scope_highlight() {
+	scope=$(scope_path)
+	printf '#!/bin/sh\necho "highlight $*" >>"$VT_STATE/log"\nprintf "1\\n2\\n3\\n4\\n5\\n"\n' >"$T/bin/highlight"
+	chmod +x "$T/bin/highlight"
 	printf 'one\n' >"$T/notes.txt"
-	"$VT_SH" "$scope" "$T/notes.txt" 80 3 41 1 >"$T/out"
-	logged '^bat -p --theme ansi --terminal-width 78 -f .*/notes\.txt$'
+	out=$("$VT_SH" "$scope" "$T/notes.txt" 80 3 41 1)
+	logged '^highlight -O ansi --force .*/notes\.txt$'
+	eq "cut to the height" "1
+2
+3" "$out"
+}
+
+# lynx gets the pane's width ($2); upstream passed $4, the x position.
+t_fetch_scope_html_width() {
+	scope=$(scope_path)
+	printf '#!/bin/sh\necho "lynx $*" >>"$VT_STATE/log"\n' >"$T/bin/lynx"
+	printf '#!/bin/sh\necho text/html\n' >"$T/bin/file"
+	chmod +x "$T/bin/lynx" "$T/bin/file"
+	: >"$T/page.html"
+	"$VT_SH" "$scope" "$T/page.html" 80 20 41 1 >"$T/out"
+	logged '^lynx -width=80 -display_charset=utf-8 -dump .*/page\.html$'
 }
 
 # Archives list through the tool ext would use for the same name.

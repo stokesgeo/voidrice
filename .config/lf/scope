@@ -54,15 +54,15 @@ case "$(file -biL -- "$1" | cut -d';' -f1)" in
 		[ ! -f "$CACHE.jpg" ] && magick "$1[0]" "$CACHE.jpg"
 		image "$CACHE.jpg" "$2" "$3" "$4" "$5" "$1" ;;
 	image/*) image "$1" "$2" "$3" "$4" "$5" "$1" ;;
-	# $2 is the width; upstream passed $4 (the pane's x position) here
-	# and to bat below.
+	# $2 is the width; upstream passed $4 (the pane's x position).
 	text/html) lynx -width="$2" -display_charset=utf-8 -dump "$1" ;;
 	text/troff) man ./ "$1" | col -b ;;
-	# bat (not installed by default) colours the text; without it, the
-	# first screenful as it is ($3 is the preview's height in lines).
+	# highlight (pkglist.extra; also ccat) colours the first screenful
+	# ($3 is the preview's height in lines); --force prints files of an
+	# unknown syntax plain. Without it, the first screenful as it is.
 	text/* | */xml | application/json | application/x-ndjson)
-		if command -v bat >/dev/null 2>&1; then
-			bat -p --theme ansi --terminal-width "$(($2-2))" -f "$1"
+		if command -v highlight >/dev/null 2>&1; then
+			highlight -O ansi --force "$1" | head -n "$3"
 		else
 			head -n "$3" -- "$1"
 		fi ;;
