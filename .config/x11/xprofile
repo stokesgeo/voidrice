@@ -7,11 +7,16 @@ xrandr --dpi 96		# Set DPI. User may want to use a larger number for larger scre
 setbg &			# set the background with the `setbg` script
 #xrdb ${XDG_CONFIG_HOME:-$HOME/.config}/x11/xresources & xrdbpid=$!	# Uncomment to use Xresources colors/settings on startup
 
-autostart="mpd xcompmgr dunst unclutter pipewire remapd"
+# Sound is sndiod(8), a system daemon started by rc(8), so nothing to start here.
+autostart="mpd xcompmgr dunst unclutter"
 
 for program in $autostart; do
 	pgrep -x "$program" >/dev/null || "$program" &
 done >/dev/null 2>&1
+
+# Key remaps, once. Linux used remapd to redo them when a USB keyboard was
+# plugged in (via udevadm); OpenBSD has no udev. Run `remaps` again by hand.
+remaps &
 
 # Ensure that xrdb has finished running before moving on to start the WM/DE.
 [ -n "$xrdbpid" ] && wait "$xrdbpid"
