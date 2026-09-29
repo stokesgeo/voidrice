@@ -47,6 +47,34 @@ t_fetch_sb_moonphase() {
 	eq "phase" "🌔" "$(sb-moonphase)"
 }
 
+# sb-iplocate keeps the address an hour. With none, it prints nothing:
+# not the first flag in the emoji file.
+t_fetch_sb_iplocate() {
+	fx_stat
+	printf '#!/bin/sh\necho "geoiplookup $*" >>"$VT_STATE/log"\necho "GeoIP Country Edition: NL, Netherlands"\n' >"$T/bin/geoiplookup"
+	chmod +x "$T/bin/geoiplookup"
+	mkdir -p "$HOME/.local/share/larbs/chars"
+	cp "$REPO/.local/share/larbs/chars/emoji" "$HOME/.local/share/larbs/chars/"
+	ipfile=$XDG_CACHE_HOME/iplocate lock=/tmp/sb-iplocate-$(id -u).lock
+	export VT_SLEEP=0.1
+	echo 1 >"$VT_STATE/rc.ftp"
+	eq "no address: nothing" "" "$(sb-iplocate)"
+	rm "$VT_STATE/rc.ftp"; echo 192.0.2.1 | fx out.ftp
+	waitfor 5 test ! -d "$lock" || fail "the fetch never ended"
+	eq "address kept" 192.0.2.1 "$(cat "$ipfile")"
+	eq "block" "🇳🇱 Netherlands" "$(sb-iplocate)"
+	logged '^geoiplookup 192\.0\.2\.1$'
+	n=$(nlogged '^ftp ')
+	eq "again, fresh: still there" "🇳🇱 Netherlands" "$(sb-iplocate)"
+	eq "fresh: no fetch" "$n" "$(nlogged '^ftp ')"
+	touch -t 200001010000 "$ipfile"
+	eq "over an hour old: empty while it fetches" "" "$(sb-iplocate)"
+	refetched() { [ "$(nlogged '^ftp ')" -gt "$n" ]; }
+	waitfor 5 refetched || fail "an old address was not fetched again"
+	waitfor 5 test ! -d "$lock" || fail "the fetch never ended"
+	return 0
+}
+
 t_fetch_sb_price() {
 	fx_stat
 	echo 61234.567 | fx out.ftp
