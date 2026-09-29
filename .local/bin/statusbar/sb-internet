@@ -2,15 +2,10 @@
 
 # Show wifi 📶 and percent strength or 📡 if none.
 # Show 🌐 if connected to ethernet or ❎ if none.
-# Show 🔒 if a vpn connection is active
-#
-# OpenBSD has no /sys; everything comes from one ifconfig(8) run. A wireless
-# interface has "media: IEEE802.11", wired has "media: Ethernet", a working
-# link has "status: active", and the ieee80211 line of a joined network
-# carries the signal as a percentage. wg(4) and tun(4) count as VPN.
+# Show 🔒 if a vpn connection is active (wg or tun)
+# OpenBSD has no /sys: it all comes from one ifconfig(8).
 
 case $BLOCK_BUTTON in
-	1) detach dmenuwifi ;;
 	3) notify-send "🌐 Internet module" "\- Click to connect
 ❌: wifi disabled
 📡: no wifi connection

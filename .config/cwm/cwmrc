@@ -1,25 +1,10 @@
-# cwmrc: voidrice's dwm keys on cwm(1), OpenBSD's window manager in base.
-# xinitrc starts `cwm -c` on this file. See cwmrc(5); OPENBSD.md has the
-# table of dwm keys and what each became here.
-#
-# How the dwm habits carry over:
-# - Tags are cwm groups. sticky mode puts each new window in the group
-#   you are looking at, as dwm puts it on the current tag.
-# - cwm floats by default and tiles on request: window-vtile makes the
-#   focused window the master on the left and stacks the others in its
-#   group on the right (dwm's tile); window-htile puts the master on top
-#   (bstack). Press it again after opening or closing a window.
-# - Super is the only modifier used, so application shortcuts on Alt and
-#   Control stay free (cwm's defaults use both).
+# cwmrc(5): voidrice's dwm keys on cwm. 4 = Super, S = Shift, C = Control.
+# Groups are dwm's tags; cwm floats and tiles on request (Super+t).
 
 sticky yes
 vtile 55			# dwm mfact 0.55
 htile 55
-# fvwm's look, as OpenBSD ships it (xenocara system.fvwmrc): thick 7-pixel
-# frames, dark red and blue, grey menus. Here the focused window is red and
-# the rest blue (fvwm itself has it the other way round). The blue is fvwm's
-# pure X11 blue, softened. Borders are fixed: they read in day and night.
-borderwidth 7
+borderwidth 7			# fvwm's look: thick frames, red and blue
 color activeborder "#8b0000"
 color inactiveborder "#4a64b0"
 color groupborder "#e3c98d"
@@ -32,13 +17,8 @@ color selfont "#f5f1e8"
 fontname "IBM Plex Mono:size=10"
 snapdist 4
 
-# Scratchpads belong to no group, so they show on every group.
-# autogroup matches the class, or "instance,class": xterm's class is XTerm,
-# st's is St.
-autogroup 0 "spterm,XTerm"
+autogroup 0 "spterm,XTerm"	# scratchpads show on every group
 autogroup 0 "spcalc,XTerm"
-autogroup 0 "spterm,St"
-autogroup 0 "spcalc,St"
 
 unbind-key all
 
@@ -140,7 +120,7 @@ bind-key 4S-equal	"sh -c 'sndioctl -q output.level=+0.15; sb-refresh'"
 bind-key 4S-m		"sh -c 'sndioctl -q output.mute=!; sb-refresh'"
 
 # --- function keys, screenshots, recording ----------------------------------
-bind-key 4-F1		keys			# this key list in dmenu
+bind-key 4-F1		"sh -c 'grep ^bind ~/.config/cwm/cwmrc | dmenu -i -l 40 -p Keys:'"
 bind-key 4S-F1		manpick			# any manual page, picked in dmenu
 bind-key 4-F2		tutorialvids
 bind-key 4S-F2		writemode		# full-screen writing, nvim in Goyo
@@ -153,6 +133,7 @@ bind-key 4-F7		td-toggle
 bind-key 4-F9		"sh -c 'exec $TERMINAL -e mounter'"
 bind-key 4-F10		"sh -c 'exec $TERMINAL -e unmounter'"
 bind-key 4-F11		video			# webcam view, base video(1)
+bind-key 4S-F11		dmenuwifi		# join a wireless network
 bind-key 4-F12		remaps			# key and TrackPoint settings again
 bind-key Print		"sh -c 'maim pic-full-$(date +%y%m%d-%H%M-%S).png'"
 bind-key S-Print	maimpick
@@ -160,9 +141,7 @@ bind-key 4-Print	dmenurecord
 bind-key 4S-Print	"dmenurecord kill"
 bind-key 4-Delete	"dmenurecord kill"
 
-# Mouse: Super-drag moves, Super-right-drag resizes (as in dwm). cwm's Alt
-# mouse defaults are dropped, like its Alt keys. On the empty desktop: left
-# click lists windows, middle lists groups, right runs cwm's command menu.
+# Super-drag moves, Super-right-drag resizes; the desktop's buttons open menus.
 unbind-mouse all
 bind-mouse 1		menu-window
 bind-mouse 2		menu-group

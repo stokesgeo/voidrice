@@ -1,21 +1,11 @@
 #!/bin/sh
 
 # The clickable help menu. Middle click to restart wm.
-#
-# The LARBS guide comes with Luke's dwm (larbs.mom, typeset with groff).
-# Without it, as under cwm, the help is vertrice's `keys` (Super+F1): the
-# key sheet read from the cwmrc.
-
-mom=/usr/local/share/dwm/larbs.mom
 
 case $BLOCK_BUTTON in
-	1) if [ -r "$mom" ] && command -v groff >/dev/null 2>&1; then
-		groff -mom "$mom" -Tpdf | zathura -
-	else
-		keys
-	fi ;;
-	2) pkill -HUP "${WM:-cwm}" ;;
-	3) notify-send "❓ Help module" "\- Left click to open the LARBS guide (dwm), or the key sheet.
+	1) groff -mom /usr/local/share/dwm/larbs.mom -Tpdf | zathura - ;;
+	2) pkill -HUP dwm ;;
+	3) notify-send "❓ Help module" "\- Left click to open LARBS guide.
 - Middle click to refresh window manager." ;;
 	6) detach "$TERMINAL" -e "$EDITOR" "$0" ;;
 esac

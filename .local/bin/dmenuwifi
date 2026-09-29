@@ -1,50 +1,25 @@
 #!/bin/ksh
 
-# dmenuwifi: pick a wireless network in dmenu and join it (voidrice used
-# nmtui). Scanning and joining need root, so, as mounter does, it reopens
-# itself in a small terminal for doas. The packaged dmenu has no -P, so the
-# key is read in that terminal. ifconfig takes the key only as an argument:
-# ps can see it while the join runs.
+# dmenuwifi: join a wireless network picked in dmenu (voidrice used nmtui).
 
-if [ ! -t 0 ]; then
-	case $TERMINAL in
-		st) exec "$TERMINAL" -n floatterm -g 64x4 -e "$0" ;;
-		*) exec "$TERMINAL" -name floatterm -geometry 64x4 -e "$0" ;;
-	esac
-fi
-
-if=$(ifconfig wlan | sed -n 's/^\([a-z]*[0-9]*\): .*/\1/p' | sed 1q)
+[ -t 0 ] || exec xterm -name floatterm -geometry 64x4 -e "$0"
+if=$(ifconfig wlan | sed -n '1s/:.*//p')
 [ -n "$if" ] || { notify-send "📶 No wireless interface."; exit 1; }
-doas true || exit 1	# one password; persist covers the rest
+doas ifconfig "$if" up
 
-# "SIGNAL 🔒 NAME" per network, strongest first. Names come from the air:
-# lines with control characters are dropped (ifconfig prints odd bytes as
-# 0x hex anyway), quoted names with spaces lose their quotes.
-nets=$(doas ifconfig "$if" scan | awk '
-	/[^\t -~]/ || !/^\t\tnwid / { next }
-	{
-		name = substr($0, 8); sub(/ chan [0-9]+ bssid .*/, "", name)
-		if (name ~ /^".* .*"$/) name = substr(name, 2, length(name) - 2)
-		if (name == "" || name == "\"\"" || seen[name]++) next
-		sub(/.* bssid [^ ]+ /, "")
-		print $1, (/privacy/ ? "🔒" : "🔓"), name
-	}')
-
-set -f
+# ifconfig lists networks strongest first and quotes a name with a space.
+nets=$(doas ifconfig "$if" scan | awk '/^\t\tnwid / {
+	n = $0; sub(/^\t\tnwid /, "", n); sub(/ chan [0-9]+ bssid .*/, "", n); gsub(/^"|"$/, "", n)
+	if (n != "" && !seen[n]++) print (/privacy/ ? "🔒" : "🔓"), n }')
 chosen=$(print -r -- "$nets" | dmenu -i -l 10 -p "Join which network?") || exit 1
-print -r -- "$nets" | grep -qxF -- "$chosen" || exit 1	# only what was offered
-name=${chosen#* * }
-
-key=
-case $chosen in *🔒*)
-	print -n "Key for $name: "; stty -echo; IFS= read -r key; stty echo; print ;;
-esac
+print -r -- "$nets" | grep -qxF -- "$chosen" || exit 1
+name=${chosen#* } key=
+[ "${chosen%% *}" = 🔒 ] && { print -n "Key for $name: "; stty -echo; IFS= read -r key; stty echo; print; }
 doas ifconfig "$if" join "$name" ${key:+wpakey "$key"} || { notify-send "📶 Join failed." "$name"; exit 1; }
 notify-send "📶 Joining $name"
 
-# netstart(8) evals each hostname.if line as root at boot: write only a
-# line that has none of " $ ` \ in it.
+# netstart(8) evals hostname.if as root: never write " $ ` or \ into it.
 hn=/etc/hostname.$if
-case $name$key in *[\"\$\`\\]*) exit 0 ;; esac
-[ -e "$hn" ] && [ "$(printf 'No\nYes' | dmenu -i -p "Add $name to $hn?")" = Yes ] || exit 0
-print -r -- "join \"$name\"${key:+ wpakey \"$key\"}" | doas tee -a "$hn" >/dev/null
+case $name$key in *[\"\$\`\\]*) exit ;; esac
+[ -e "$hn" ] && [ "$(printf 'No\nYes' | dmenu -i -p "Add $name to $hn?")" = Yes ] &&
+	print -r -- "join \"$name\"${key:+ wpakey \"$key\"}" | doas tee -a "$hn" >/dev/null

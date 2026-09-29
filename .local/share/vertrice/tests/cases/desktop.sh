@@ -147,8 +147,8 @@ t_nightlight() {
 t_scratch() {
 	scratch term
 	logged '^xterm -name spterm -geometry 120x34$'
-	TERMINAL=st scratch calc
-	logged '^st -n spcalc -g 50x20 -e bc -lq$'
+	scratch calc
+	logged '^xterm -name spcalc -geometry 50x20 -e bc -lq$'
 	echo "0x1 spterm 1" >"$VT_STATE/windows"
 	scratch term
 	logged '^xdotool windowunmap 0x1$'
