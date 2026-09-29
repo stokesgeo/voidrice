@@ -4,8 +4,13 @@
 # thing. That's just for this particular command, which allows us to pause
 # every single one of them with one command! This is bound to super + shift + p
 # (with other things) by default and is used in some other places.
+#
+# Base nc(1) talks to each socket: -U for a Unix socket, -N to shut down
+# its sending side after the command so mpv closes and nc exits, -w 1 as a
+# stop if mpv does not answer.
 
-find /tmp/mpvSockets -type s -exec sh -c '
-	echo "{ \"command\": [\"set_property\", \"pause\", true] }" \
-		| socat - "UNIX-CONNECT:$1" >/dev/null 2>&1
-' sh {} \;
+for s in /tmp/mpvSockets/*; do
+	[ -S "$s" ] || continue
+	echo '{ "command": ["set_property", "pause", true] }' |
+		nc -NU -w 1 "$s" >/dev/null 2>&1
+done

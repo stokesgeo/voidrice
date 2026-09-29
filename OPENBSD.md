@@ -1039,19 +1039,23 @@ Extra (`pkglist.extra`): mutt-wizard (mail: neomutt, isync, msmtp and pass
 come with it; Super+e, sb-mailbox), newsboat (Super+Shift+n, sb-news),
 password-store and pass-otp (Super+Shift+d, otp), transmission
 (torrents), yt-dlp (web video in mpv), xwallpaper (setbg; without it the
-root window keeps its colour), unclutter (hides an idle pointer), ntfs_3g
+root window takes the theme's background colour), unclutter (hides an idle pointer), ntfs_3g
 and simple-mtpfs (mounter: NTFS disks and Android phones), 7zip (ext: 7z,
 rar).
 
 Left out:
 
-- curl: the scripts' curl calls could all go through base ftp(1); curl
-  stays installed now only because git needs it.
-- highlight: nothing runs it; lf's previewer calls bat, which is not
-  listed.
-- socat: only pauseallmpv uses it, and base nc(1) -U can talk to mpv's
-  socket. Until pauseallmpv changes, Super+Shift+p pauses mpd but not mpv.
-- bash: only rssget and sb-ticker, neither in the default bar or keys.
+- curl: every fetch goes through base ftp(1) (`-o file` or `-o -` for
+  stdout, `-M -V` for quiet, `-U curl` where the site picks its format by
+  User-Agent, `-w` for the timeouts, which limits only the connect).
+  curl is still installed, because git depends on it.
+- socat: pauseallmpv talks to mpv's sockets with base nc(1) (`nc -NU`).
+- bash: rssget and sb-ticker are POSIX sh now. pywal's postrun is still
+  bash, and runs only if pywal is installed, which it is not.
+- highlight, bat: nothing runs highlight; lf's previewer uses bat when it
+  is installed and otherwise shows the start of the file with head(1).
+- xwallpaper is extra: without it, setbg sets the root window to the
+  current theme's background colour with xsetroot(1).
 - calcurse: only sb-clock's click, and sbar blocks take no clicks.
 - libiconv: only booksplit. git installs it anyway.
 - noto-fonts: no config names it; IBM Plex and Noto Color Emoji cover

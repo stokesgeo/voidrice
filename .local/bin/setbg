@@ -41,6 +41,17 @@ else
 	[ -f "$zathuraconf.bak" ] && unlink "$zathuraconf" && mv "$zathuraconf.bak" "$zathuraconf"
 fi
 
-xwallpaper --zoom "$bgloc"
+# xwallpaper is optional (pkglist.extra). Without it the root window gets
+# the current theme's background colour, from the palette file that
+# `theme` last applied (before any, day from 07:00 to 19:00, as theme's
+# own rule). It changes again only when setbg next runs.
+if command -v xwallpaper >/dev/null 2>&1; then
+	xwallpaper --zoom "$bgloc"
+else
+	t=$(cat "${XDG_CACHE_HOME:-$HOME/.cache}/theme" 2>/dev/null)
+	[ -n "$t" ] || { h=$(date +%H); [ "$h" -ge 7 ] && [ "$h" -lt 19 ] && t=day || t=night; }
+	bg=$(sed -n 's/^\*\.background:[[:space:]]*//p' "${XDG_CONFIG_HOME:-$HOME/.config}/x11/themes/$t" 2>/dev/null)
+	[ -n "$bg" ] && xsetroot -solid "$bg"
+fi
 # If running, dwm hit the key to refresh the color scheme.
 pgrep -x dwm >/dev/null && xdotool key super+F5

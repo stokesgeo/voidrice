@@ -36,7 +36,14 @@ case "$(file -biL -- "$1" | cut -d';' -f1)" in
 	image/*) image "$1" "$2" "$3" "$4" "$5" "$1" ;;
 	text/html) lynx -width="$4" -display_charset=utf-8 -dump "$1" ;;
 	text/troff) man ./ "$1" | col -b ;;
-	text/* | */xml | application/json | application/x-ndjson) bat -p --theme ansi --terminal-width "$(($4-2))" -f "$1" ;;
+	# bat (not installed by default) colours the text; without it, the
+	# first screenful as it is ($3 is the preview's height in lines).
+	text/* | */xml | application/json | application/x-ndjson)
+		if command -v bat >/dev/null 2>&1; then
+			bat -p --theme ansi --terminal-width "$(($4-2))" -f "$1"
+		else
+			head -n "$3" -- "$1"
+		fi ;;
 	audio/* | application/octet-stream) mediainfo "$1" || exit 1 ;;
 	video/* )
 		CACHE="${XDG_CACHE_HOME:-$HOME/.cache}/lf/thumb.$(stat -f '%N %i %HT %z %B %m' -- "$(readlink -f "$1")" | md5)" CACHE="${CACHE%% *}"

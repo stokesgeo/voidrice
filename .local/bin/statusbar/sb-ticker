@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/sh
 
 # Usage
 #   sb-ticker
@@ -21,15 +21,19 @@ checkprice() {
     [ -s "$pricefile" ] && [ "$(stat -f %Sm -t '%Y-%m-%d %H' "$pricefile" 2>/dev/null)" != "$(date '+%Y-%m-%d %H')" ]
 }
 
+# The changes are the numbers right after a colour escape (ESC[...m),
+# in ticker order: the nth change goes with the nth ticker.
 getchange() {
-    mapfile -t changes < <(sed -e 's/  / /g' "$pricefile" | grep -oe '[m-]\+[0-9]\+\.[0-9]\+' | sed 's/[m ]/;/g')
-    IFS=',' read -ra TICKER <<< "$tickers"
-    for idx in "${!TICKER[@]}"; do
-        printf "%s: %s%%\n" "${TICKER[$idx]}" "${changes[$idx]//;/}"
-    done
+    grep -Eo '[m-]+[0-9]+\.[0-9]+' "$pricefile" | tr -d m |
+        awk -v t="$tickers" '{ c[NR] = $0 }
+            END { n = split(t, tk, ","); for (i = 1; i <= n; i++) printf "%s: %s%%\n", tk[i], c[i] }'
 }
 
-updateprice() { curl -sfm 10 "$url/$tickers" --output "$pricefile" || rm -f "$pricefile" ; }
+# Base ftp(1): -M -V quiet. -U curl: the script was written against curl,
+# and terminal sites like this one may send HTML to other User-Agents
+# (assumed, not checked). -w 10 limits only the wait for the
+# connection (curl's -m 10 limited the whole transfer).
+updateprice() { ftp -MV -w 10 -U curl -o "$pricefile" "https://$url/$tickers" 2>/dev/null || rm -f "$pricefile" ; }
 
 case $BLOCK_BUTTON in
     1) detach "$TERMINAL" -e less -Srf "$pricefile" ;;

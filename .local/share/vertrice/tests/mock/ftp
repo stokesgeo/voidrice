@@ -1,0 +1,31 @@
+#!/bin/sh
+
+# ftp(1) mock, for HTTP(S) fetches only. Logs "ftp ARGS". Refuses a flag
+# base ftp does not take (the option string is main.c's getopt, OpenBSD
+# src, 2026). With $VT_STATE/rc.ftp nonzero it prints an error and writes
+# nothing, as ftp does on an HTTP error: fetch.c opens the output file only
+# after a good answer. Otherwise it writes $VT_STATE/out.ftp (empty if
+# absent) to the -o file, "-" being stdout. Known: -o, -o -, the exit
+# status on error. Assumed: what the site itself sends.
+
+echo "ftp $*" >>"$VT_STATE/log"
+out=
+while getopts 46AaCc:dD:EeN:gik:Mmno:pP:r:S:s:TtU:uvVw: o; do
+	case $o in
+	o) out=$OPTARG ;;
+	\?) exit 1 ;;
+	*) ;;
+	esac
+done
+shift $((OPTIND - 1))
+[ $# -eq 1 ] || { echo "ftp mock: want one URL, got: $*" >&2; exit 1; }
+case $1 in http://*|https://*) ;; *) echo "ftp mock: not a URL: $1" >&2; exit 1 ;; esac
+rc=$(cat "$VT_STATE/rc.ftp" 2>/dev/null || echo 0)
+[ "$rc" -eq 0 ] || { echo "ftp: Error retrieving $1: 404 Not Found" >&2; exit "$rc"; }
+[ -n "$out" ] || { echo "ftp mock: no -o given (would save by URL name)" >&2; exit 1; }
+if [ "$out" = - ]; then
+	cat "$VT_STATE/out.ftp" 2>/dev/null
+else
+	cat "$VT_STATE/out.ftp" 2>/dev/null >"$out"
+fi
+exit 0

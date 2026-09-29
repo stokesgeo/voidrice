@@ -55,7 +55,13 @@ arrange() {
 doi2bib() {
         doi="${1#doi:}"
 	url="https://api.crossref.org/works/${doi}/transform/application/x-bibtex"
-        entry="$(curl -kLsS --no-fail "${url}" | arrange)"
+	# Base ftp(1): -o - to stdout, -M -V quiet; errors still print, as
+	# curl -sS did. Upstream's curl -k (no certificate check) is dropped:
+	# voidrice gave no reason for it and Crossref's certificate is valid.
+	# curl's --no-fail printed the error page, which then failed the "@"
+	# test below; ftp prints nothing on an HTTP error, and the same test
+	# catches the empty entry.
+	entry="$(ftp -MV -o - "${url}" | arrange)"
         red='\033[0;31m'
         reset='\033[0m'
 

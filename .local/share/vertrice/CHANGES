@@ -56,6 +56,15 @@ GNU syntax
 - sed, grep, stat, file, date, shuf, numfmt, shred and mktemp calls use
   BSD and POSIX forms. getbib's formatter is one awk pass.
 
+Base tools in place of packages
+
+- Every curl (and rssget's wget) call uses base ftp(1). pauseallmpv
+  uses base nc(1) -NU in place of socat. rssget and sb-ticker are POSIX
+  sh, not bash.
+- setbg without xwallpaper sets the root window to the theme's
+  background colour (xsetroot); lf's scope without bat shows the start
+  of a text file (head).
+
 Files and drives
 
 - New `ext` extracts every archive type by name; lf's E key calls it.

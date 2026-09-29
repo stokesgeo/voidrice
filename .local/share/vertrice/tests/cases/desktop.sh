@@ -165,12 +165,7 @@ t_scratch() {
 # linkhandler and dmenuhandler download into a new private directory, never
 # to a name in /tmp that the URL chose (a planted symlink would be followed).
 lh_setup() {
-	cat >"$T/bin/curl" <<'EOF'
-#!/bin/sh
-echo "curl $*" >>"$VT_STATE/log"
-while [ $# -gt 0 ]; do [ "$1" = -o ] && { echo data >"$2"; }; shift; done
-EOF
-	chmod +x "$T/bin/curl"
+	echo data | fx out.ftp	# what the ftp mock writes to its -o file
 	for v in nsxiv zathura; do ln -s "$VT_MOCKS/_log" "$T/bin/$v"; done
 }
 # private DIR: DIR is not /tmp itself, and is a directory only its owner may enter.

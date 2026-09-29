@@ -15,8 +15,10 @@ fetch() {
 	d=$(mktemp -d) || return
 	name=$(echo "$url" | sed "s/.*\///;s/%20/ /g")
 	tmpfile="$d/${name:-download}"
-	curl -sL -o "$tmpfile" "$url"
+	ftp -MV -o "$tmpfile" "$url"
 }
+# Downloads use base ftp(1), which also fetches http(s) URLs and follows
+# redirects. -M: no progress meter, -V: no messages; errors still print.
 
 case "$url" in
 	*mkv|*webm|*mp4|*youtube.com/watch*|*youtube.com/playlist*|*youtube.com/shorts*|*youtu.be*|*hooktube.com*|*bitchute.com*|*videos.lukesmith.xyz*|*odysee.com*)
@@ -26,7 +28,7 @@ case "$url" in
 	*pdf|*cbz|*cbr)
 		fetch && zathura "$tmpfile" >/dev/null 2>&1 & ;;
 	*mp3|*flac|*opus|*mp3?source*)
-		qndl "$url" "curl -LO" >/dev/null 2>&1 ;;
+		qndl "$url" "ftp" >/dev/null 2>&1 ;;
 	*)
 		[ -f "$url" ] && detach "$TERMINAL" -e "$EDITOR" "$url" >/dev/null 2>&1 || detach "$BROWSER" "$url" >/dev/null 2>&1
 esac

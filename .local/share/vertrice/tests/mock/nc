@@ -1,0 +1,19 @@
+#!/bin/sh
+
+# nc(1) mock, for Unix sockets only. Logs "nc ARGS" and then "nc< LINE"
+# for each line it was sent. Refuses a flag base nc does not take (the
+# option string is netcat.c's getopt, OpenBSD src, 2026) and a call
+# without -U. Exits with $VT_STATE/rc.nc (default 0).
+
+echo "nc $*" >>"$VT_STATE/log"
+u=
+while getopts 46C:cDde:FH:hI:i:K:klM:m:NnO:o:P:p:R:rSs:T:tUuV:vW:w:X:x:Z:z o; do
+	case $o in
+	U) u=1 ;;
+	\?) exit 1 ;;
+	*) ;;
+	esac
+done
+[ -n "$u" ] || { echo "nc mock: only -U is mocked" >&2; exit 1; }
+while IFS= read -r l; do echo "nc< $l" >>"$VT_STATE/log"; done
+exit "$(cat "$VT_STATE/rc.nc" 2>/dev/null || echo 0)"
