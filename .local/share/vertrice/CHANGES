@@ -65,6 +65,14 @@ Base tools in place of packages
   background colour (xsetroot); lf's scope without bat shows the start
   of a text file (head).
 
+Download queue
+
+- qndl queues with nq (package) in place of task-spooler, which has no
+  port: one job at a time, job files in ~/.cache/qndl, a notice when a
+  job is done or fails. queueandnotify, podentr, newsboat's t and a
+  macros and the handlers' queue entries go through it; sb-tasks counts
+  the live nq jobs.
+
 Files and drives
 
 - New `ext` extracts every archive type by name; lf's E key calls it.

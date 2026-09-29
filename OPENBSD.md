@@ -526,6 +526,37 @@ themselves, and the disk setup.
   but not openrsync, add `--rsync-path=rsync` (not checked: openrsync's
   default remote program).
 
+### The download queue: qndl on nq
+
+voidrice queued downloads with task-spooler (`tsp`), which has no OpenBSD
+port. vertrice queues them with nq(1), from the nq package (pkglist.extra):
+a queue made of plain files, one per job, with no daemon.
+
+- **Same use as voidrice.** `qndl URL [COMMAND]` queues a download; the
+  command defaults to yt-dlp, and the URL is added as its last word. Jobs
+  run one at a time, in order, in the directory qndl was started from.
+  When one ends you get "👍 NAME done.", or "❌ NAME failed.", which
+  voidrice did not send. A plain file loses its `?source=` tail and its
+  `%20`s, as before.
+- **Who queues.** newsboat's `t` (yt-dlp) and `a` (audio) macros,
+  dmenuhandler's three "queue" entries, linkhandler's audio links, and
+  `queueandnotify`, which podentr runs when newsboat's podcast queue
+  changes. Plain files are fetched with base ftp(1).
+- **Where the queue lives.** `~/.cache/qndl`, mode 700, because the job
+  files hold the URLs. Each job is a file `,TIMESTAMP.PID` with the command
+  and its output. `NQDIR=~/.cache/qndl fq` follows the running job. A job
+  that succeeds removes its file; a failed one stays for `fq -a`.
+- **The count.** `sb-tasks` shows 🤖2(1): two jobs not done, one of them
+  waiting. A job file whose PID is alive is not done, and nq sets its
+  execute bit while it runs (read in nq's source, v0.5). sb-tasks is not
+  in sbar's list of blocks; add it there to see the count.
+- **Notices from the queue.** nq starts each job with the environment of
+  the qndl that queued it and adds only NQJOBID, so notify-send finds the
+  session bus and reaches dunst (read in nq.c).
+- **Limits.** Queued jobs do not survive a reboot: nq keeps the order in
+  file locks. A PID reused by another process after a failed job would
+  count that job again until the file is removed.
+
 ## The rice: day and night, IBM Plex, fvwm frames
 
 voidrice's look is gruvbox brown with no frames to speak of. vertrice
@@ -1038,7 +1069,9 @@ Core (`pkglist`), and why base does not cover it:
 Extra (`pkglist.extra`): mutt-wizard (mail: neomutt, isync, msmtp and pass
 come with it; Super+e, sb-mailbox), newsboat (Super+Shift+n, sb-news),
 password-store and pass-otp (Super+Shift+d, otp), transmission
-(torrents), yt-dlp (web video in mpv), xwallpaper (setbg; without it the
+(torrents), yt-dlp (web video in mpv),
+nq (qndl's download queue; listed beside yt-dlp, the queue's default command),
+xwallpaper (setbg; without it the
 root window takes the theme's background colour), unclutter (hides an idle pointer), ntfs_3g
 and simple-mtpfs (mounter: NTFS disks and Android phones), 7zip (ext: 7z,
 rar).

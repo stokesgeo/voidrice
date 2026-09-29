@@ -1,0 +1,38 @@
+#!/bin/sh
+
+# nq(1) mock (package nq, v0.5). Logs "nq ARGS". Takes only nq's flags
+# (getopt "+chqtw" in nq.c): -c -h -q -t -w; anything else is a usage
+# error, exit 1. -t and -w (test or wait for jobs) exit 0 at once.
+#
+# Unlike nq, it runs the job in the foreground, so a case can check what
+# the job did as soon as the mock returns. What it keeps from nq: the job
+# file ,TIMESTAMP.PID in $NQDIR (default: the current directory), created
+# if needed, holding the job's output and a closing "[exited with status
+# N.]" line; -c removes the file when the job exits 0; the job id is
+# printed unless -q; NQJOBID is set for the job; the job gets the caller's
+# environment. Assumed: nothing about timing or order between jobs.
+
+echo "nq $*" >>"$VT_STATE/log"
+c='' q='' tw=''
+while getopts chqtw o; do
+	case $o in
+	c) c=1 ;;
+	q) q=1 ;;
+	t|w) tw=1 ;;
+	*) echo "usage: nq [-c] [-q] [-w ... | -t ... | CMD...]" >&2; exit 1 ;;
+	esac
+done
+shift $((OPTIND - 1))
+[ -n "$tw" ] && exit 0
+[ $# -gt 0 ] || { echo "usage: nq [-c] [-q] [-w ... | -t ... | CMD...]" >&2; exit 1; }
+
+dir=${NQDIR:-.}
+mkdir -p "$dir" || exit 111
+id=$(printf ',%011x.%d' "$(($("$VT_REAL_DATE" +%s) * 1000))" $$)
+printf 'exec nq %s\n\n' "$*" >"$dir/$id"
+[ -n "$q" ] || echo "$id"
+NQJOBID=$id "$@" >>"$dir/$id" 2>&1
+st=$?
+printf '\n[exited with status %d.]\n' "$st" >>"$dir/$id"
+[ "$st" -eq 0 ] && [ -n "$c" ] && "$VT_REAL_RM" -f "$dir/$id"
+exit 0
