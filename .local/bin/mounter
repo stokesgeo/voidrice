@@ -3,9 +3,9 @@
 # mounter: mount a drive picked in dmenu: 💾 disklabel(8) partitions,
 # 🔒 softraid(4) CRYPTO volumes (unlocked with bioctl(8)), 📱 phones
 # (simple-mtpfs). An fstab(5) line for the disk's DUID wins. doas(1) has no
-# askpass, so it asks in a terminal: hence the xterm.
+# askpass, so it asks in a terminal: hence floatterm.
 
-[ -t 0 ] || exec xterm -name floatterm -geometry 64x4 -e "$0"
+[ -t 0 ] || exec floatterm floatterm 64x4 "$0"
 doas true || exit 1
 
 escape() { print -r -- "$*" | tr -cd '[:alnum:] -' | tr '[:upper:] ' '[:lower:]-'; }

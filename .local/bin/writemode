@@ -5,4 +5,5 @@
 mkdir -p ~/writing && cd ~/writing || exit
 f=${1:-$(proof -l)}
 if [ -n "$f" ]; then set -- -c 'silent! Goyo' "$f"; else set -- .; fi
+# xterm, even with TERMINAL=st: st has no -fullscreen.
 exec xterm -name write -fullscreen -e nvim "$@"

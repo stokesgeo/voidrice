@@ -158,6 +158,9 @@ t_scratch() {
 	logged '^xterm -name spterm -geometry 120x34$'
 	scratch calc
 	logged '^xterm -name spcalc -geometry 50x20 -e bc -l$'	# OpenBSD's bc has no -q
+	# floatterm spells the options st's way for st.
+	TERMINAL=st scratch calc
+	logged '^st -n spcalc -g 50x20 -e bc -l$'
 	# Hide by iconifying and show by activating, so cwm keeps the window
 	# (cwm's xevents.c: a real unmap of a window it has not hidden
 	# unmanages it; seen on Xvfb, where it came back placed anew).

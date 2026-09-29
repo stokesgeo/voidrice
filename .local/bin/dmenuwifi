@@ -3,7 +3,7 @@
 # dmenuwifi: join a wireless network picked in dmenu. A key is asked for in
 # the terminal, not in dmenu, so it does not show.
 
-[ -t 0 ] || exec xterm -name floatterm -geometry 64x4 -e "$0"
+[ -t 0 ] || exec floatterm floatterm 64x4 "$0"
 # The first wireless interface.
 if=$(ifconfig wlan | sed -n '1s/:.*//p')
 [ -n "$if" ] || { notify-send "📶 No wireless interface."; exit 1; }

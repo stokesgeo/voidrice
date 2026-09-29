@@ -4,7 +4,7 @@
 # offered. A softraid volume with nothing left mounted is locked (bioctl -d).
 
 # doas may ask for a password, so run in a terminal.
-[ -t 0 ] || exec xterm -name floatterm -geometry 64x4 -e "$0"
+[ -t 0 ] || exec floatterm floatterm 64x4 "$0"
 
 # The system disk (sd0, say): the device mounted on /, without its partition letter.
 rootdisk=$(mount | awk '$3 == "/" {sub("/dev/", "", $1); sub("[a-p]$", "", $1); print $1}')
