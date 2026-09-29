@@ -16,11 +16,13 @@ fi
 
 rootdisk=$(mount | awk '$3 == "/" {sub("/dev/", "", $1); sub("[a-p]$", "", $1); print $1}')
 
-chosen=$(mount | awk -v r="/dev/$rootdisk" '
+offered=$(mount | awk -v r="/dev/$rootdisk" '
 	index($1, r) == 1 { next }			# the system disk
 	$1 ~ /^simple-mtpfs/	{ printf "📱%s (%s)\n", $3, $1; next }
-	$1 ~ /^\/dev\//		{ printf "💾%s (%s)\n", $3, $1 }' |
-	dmenu -i -p "Unmount which drive?") || exit 1
+	$1 ~ /^\/dev\//		{ printf "💾%s (%s)\n", $3, $1 }')
+chosen=$(print -r -- "$offered" | dmenu -i -p "Unmount which drive?") || exit 1
+# dmenu also returns typed text; only a line it offered is accepted.
+print -r -- "$offered" | grep -qxF -- "$chosen" || exit 1
 # "💾/mnt/usb (/dev/sd1i)": the mount point runs from the first / to " (",
 # the device sits in the parentheses. sed, because the emoji is several
 # bytes and ksh reads parentheses in ${...} patterns as glob syntax.

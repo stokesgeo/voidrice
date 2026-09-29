@@ -161,3 +161,41 @@ t_scratch() {
 	logged '^xterm -name spterm'
 	scratch 2>/dev/null; eq "no argument: exit 1" 1 "$?"
 }
+
+# linkhandler and dmenuhandler download into a new private directory, never
+# to a name in /tmp that the URL chose (a planted symlink would be followed).
+lh_setup() {
+	cat >"$T/bin/curl" <<'EOF'
+#!/bin/sh
+echo "curl $*" >>"$VT_STATE/log"
+while [ $# -gt 0 ]; do [ "$1" = -o ] && { echo data >"$2"; }; shift; done
+EOF
+	chmod +x "$T/bin/curl"
+	for v in nsxiv zathura; do ln -s "$VT_MOCKS/_log" "$T/bin/$v"; done
+}
+# private DIR: DIR is not /tmp itself, and is a directory only its owner may enter.
+private() {
+	[ "$1" != /tmp ] && [ -d "$1" ] &&
+		[ "$(ls -ld "$1" | cut -c1-10)" = drwx------ ] || fail "not a private directory: $1"
+}
+
+t_linkhandler_private_tmp() {
+	lh_setup
+	linkhandler "https://example.org/a/b/pic.png"
+	waitfor 5 grep -q '^nsxiv' "$VT_STATE/log" || fail "nsxiv never ran"
+	f=$(sed -n 's/^nsxiv -a //p' "$VT_STATE/log")
+	eq "file keeps its name" pic.png "${f##*/}"
+	private "${f%/*}"
+	[ -s "$f" ] || fail "downloaded file missing"
+	rm -rf "${f%/*}"
+}
+
+t_dmenuhandler_private_tmp() {
+	lh_setup
+	answers PDF
+	dmenuhandler "https://example.org/doc.pdf"
+	f=$(sed -n 's/^zathura //p' "$VT_STATE/log")
+	eq "file keeps its name" doc.pdf "${f##*/}"
+	private "${f%/*}"
+	rm -rf "${f%/*}"
+}

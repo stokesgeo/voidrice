@@ -31,10 +31,17 @@ disknames=$(sysctl -n hw.disknames)
 duidof() { print "$disknames" | tr ',' '\n' | sed -n "s/^$1://p"; }
 
 # partitions DISK: "part size type label" for each usable partition.
+# The label is 16 bytes from the drive itself, so whoever made the stick
+# chose them. Only printable characters other than backslash are kept: awk
+# -v and ksh's print turn a written "\n" into a new line, which could add a
+# partition of the system disk to the menu. Untrusted text below is printed
+# with print -r, which leaves backslashes alone.
 partitions() {
 	typeset label
-	label=$(doas disklabel "$1" 2>/dev/null | sed -n 's/^label: *//p')
-	doas disklabel -h "$1" 2>/dev/null | awk -v d="$1" -v l="$label" '
+	label=$(doas disklabel "$1" 2>/dev/null | sed -n 's/^label: *//p' |
+		tr -cd '[:print:]' | tr -d '\134')	# \134 is the backslash
+	doas disklabel -h "$1" 2>/dev/null | l=$label awk -v d="$1" '
+		BEGIN { l = ENVIRON["l"] }
 		$1 ~ /^[a-p]:$/ && $1 != "c:" && $4 !~ /^(unused|swap)$/ {
 			printf "%s%s %s %s %s\n", d, substr($1, 1, 1), $2, $4, l }'
 }
@@ -50,20 +57,21 @@ drives=$(print "$disknames" | tr ',' '\n' | sed 's/:.*//' | grep -E '^(sd|cd)[0-
 	while read -r d; do partitions "$d"; done |
 	while read -r part size type label; do
 		if [ "$type" = RAID ]; then
-			print "$inuse" | grep -qx "$part" || print "🔒$part ($size $label) CRYPTO"
+			print "$inuse" | grep -qx "$part" || print -r -- "🔒$part ($size $label) CRYPTO"
 		else
 			# FUSE mounts may not list the device, so check the default
 			# mount point too.
 			print "$mounted" | grep -qE "^/dev/$part |^[^ ]* on /mnt/$part " ||
-				print "💾$part ($size $label) $type"
+				print -r -- "💾$part ($size $label) $type"
 		fi
 	done)
+# Phone names come from the phone: printed with -r too.
 phones=$(simple-mtpfs -l 2>/dev/null | sed 's/^/📱/')
 
-alldrives=$(print "$phones\n$drives" | sed '/^$/d')
+alldrives=$(printf '%s\n%s\n' "$phones" "$drives" | sed '/^$/d')
 [ -n "$alldrives" ] || { notify-send "💾 mounter" "Nothing to mount."; exit 1; }
-chosen=$(print "$alldrives" | dmenu -i -p "Mount which drive?") || exit 1
-print "$alldrives" | grep -qxF -- "$chosen" || exit 1	# only what was offered
+chosen=$(print -r -- "$alldrives" | dmenu -i -p "Mount which drive?") || exit 1
+print -r -- "$alldrives" | grep -qxF -- "$chosen" || exit 1	# only what was offered
 
 # getmount NAME: ask where to mount, as voidrice does; create it on request.
 getmount() {
@@ -121,8 +129,11 @@ case $chosen in
 		[ -n "$new" ] || { notify-send "🔒 Unlock failed." "$1"; exit 1; }
 		disknames=$(sysctl -n hw.disknames)
 		inner=$(partitions "$new" | grep -v ' RAID ')
-		[ "$(print "$inner" | wc -l)" -gt 1 ] &&
-			inner=$(print "$inner" | dmenu -i -p "Mount which partition of $new?")
+		if [ "$(print -r -- "$inner" | wc -l)" -gt 1 ]; then
+			all=$inner
+			inner=$(print -r -- "$all" | dmenu -i -p "Mount which partition of $new?") || exit 1
+			print -r -- "$all" | grep -qxF -- "$inner" || exit 1	# only what was offered
+		fi
 		set -- $inner
 		[ -n "$1" ] || exit 1
 		notify-send "🔓 Decrypted." "$new unlocked."

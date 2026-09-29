@@ -120,6 +120,49 @@ t_mounter_typed_input() {
 	notlogged '^mount_msdos'
 }
 
+t_mounter_label_injection() {
+	# The disklabel "label:" is 16 bytes the stick's maker chose. A written
+	# "\n" there must not become a menu line naming the system disk's
+	# unmounted partition sd1j; control characters are dropped.
+	add_partition sd1 "  j:             2.0G        900000000  4.2BSD   2048 16384 12960"
+	esc=$(printf '\033')
+	fx disklabel.sd2 <<EOF
+label: x\nsd1j 2G 4.2BSD$esc
+duid: 7b3d0e9f1a2c5b84
+16 partitions:
+  c:            28.9G                0  unused
+  i:            28.9G               64   MSDOS
+EOF
+	# A phone names itself too.
+	printf '%s\n' '1: P\n💾sd1j 2G 4.2BSD' >"$VT_STATE/phones"
+	answers
+	with_tty mounter
+	m=$(cat "$VT_STATE/menu.1")
+	eq "two lines, the phone and the stick" 2 "$(printf '%s\n' "$m" | wc -l | tr -d ' ')"
+	case $m in "💾sd1j"*|*"
+💾sd1j"*) fail "a menu line starts with 💾sd1j: $m" ;; esac
+	hasnt "no escape character" "$esc" "$m"
+	has "stick still offered" "💾sd2i (28.9G " "$m"
+}
+
+t_mounter_softraid_typed_partition() {
+	# The second question (which partition of the unlocked volume) takes
+	# only a line it offered, like the first.
+	add_partition sd2 "  a:            28.9G               64    RAID"
+	echo sd3:5e6f7a8b9c0d1e2f >"$VT_STATE/bioctl.new"
+	fx disklabel.sd3 <<'EOF'
+label: SR CRYPTO
+  a:            8.0G               64  4.2BSD   2048 16384 12960
+  c:            28.8G                0  unused
+  d:            20.8G         16777280  MSDOS
+EOF
+	mkdir "$T/mnt"
+	answers "🔒sd2a (28.9G SanDisk 3.2Gen1) CRYPTO" "sd1j 2.0G 4.2BSD" "$T/mnt"
+	with_tty mounter
+	notlogged '^(mount|mount_msdos|mount\.exfat|ntfs-3g) '
+	notlogged 'doas mount'
+}
+
 t_mounter_excludes() {
 	# Swap, the partitions of the mounted system, the chunk under it, and
 	# a disk with no medium are never offered.
@@ -217,6 +260,16 @@ t_unmounter_busy() {
 	logged '^notify-send 💾 Unmount failed\.'
 	notlogged 'bioctl -d'
 	notlogged 'rmdir'
+}
+
+t_unmounter_typed_input() {
+	# dmenu returns typed text too; only an offered line is unmounted.
+	mount >/dev/null
+	mounted "/dev/sd2i on /mnt/usb type msdos (local, nodev, nosuid)"
+	answers "💾/home (/dev/sd1k)"
+	with_tty unmounter
+	notlogged 'umount'
+	notlogged 'bioctl'
 }
 
 t_unmounter_phone() {
