@@ -1472,10 +1472,11 @@ from it (from memory).
 
 ## Not ported, or not tested
 
-- `sd` (terminal in the focused window's directory): reads
-  `/proc/PID/cwd`. OpenBSD exposes a process's cwd only through
-  sysctl(3) `KERN_PROC_CWD`. A C helper of a few dozen lines would
-  close it. Until then `sd` opens a plain terminal.
+- `sd` (terminal in the focused window's directory): Luke's walk, with
+  `ps -ax -o pid=,ppid=` and awk for pstree and tac, and proc-cwd
+  (`~/.local/src/sd`, built on first use; sysctl(2) `KERN_PROC_CWD`,
+  pledge "stdio ps") for `/proc/PID/cwd`. The walk is tested with mocks;
+  proc-cwd only compiled against stand-ins: `check` runs it on the machine.
 - Removed: dmenumountcifs (avahi, CIFS), dmenupass (sudo askpass), remapd
   (udev), pinentry/preexec (the pinentry package's wrapper never reads
   it), ttymaps.kmap (Linux loadkeys), wget/wgetrc. mounter and unmounter
