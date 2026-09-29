@@ -1,13 +1,16 @@
 #!/bin/sh
 
 # Displays current keyboard layout.
-# Requires xorg-setxkbmap.
+# Requires setxkbmap.
+# Left click picks another with dmenu(1).
 
 kb="$(setxkbmap -query | while read -r key value; do
 	[ "$key" = "layout:" ] && { echo "$value"; break ;}
 done)"
 
 case $BLOCK_BUTTON in
+	# The layouts are listed in the xkb rules file, between the "! layout" and
+	# "! variant" headings.
 	1) kb_choice="$(cat /usr/X11R6/share/X11/xkb/rules/base.lst)"
 	kb_choice="${kb_choice#*! layout*}"
 	kb_choice="${kb_choice%%! variant*}"

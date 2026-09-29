@@ -8,6 +8,7 @@ basename="${1%.*}"
 
 case "${*}" in
 	*.tex|*.sil|*.m[dse]|*.[rR]md|*.mom|*.[0-9])
+		# getcomproot names the main file when FILE is one part of a larger document.
 		target="$(getcomproot "$1" || echo "$1")"
 		target="${target##*/}"
 		target="$(find . -name "${target%.*}".pdf | head -n 1)"

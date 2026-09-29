@@ -16,6 +16,7 @@ done >/dev/null 2>&1
 remaps &			# once: OpenBSD has no udev to redo it on a new keyboard
 pgrep -x xidle >/dev/null || xidle -timeout 600 &	# lock after 10 idle minutes
 hotplug-watch &			# a notice when a USB drive is attached
+# Backup reminder: dump(8) -w lists file systems due for a dump.
 dump -w 2>/dev/null | grep -q /home && notify-send "💾 Backup due." "Mount the backup disk (Super+F9), then bk incr." &
 rm -f "${XDG_CACHE_HOME:-$HOME/.cache}/nightlight"	# the screen starts neutral
 

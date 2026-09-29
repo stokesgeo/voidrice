@@ -17,7 +17,7 @@ esac done
 shift $((OPTIND - 1))
 
 trueloc="$(readlink -f "$1")" &&
-if [ -d "$trueloc" ]; then	# OpenBSD's file(1) has no inode/directory, nor a shuf(1)
+if [ -d "$trueloc" ]; then	# No file(1) inode/directory type or shuf(1) here: test -d, sort -R.
 	ln -sf "$(find "$trueloc" -type f \( -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.png' -o -iname '*.gif' \) | sort -R | head -n 1)" "$bgloc" && [ -z "$silent" ] && notify-send -i "$bgloc" "Random Wallpaper chosen."
 else
 	case "$(file -bi "$trueloc")" in
@@ -26,7 +26,7 @@ else
 	esac
 fi
 
-# pywal is opt-in (PALETTE=wal in the profile); `theme` is the default.
+# pywal is opt-in (PALETTE=wal in the profile); otherwise `theme` sets the colours.
 if [ "$PALETTE" = wal ] && command -v wal >/dev/null 2>&1 ; then
 	wal -n -i "$(readlink -f "$bgloc")" -o "${XDG_CONFIG_HOME:-$HOME/.config}/wal/postrun" >/dev/null 2>&1
 fi

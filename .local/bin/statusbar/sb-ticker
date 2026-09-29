@@ -10,6 +10,7 @@
 #       defaults to S&P 500, Dow Jones Industrial, and the Nasdaq
 #
 #   intended to be used in the statusbar, which will display the first quote price in the output
+#   Prices come from terminal-stocks.dev and are kept in a cache file.
 
 url="terminal-stocks.dev"
 pricefile="${XDG_CACHE_HOME:-$HOME/.cache}/stock-prices"
@@ -17,6 +18,7 @@ tickerfile="${XDG_CONFIG_HOME:-$HOME/.config}/tickers"
 
 [ -f "$tickerfile" ] && tickers="$(cat "$tickerfile")" || tickers="^GSPC,^DJI,^IXIC";
 
+# True when the cache is not from this hour.
 checkprice() {
     [ -s "$pricefile" ] && [ "$(stat -f %Sm -t '%Y-%m-%d %H' "$pricefile" 2>/dev/null)" != "$(date '+%Y-%m-%d %H')" ]
 }

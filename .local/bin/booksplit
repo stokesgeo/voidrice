@@ -1,6 +1,11 @@
 #!/bin/sh
 
 # Requires ffmpeg
+#
+# booksplit AUDIO TIMECODES: cut one audio file into tagged tracks.
+# Each TIMECODES line is START-TIME, a tab, TITLE. A track runs to the next
+# line's time; the last runs to the end of the file. Asks for the album
+# details, and writes the tracks to a new directory named after the album.
 
 [ ! -f "$2" ] && printf "The first file should be the audio, the second should be the timecodes.\\n" && exit
 
@@ -12,6 +17,7 @@ inputaudio="$1"
 ext="${1##*.}"
 
 # Get a safe file name from the book.
+# (ASCII, lower case, no punctuation.)
 escbook="$(echo "$booktitle" | iconv -c -f UTF-8 -t ASCII//TRANSLIT | tr -d '[:punct:]' | tr '[:upper:]' '[:lower:]' | tr ' ' '-' | sed -E "s/-+/-/g;s/(^-|-\$)//g")"
 
 ! mkdir -p "$escbook" &&
@@ -37,6 +43,7 @@ do
 done < "$2"
 
 # Last track must be added out of the loop.
+# (It has no next line to give its end time.)
 file="$escbook/$(printf "%.2d" "$track")-$esctitle.$ext"
 cmd="$cmd -metadata artist=\"$author\" -metadata title=\"$title\" -metadata album=\"$booktitle\" -metadata year=\"$year\" -metadata track=\"$track\" -ss \"$start\" -vn -c copy \"$file\""
 

@@ -21,6 +21,7 @@ case "$location" in
 esac
 
 free="$(df -h "$location")"
+# Cut df(1)'s header row: $2 is then the size and $3 the space used.
 free="${free#*/}"
 
 set -- $free

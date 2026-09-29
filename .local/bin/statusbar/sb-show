@@ -1,7 +1,7 @@
 #!/bin/sh
 
-# sb-show: cwm draws no bar, so Super+b shows the status line (the same
-# blocks sbar runs for dwm) as a notification for a few seconds.
+# sb-show: show the status line as a notification for 5 seconds.
+# cwm draws no bar; cwmrc binds this to Super+b.
 
 s=$(sbar -1)
 notify-send -t 5000 "${s:-no status}"

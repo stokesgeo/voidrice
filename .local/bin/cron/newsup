@@ -8,6 +8,7 @@ notify-send "📰 Updating RSS feeds..."
 
 pgrep -f newsboat$ >/dev/null && xdotool key --window "$(xdotool search --name "^newsboat$")" R && exit
 
+# The status bar shows the icon in newsupdate while the reload runs.
 echo 🔃 > "${XDG_CACHE_HOME:-$HOME/.cache}"/newsupdate
 sb-refresh
 newsboat -x reload

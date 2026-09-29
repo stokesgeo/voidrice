@@ -3,8 +3,11 @@
 # Module showing CPU load as a changing bars.
 # Just like in polybar.
 # Each bar represents amount of load on one core since
-# last run. OpenBSD: kern.cp_time2.N; SMT threads, off by default, get no bar.
+# last run.
+# The ticks come from sysctl kern.cp_time2.N; hw.ncpu counts online cores only,
+# so SMT threads (off by default) get no bar.
 
+# The previous run's ticks, kept to take the difference.
 cache="${XDG_CACHE_HOME:-$HOME/.cache}"/cpubarscache
 
 case $BLOCK_BUTTON in

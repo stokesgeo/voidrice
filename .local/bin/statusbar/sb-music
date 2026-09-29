@@ -1,17 +1,21 @@
 #!/bin/sh
 
+# sb-music: the song mpd(8) is playing, or a pause mark when paused.
+
+# Reduce mpc(1) status to one line: the song, then a pause mark if paused.
 filter() { sed "/^volume:/d;s/\\[paused\\].*/⏸/g;/\\[playing\\].*/d;/^ERROR/,\$d" | paste -sd ' ' -;}
 
+# Keep sb-mpdup running so the bar follows mpd at once.
 pgrep -f sb-mpdup >/dev/null 2>&1 || sb-mpdup >/dev/null 2>&1 &
 
 case $BLOCK_BUTTON in
-	1) mpc status | filter ; detach "$TERMINAL" -e ncmpcpp ;;  # right click, pause/unpause
+	1) mpc status | filter ; detach "$TERMINAL" -e ncmpcpp ;;
 	2) mpc toggle | filter ;;  # right click, pause/unpause
 	3) mpc status | filter ; notify-send "🎵 Music module" "\- Shows mpd song playing.
 - ⏸ when paused.
 - Left click opens ncmpcpp.
 - Middle click pauses.
-- Scroll changes track.";;  # right click, pause/unpause
+- Scroll changes track.";;
 	4) mpc prev   | filter ;;  # scroll up, previous
 	5) mpc next   | filter ;;  # scroll down, next
 	6) mpc status | filter ; detach "$TERMINAL" -e "$EDITOR" "$0" ;;

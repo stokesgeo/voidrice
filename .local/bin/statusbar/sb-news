@@ -14,6 +14,7 @@ case $BLOCK_BUTTON in
 	6) detach "$TERMINAL" -e "$EDITOR" "$0" ;;
 esac
 
+# While newsup runs, show its status file; else count the unread items.
 cat "${XDG_CACHE_HOME:-$HOME/.cache}"/newsupdate 2>/dev/null || {
 	unread="$(newsboat -x print-unread)"
 	unread="${unread%% *}"

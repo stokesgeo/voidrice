@@ -6,6 +6,9 @@
 # directory based on the first chosen file, so that if I open the 15th image,
 # if I press next, it will go to the 16th etc. Autistic, I know, but this is
 # one of the reasons that nsxiv is great for being able to read standard input.
+#
+# Usage: rotdir FILE. It lists the current directory from FILE on, then wraps
+# round to the files before it.
 
 [ -z "$1" ] && printf "usage: rotdir regex\n" 2>&1 && exit 1
 

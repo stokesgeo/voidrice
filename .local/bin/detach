@@ -1,5 +1,6 @@
 #!/bin/sh
 
-# detach: voidrice's setsid -f. OpenBSD has no setsid(1); nohup outlives the terminal.
+# detach CMD [ARG...]: run CMD in the background, output discarded.
+# OpenBSD has no setsid(1); nohup(1) keeps CMD alive after the terminal closes.
 
 nohup "$@" >/dev/null 2>&1 &

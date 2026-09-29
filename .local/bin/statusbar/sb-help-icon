@@ -1,6 +1,7 @@
 #!/bin/sh
 
 # The clickable help menu. Middle click to restart wm.
+# Left click opens the LARBS guide as a PDF. (Middle click sends SIGHUP to dwm.)
 
 case $BLOCK_BUTTON in
 	1) groff -mom /usr/local/share/dwm/larbs.mom -Tpdf | zathura - ;;

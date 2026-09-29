@@ -19,7 +19,9 @@ case $choice in
 	🆕add )
 		ifinstalled maim zbar xclip || exit 1
 
-		# BSD mktemp has no --suffix: a private directory; rm -P as shred.
+		# mktemp(1) here has no --suffix, so make a private directory. rm -P
+		# overwrites the QR image before it unlinks it. The trap also removes the
+		# placeholder secret if the script stops before it is renamed.
 		tmpd=$(mktemp -d) || exit 1
 		temp="$tmpd/qr.png"
 		otp="otp-test-script"

@@ -116,11 +116,13 @@ colorscheme vim
  	autocmd BufWritePre * let currPos = getpos(".")
 	autocmd BufWritePre * %s/\s\+$//e
 	autocmd BufWritePre * %s/\n\+\%$//e
-  autocmd BufWritePre *.[ch] %s/\%$/\r/e " add trailing newline for ANSI C standard
-  autocmd BufWritePre *neomutt* %s/^--$/-- /e " dash-dash-space signature delimiter in emails
+" add trailing newline for ANSI C standard
+  autocmd BufWritePre *.[ch] %s/\%$/\r/e
+" dash-dash-space signature delimiter in emails
+  autocmd BufWritePre *neomutt* %s/^--$/-- /e
   	autocmd BufWritePre * cal cursor(currPos[1], currPos[2])
 
-" When shortcut files are updated, renew bash and ranger configs with new material:
+" When shortcut files are updated, renew shell, lf and vim configs with new material:
 	autocmd BufWritePost bm-files,bm-dirs !shortcuts
 " Run xrdb whenever Xdefaults or Xresources are updated.
 	autocmd BufRead,BufNewFile Xresources,Xdefaults,xresources,xdefaults set filetype=xdefaults
@@ -151,6 +153,6 @@ endfunction
 nnoremap <leader>h :call ToggleHiddenAll()<CR>
 " Load command shortcuts generated from bm-dirs and bm-files via shortcuts script.
 " Here leader is ";".
-" So ":vs ;cfz" will expand into ":vs /home/<user>/.config/zsh/.zshrc"
+" So ":vs ;cfx" will expand into ":vs /home/<user>/.config/x11/xresources"
 " if typed fast without the timeout.
 silent! source ${XDG_CONFIG_HOME:-$HOME/.config}/nvim/shortcuts.vim

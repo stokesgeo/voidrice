@@ -24,6 +24,7 @@ apply() {
 		\*.cursorColor:) seq="$seq\033]12;$v\007" ;;
 		esac
 	done < "$p"
+	# Every tty of mine (OpenBSD ptys are named tty[pqrs]*) gets the new colours.
 	for t in $(ps -U "$(id -u)" -o tty= | sort -u | grep -E '^[pqrs]'); do
 		[ -w "/dev/tty$t" ] && printf "$seq" > "/dev/tty$t" 2>/dev/null
 	done
@@ -39,7 +40,8 @@ toggle)		[ "$(cat "$state" 2>/dev/null)" = day ] && apply night || apply day ;;
 auto)		apply "$(auto)" ;;
 clock)
 	[ "$PALETTE" = wal ] && exit 0	# the wallpaper sets the colours
-	# Checks every 5 minutes, so a laptop that slept catches up on waking.
+	# Check every 5 minutes, so a laptop that slept catches up on waking.
+	# Keep one loop: leave if another "theme clock" runs.
 	pgrep -U "$(id -u)" -f 'theme clock' | grep -vx "$$" | grep -q . && exit 0
 	last=
 	while xrdb -query >/dev/null 2>&1; do

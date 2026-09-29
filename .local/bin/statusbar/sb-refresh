@@ -1,5 +1,5 @@
 #!/bin/sh
 
-# sb-refresh: redraw the bar now (voidrice's pkill -RTMIN+n dwmblocks).
+# sb-refresh: redraw the bar now. SIGUSR1 ends sbar's 5 second wait.
 
 pkill -USR1 -f 'statusbar/sbar$'

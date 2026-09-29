@@ -6,6 +6,8 @@
 # Compiles .tex. groff (.mom, .ms), .rmd, .md, .org.  Opens .sent files as sent
 # presentations. Runs scripts based on extension or shebang.
 
+# Usage: compiler FILE. A document's PDF is written beside FILE.
+
 file="${1}"
 ext="${file##*.}"
 dir=${file%/*}
@@ -18,7 +20,7 @@ case "${ext}" in
     mom|ms) preconv "${file}" | refer -PS -e | groff -T pdf -m"${ext}" > "${base}.pdf" ;;
     c) cc "${file}" -o "${base}" && "./${base}" ;;
     cob) cobc -x -o "$base" "$file" && "$base" ;;
-    cpp) c++ "${file}" -o "${base}" && "./${base}" ;;	# base clang; no g++
+    cpp) c++ "${file}" -o "${base}" && "./${base}" ;;	# c++ is clang in base; there is no g++
     cs) mcs "${file}" && mono "${base}.exe" ;;
     go) go run "${file}" ;;
     h) doas make install ;;

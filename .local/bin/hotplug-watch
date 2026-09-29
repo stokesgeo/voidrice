@@ -1,7 +1,10 @@
 #!/bin/sh
 
-# hotplug-watch: a notice when /etc/hotplug/attach writes a new disk's name.
+# hotplug-watch: notify when /etc/hotplug/attach writes a new disk's name.
+
+# entr(1) -p waits for a change before it runs. The file is missing until the
+# first attach after boot; if we waited for it, drop -p so that attach shows.
 
 f=/var/run/hotplug-disk
-p=-p; while [ ! -e "$f" ]; do p=; sleep 10; done	# made by the first attach after boot: notify it
+p=-p; while [ ! -e "$f" ]; do p=; sleep 10; done
 echo "$f" | exec entr -n $p sh -c 'notify-send "💾 $(cat /var/run/hotplug-disk) attached" "Super+F9 to mount it."'

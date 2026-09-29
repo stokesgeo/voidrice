@@ -1,31 +1,48 @@
 #!/bin/sh
 
-# vertrice-install: the system half of vertrice. Read it, then run it as root:
+# vertrice-install: the system half of vertrice: packages, /etc files, cron,
+# services. Read it, then run it as root:
 #	doas sh ~/.local/bin/vertrice-install
-# The first time there is no doas.conf yet: su -, then sh ~you/.local/bin/vertrice-install
+# Before doas.conf exists, use: su -, then sh ~you/.local/bin/vertrice-install
+# It is safe to run again, except for the two appends at the end.
 #
-# The home half comes first, as you, once root has run pkg_add git:
+# The home half comes first, as you, once root has run pkg_add git. It puts
+# this script and the files it installs in your home:
 #	git clone --bare https://github.com/stokesgeo/vertrice.git ~/.local/share/vertrice.git
 #	git --git-dir=$HOME/.local/share/vertrice.git --work-tree=$HOME checkout -f
 #	git --git-dir=$HOME/.local/share/vertrice.git config status.showUntrackedFiles no
 
-u=$(stat -f %Su "$0")			# you: the checkout's owner, for root's mail and calendar
+# Root runs this, so "you" is found as the owner of the script. Root's mail
+# goes to you, and your crontab gets the calendar job.
+u=$(stat -f %Su "$0")
 cd "$(dirname "$0")/../share/openbsd" || exit
 pkg_add -l pkglist			# the optional rest: pkg_add -l pkglist.extra
+# Each config is checked before it goes live, so a typo cannot lock you out.
+# doas.conf is the two rule files joined; doas -C parses the result.
 cat doas.conf doas-agent.conf >/etc/doas.new && doas -C /etc/doas.new && install -m 640 /etc/doas.new /etc/doas.conf; rm -f /etc/doas.new
 install -m 644 root.kshrc /root/.kshrc
 install -m 644 login.conf.d/staff /etc/login.conf.d/staff
+# pfctl -n only parses. The rules load only if they parse.
 pfctl -nf pf.conf && install -m 600 pf.conf /etc/pf.conf && pfctl -f /etc/pf.conf
+# apmd(8) runs /etc/apm/suspend on suspend; hibernate shares the script.
 mkdir -p /etc/apm && install -m 755 apm-suspend /etc/apm/suspend && ln -sf suspend /etc/apm/hibernate
 install -m 755 hotplug-attach /etc/hotplug/attach
+# Each crontab is rewritten without our old line, then with the current one,
+# so a second run does not double it. Other entries stay.
 (crontab -l | grep -v /var/db/updates; cat updates.cron) | crontab -
 (crontab -u "$u" -l | grep -Ev 'calendar\(1\)|[[:space:]]calendar$'; cat calendar.cron) | crontab -u "$u" -
+# Mail for root, from cron and daily(8), reaches you unless an alias exists.
 grep -q '^root:' /etc/mail/aliases || echo "root: $u" >>/etc/mail/aliases; newaliases
-rcctl enable apmd hotplugd unwind	# base; rcctl stops at a missing one
-rcctl enable messagebus obsdfreqd	# packages
+# rcctl fails on a service that is not installed, so base and packages are
+# enabled apart.
+rcctl enable apmd hotplugd unwind	# in base
+rcctl enable messagebus obsdfreqd	# from pkglist
+# apmd suspends at 7% battery.
 rcctl set apmd flags -z 7
+# obsdfreqd(1) pairs are on AC, on battery. -T: above this many degrees C,
+# the top speed drops until the CPU cools.
 rcctl set obsdfreqd flags -m 100,50 -r 50,90 -T 85,65
-# These append: a second run repeats the lines, and the last one read wins.
+# These two append. A second run repeats the lines; the last line read wins.
 cat wsconsctl.conf >>/etc/wsconsctl.conf
 cat fbtab >>/etc/fbtab
 echo "Done. Reboot to load it all."

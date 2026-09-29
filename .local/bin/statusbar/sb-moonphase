@@ -1,6 +1,7 @@
 #!/bin/sh
 
 # Shows the current moon phase.
+# It is an emoji from wttr.in, fetched once a day.
 
 moonfile="${XDG_DATA_HOME:-$HOME/.local/share}/moonphase"
 
@@ -26,6 +27,7 @@ checkmoon ||
 		) &
 	echo; exit )
 
+# Fresh cache: show it. Anything but the eight phase emoji hides the block.
 icon="$(cat "$moonfile")"
 
 case "$icon" in

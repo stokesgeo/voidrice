@@ -3,6 +3,8 @@
 # A dmenu wrapper script for system functions.
 # zzz and ZZZ go through apmd, whose /etc/apm/suspend locks the screen first.
 
+# Mute and pause music while locked. Unmute after only if it was not muted
+# before.
 lock(){
 	was_muted="$(sndioctl -n output.mute)"
 	mpc pause & pauseallmpv &

@@ -1,8 +1,8 @@
 # vertrice-dict: GCIDE and Roget compiled for dictd, run as root on the
 # machine. Here a copy of the script sits beside a copy of its data, with
 # /etc and /usr/local/share rewritten to $R (see derived in lib.sh). ftp is
-# the mock; dictfmt keeps what it reads in $VT_STATE/dictfmt.NAME; dictzip,
-# sha256 and rcctl log.
+# the mock; dictfmt keeps what it reads in $VT_STATE/dictfmt.NAME; dictzip
+# and rcctl log.
 
 dict_setup() {
 	R=$T/sys
@@ -10,7 +10,7 @@ dict_setup() {
 	cp -R "$REPO/.local/share/openbsd" "$T/x/share/"
 	derived .local/bin/vertrice-dict x/bin/vertrice-dict \
 		"s|/etc/|$R/etc/|g; s|/usr/local/share/|$R/share/|g" >/dev/null
-	for m in dictzip sha256 rcctl; do ln -s "$VT_MOCKS/_log" "$T/bin/$m"; done
+	for m in dictzip rcctl; do ln -s "$VT_MOCKS/_log" "$T/bin/$m"; done
 	cat >"$T/bin/dictfmt" <<'EOF'
 #!/bin/sh
 echo "dictfmt $*" >>"$VT_STATE/log"
@@ -18,7 +18,6 @@ for a; do n=$a; done
 cat >"$VT_STATE/dictfmt.$n"
 EOF
 	chmod +x "$T/bin/dictfmt"
-	echo 'SHA256 (pg22.txt) = 00ff' >"$VT_STATE/out.sha256"
 	# GCIDE: each file opens with its licence in a comment; an entry is
 	# <p><ent>, more <ent> lines for other spellings, then the text.
 	cat >"$R/share/doc/gcide/CIDE.A" <<'EOF'

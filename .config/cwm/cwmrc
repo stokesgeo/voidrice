@@ -1,10 +1,15 @@
-# cwmrc(5): voidrice's dwm keys on cwm. 4 = Super, S = Shift, C = Control.
-# Groups are dwm's tags; cwm floats and tiles on request (Super+t).
+# cwmrc(5): appearance, then the key map. Key names: 4 = Super, S = Shift,
+# C = Control. Super+F1 lists every bind. Super+F5 rereads this file.
+#
+# Pattern: Super+key acts; Super+Shift+key is its bigger or opposite form;
+# Super+Control+key adjusts finely or toggles. Windows float; Super+t tiles.
+
+# --- appearance ---------------------------------------------------------
 
 sticky yes
-vtile 55			# dwm mfact 0.55
+vtile 55			# master window takes 55% of the screen
 htile 55
-borderwidth 7			# fvwm's look: thick frames, red and blue
+borderwidth 7			# thick frames: red focused, blue not
 color activeborder "#8b0000"
 color inactiveborder "#4a64b0"
 color groupborder "#e3c98d"
@@ -17,22 +22,23 @@ color selfont "#f5f1e8"
 fontname "IBM Plex Mono:size=10"
 snapdist 4
 
-autogroup 0 "spterm,XTerm"	# scratchpads show on every group
+autogroup 0 "spterm,XTerm"	# scratchpads (`scratch`) show on every group
 autogroup 0 "spcalc,XTerm"
 
+# Clear cwm's default keys: every key below is set here.
 unbind-key all
 
-# --- windows: focus, close, tile ---------------------------------------
+# --- windows: j k focus, q close, t tile, h l resize, S+hjkl move --------
 bind-key 4-j		window-cycle-ingroup
 bind-key 4-k		window-rcycle-ingroup
 bind-key 4-q		window-close
 bind-key 4-t		window-vtile
 bind-key 4S-t		window-htile
-bind-key 4-space	window-vtile		# dwm zoom: focused window to master
+bind-key 4-space	window-vtile		# focused window becomes master
 bind-key 4-f		window-fullscreen
-bind-key 4S-u		window-maximize		# dwm monocle, one window
-bind-key 4-h		window-resize-left-big	# dwm mfact: master narrower
-bind-key 4-l		window-resize-right-big	# dwm mfact: master wider
+bind-key 4S-u		window-maximize		# fill the screen, borders kept
+bind-key 4-h		window-resize-left-big
+bind-key 4-l		window-resize-right-big
 bind-key 4S-h		window-move-left-big
 bind-key 4S-j		window-move-down-big
 bind-key 4S-k		window-move-up-big
@@ -41,10 +47,11 @@ bind-key 4C-h		window-resize-left
 bind-key 4C-j		window-resize-down
 bind-key 4C-k		window-resize-up
 bind-key 4C-l		window-resize-right
-bind-key 4-s		window-stick		# dwm togglesticky
-bind-key 4S-0		window-stick		# dwm tag all: on every group
+bind-key 4-s		window-stick		# show on every group
+bind-key 4S-0		window-stick
 
-# --- groups (dwm tags) --------------------------------------------------
+# --- groups: 1-9 show one, S+1-9 send window there, C+1-9 add or drop ----
+# 0 shows all groups. Tab and \ go to the last group; g ; PgUp PgDn cycle.
 bind-key 4-1		group-only-1
 bind-key 4-2		group-only-2
 bind-key 4-3		group-only-3
@@ -80,7 +87,8 @@ bind-key 4-semicolon	group-cycle
 bind-key 4-Prior	group-rcycle
 bind-key 4-Next		group-cycle
 
-# --- launchers ----------------------------------------------------------
+# --- launchers: Return terminal, w web, e mail, r files, d run menu ------
+# BackSpace and S+q open the power menu (sysact). Shifted keys are variants.
 bind-key 4-Return	"sh -c 'exec $TERMINAL'"
 bind-key 4S-Return	"scratch term"
 bind-key 4-apostrophe	"scratch calc"
@@ -96,13 +104,14 @@ bind-key 4-c		"sh -c 'exec $TERMINAL -e profanity'"
 bind-key 4-n		"sh -c 'exec $TERMINAL -e nvim -c VimwikiIndex'"
 bind-key 4S-n		"sh -c '$TERMINAL -e newsboat; sb-refresh'"
 bind-key 4-m		"sh -c 'exec $TERMINAL -e ncmpcpp'"
-bind-key 4-b		sb-show			# no bar in cwm: status as a notification
+bind-key 4-b		sb-show			# cwm has no bar: show the status as a notice
 bind-key 4-grave	dmenuunicode
 bind-key 4-BackSpace	sysact
 bind-key 4S-q		sysact
 bind-key 4S-BackSpace	sysact
 
-# --- music and volume (mpd, sndio) ---------------------------------------
+# --- music and volume: p pause, [ ] seek, , . track, - = volume, S+m mute ---
+# mpd plays; sndio sets the volume. Shift takes the larger step.
 bind-key 4-p		"mpc toggle"
 bind-key 4S-p		"sh -c 'mpc pause; pauseallmpv'"
 bind-key 4-bracketleft	"mpc seek -10"
@@ -119,7 +128,8 @@ bind-key 4-equal	"sh -c 'sndioctl -q output.level=+0.05; sb-refresh'"
 bind-key 4S-equal	"sh -c 'sndioctl -q output.level=+0.15; sb-refresh'"
 bind-key 4S-m		"sh -c 'sndioctl -q output.mute=!; sb-refresh'"
 
-# --- function keys, screenshots, recording ----------------------------------
+# --- function keys: help, display, theme, mounts, camera, then Print ----
+# Print takes a screenshot; Super+Print records the screen.
 bind-key 4-F1		"sh -c 'grep ^bind ~/.config/cwm/cwmrc | dmenu -i -l 40 -p Keys:'"
 bind-key 4S-F1		manpick			# any manual page, picked in dmenu
 bind-key 4-F2		tutorialvids
@@ -142,7 +152,8 @@ bind-key 4-Print	dmenurecord
 bind-key 4S-Print	"dmenurecord kill"
 bind-key 4-Delete	"dmenurecord kill"
 
-# Super-drag moves, Super-right-drag resizes; the desktop's buttons open menus.
+# Mouse: on the desktop, buttons 1 2 3 open the window, group and command
+# menus. Super+drag moves a window; Super+right-drag resizes it.
 unbind-mouse all
 bind-mouse 1		menu-window
 bind-mouse 2		menu-group

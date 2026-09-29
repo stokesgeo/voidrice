@@ -1,3 +1,4 @@
+# Copied by `theme` to zathura/theme; matches the night palette.
 set default-bg "#24232e"
 set default-fg "#dcd6ca"
 set statusbar-bg "#24232e"

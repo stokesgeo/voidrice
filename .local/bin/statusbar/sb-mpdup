@@ -2,6 +2,8 @@
 
 # This loop will update the mpd statusbar module whenever a command changes the
 # music player's status. mpd must be running on X's start for this to work.
+# mpc idle waits for the next mpd event. The loop ends when mpd stops; sb-music
+# starts it again.
 
 while : ; do
 	mpc idle >/dev/null && sb-refresh || break

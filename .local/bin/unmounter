@@ -1,10 +1,12 @@
 #!/bin/ksh
 
-# unmounter: voidrice's unmounter on OpenBSD: umount what is picked in dmenu,
-# never the system disk, and lock an emptied softraid volume (bioctl -d).
+# unmounter: unmount the drive picked in dmenu. The system disk is never
+# offered. A softraid volume with nothing left mounted is locked (bioctl -d).
 
+# doas may ask for a password, so run in a terminal.
 [ -t 0 ] || exec xterm -name floatterm -geometry 64x4 -e "$0"
 
+# The system disk (sd0, say): the device mounted on /, without its partition letter.
 rootdisk=$(mount | awk '$3 == "/" {sub("/dev/", "", $1); sub("[a-p]$", "", $1); print $1}')
 offered=$(mount | awk -v r="/dev/$rootdisk" '
 	index($1, r) == 1 { next }
@@ -20,7 +22,8 @@ doas umount "$mp" || { notify-send "💾 Unmount failed." "$mp is busy? Close pr
 case $mp in /mnt/*) doas rmdir "$mp" 2>/dev/null ;; esac
 notify-send "💾 Drive unmounted." "$mp: safe to remove."
 
-# Nothing left mounted from it: bioctl -d locks a softraid volume, and refuses a plain stick.
+# If nothing of this disk stays mounted, try bioctl -d: it locks a softraid
+# volume and fails on a plain stick.
 disk=${dev#/dev/}; disk=${disk%[a-p]}
 case $disk in sd[0-9]*)
 	if ! mount | awk '{print $1}' | grep -q "^/dev/$disk[a-p]\$" &&

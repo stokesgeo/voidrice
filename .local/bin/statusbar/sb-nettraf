@@ -3,7 +3,8 @@
 # Module showing network traffic. Shows how much data has been received (RX) or
 # transmitted (TX) since the previous time this script ran. So if run every
 # second, gives network traffic per second.
-# OpenBSD: the byte totals are the last two columns of netstat -ibn's <Link> rows.
+# It sums every interface but lo(4): the counts are the last two columns of the
+# <Link> rows of netstat -ibn.
 
 case $BLOCK_BUTTON in
 	1) detach "$TERMINAL" -e systat ifstat ;;
@@ -12,6 +13,7 @@ case $BLOCK_BUTTON in
 	6) detach "$TERMINAL" -e "$EDITOR" "$0" ;;
 esac
 
+# The previous totals, kept to take the difference.
 cache="${XDG_CACHE_HOME:-$HOME/.cache}"/nettraf
 
 set -- $(netstat -ibn | awk '$3 ~ /<Link>/ && $1 !~ /^lo/ { rx += $(NF-1); tx += $NF }

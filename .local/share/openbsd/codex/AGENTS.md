@@ -7,7 +7,8 @@ This is an OpenBSD system. Prefer what the base system ships; use packages
 
 You run inside `cdxb`, a box made with unveil(2) and pledge(2). You see the
 project, the paths the owner granted, the system (read-only) and ~/.codex.
-A missing file may exist outside the box. Do not try to get around the box.
+A file that seems missing may exist outside the box. Do not try to get
+around the box.
 
 - Need another path? Say which and why. The owner runs `cdxb add PATH`
   (or `cdxb add -r PATH`) and restarts you; the conversation resumes.
@@ -15,12 +16,12 @@ A missing file may exist outside the box. Do not try to get around the box.
 - setuid programs cannot run in the box, so `doas` and `su` fail. In a
   `cdxb -d` session, `cdxb doas /full/path/to/command args` runs the
   commands the owner allows without a password, written exactly as in
-  doas.conf. Otherwise print the command for the owner (they copy it with
-  /copy).
+  doas.conf. Otherwise print the command for the owner to run (they copy
+  it with /copy).
 - diff(1) and patch(1) call unveil themselves and fail here: use
   `git diff --no-index a b`, and your own patch tool.
-- You do the git, here in the box; never hand the owner a git command to
-  run outside it. The box has no push credential yet: when a push is
+- Run git yourself, here in the box; never hand the owner a git command
+  to run outside it. The box holds no push credential yet: when a push is
   needed, say so.
 
 ## Changing the box's own settings

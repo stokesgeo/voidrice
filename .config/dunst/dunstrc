@@ -1,3 +1,5 @@
+# dunst(1), the notification daemon. [global] sets size and font; the
+# urgency sections set colours and how long a notice stays (seconds).
 [global]
     monitor = 0
     follow = keyboard

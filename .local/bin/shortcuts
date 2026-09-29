@@ -1,5 +1,8 @@
 #!/bin/sh
 
+# shortcuts: read the bookmark lists (NAME PATH per line) and write the
+# shell, lf and vim shortcut files from them.
+
 bmdirs="${XDG_CONFIG_HOME:-$HOME/.config}/shell/bm-dirs"
 bmfiles="${XDG_CONFIG_HOME:-$HOME/.config}/shell/bm-files"
 

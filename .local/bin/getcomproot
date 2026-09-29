@@ -4,6 +4,7 @@
 # The user can add the root file of a larger project as a comment as below:
 # % root = mainfile.tex
 # And the compiler script will run on that instead of the opened file.
+# Usage: getcomproot FILE. Prints the root's absolute path; exit 1 if none.
 
 texroot="$(sed -nE 's/^[[:space:]]*%.*root[[:space:]]*=[[:space:]]*([^[:space:]]+).*/\1/p' "${1}")"
 [ -f "${texroot}" ] && readlink -f "${texroot}" || exit "1"

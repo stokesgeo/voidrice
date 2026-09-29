@@ -1,2 +1,2 @@
-# vertrice: the camera belongs to whoever logs in on the console, as the mouse and keyboard do.
+# fbtab(5): whoever logs in on the console owns the camera, as with the mouse and keyboard.
 /dev/ttyC0	0600	/dev/video0
