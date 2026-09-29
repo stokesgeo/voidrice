@@ -1,3 +1,4 @@
+# Copied by `theme` to zathura/theme; matches the day palette.
 set default-bg "#f5f1e8"
 set default-fg "#383642"
 set statusbar-bg "#f5f1e8"

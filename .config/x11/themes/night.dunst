@@ -1,3 +1,4 @@
+# Copied by `theme` to dunstrc.d/theme.conf; matches the night palette.
 [urgency_low]
     background = "#24232e"
     foreground = "#dcd6ca"

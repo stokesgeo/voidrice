@@ -21,7 +21,9 @@ else
 	. "$HOME/.xprofile"
 fi
 
-# cwm from base; WM=dwm in the profile runs Luke's dwm with sbar for its bar.
+# The window manager runs under ssh-agent unless an agent is already set, so
+# every program inherits SSH_AUTH_SOCK. WM=dwm in the profile picks dwm, with
+# sbar as its bar.
 [ -n "$SSH_AUTH_SOCK" ] || set -- ssh-agent
 [ "$WM" = dwm ] && { sbar & exec "$@" dwm; }
 exec "$@" cwm -c "$XDG_CONFIG_HOME/cwm/cwmrc"
