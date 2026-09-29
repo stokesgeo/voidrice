@@ -154,12 +154,16 @@ t_scratch() {
 	logged '^xterm -name spterm -geometry 120x34$'
 	scratch calc
 	logged '^xterm -name spcalc -geometry 50x20 -e bc -l$'	# OpenBSD's bc has no -q
+	# Hide by iconifying and show by activating, so cwm keeps the window
+	# (cwm's xevents.c: a real unmap of a window it has not hidden
+	# unmanages it; seen on Xvfb, where it came back placed anew).
 	echo "0x1 spterm 1" >"$VT_STATE/windows"
 	scratch term
-	logged '^xdotool windowunmap 0x1$'
+	logged '^xdotool windowminimize 0x1$'
 	echo "0x2 spcalc 0" >"$VT_STATE/windows"
 	scratch calc
-	logged '^xdotool windowmap 0x2 windowactivate 0x2$'
+	logged '^xdotool windowactivate 0x2$'
+	notlogged 'windowunmap|windowmap'
 	# The name is matched whole: spterm2 is not the scratchpad.
 	echo "0x3 spterm2 1" >"$VT_STATE/windows"; : >"$VT_STATE/log"
 	scratch term
@@ -340,6 +344,41 @@ EOF
 	logged '^xrandr --output DP-1 --auto --scale 1\.0x1\.0 --output eDP-1 --auto --same-as DP-1 '
 }
 
+# The mirror scale comes from each screen's preferred mode. The sed range
+# that finds DP-1's modes also started at DP-1-1 (an MST port) and ran to
+# the end, so DP-1's "resolution" was the last line's first word.
+t_displayselect_mirror_prefix() {
+	for v in xrandr setbg; do ln -s "$VT_MOCKS/_log" "$T/bin/$v"; done
+	fx out.xrandr <<'EOF'
+eDP-1 connected primary 1280x720+0+0 (normal left inverted right x axis y axis) 309mm x 174mm
+   1280x720      60.00*+
+DP-1 connected (normal left inverted right x axis y axis)
+   2560x1440     59.95 +
+DP-1-1 disconnected (normal left inverted right x axis y axis)
+HDMI-1 disconnected (normal left inverted right x axis y axis)
+EOF
+	answers multi-monitor yes DP-1
+	displayselect >/dev/null 2>&1
+	logged '^xrandr --output DP-1 --auto --scale 1\.0x1\.0 --output eDP-1 --auto --same-as DP-1 --scale 2\.0+x2\.0+$'
+}
+
+# Two screens take the two-screen questions, with OpenBSD's wc too: it pads
+# its count (" %7lld", usr.bin/wc/wc.c), and "       2" is not the case 2).
+t_displayselect_two_padded_wc() {
+	for v in xrandr setbg; do ln -s "$VT_MOCKS/_log" "$T/bin/$v"; done
+	printf '#!/bin/sh\nprintf " %%7d\\n" "$(grep -c "")"\n' >"$T/bin/wc"; chmod +x "$T/bin/wc"
+	fx out.xrandr <<'EOF'
+eDP-1 connected primary 1920x1080+0+0 (normal left inverted right x axis y axis) 309mm x 174mm
+   1920x1080     60.00*+
+DP-1 connected (normal left inverted right x axis y axis)
+   2560x1440     59.95 +
+EOF
+	answers multi-monitor yes DP-1
+	displayselect >/dev/null 2>&1
+	logged '^dmenu -i -p Mirror displays\?$'
+	logged '^xrandr --output DP-1 --auto --scale 1\.0x1\.0 --output eDP-1 --auto --same-as DP-1 '
+}
+
 # A selected area is grabbed from $DISPLAY, as the whole screen is.
 t_dmenurecord_selected_display() {
 	ln -s "$VT_MOCKS/_log" "$T/bin/ffmpeg"
@@ -368,4 +407,56 @@ t_booksplit_total() {
 	printf 'Book\nMe\n2020\n' | booksplit book.mp3 tc >/dev/null
 	logged 'track=1 -metadata total=2 '
 	logged 'track=2 -metadata total=2 '
+}
+# OpenBSD's wc pads its count (" %7lld", usr.bin/wc/wc.c), which went into
+# the tag as "       2". The ffmpeg stand-in logs each argument in [].
+t_booksplit_total_padded_wc() {
+	printf '#!/bin/sh\nprintf " %%7d\\n" "$(grep -c "")"\n' >"$T/bin/wc"
+	printf '#!/bin/sh\nfor a; do printf "[%%s]" "$a"; done >>"$VT_STATE/log"; echo >>"$VT_STATE/log"\n' >"$T/bin/ffmpeg"
+	chmod +x "$T/bin/wc" "$T/bin/ffmpeg"
+	: >book.mp3
+	printf '00:00:00\tOne\n00:10:00\tTwo\n' >tc
+	printf 'Book\nMe\n2020\n' | booksplit book.mp3 tc >/dev/null
+	eq "every track tagged total=2" 2 "$(grep -o '\[total=2\]' "$VT_STATE/log" | wc -l | tr -d ' ')"
+	notlogged '\[total= '
+}
+
+# otp's add: the scanned secret goes in under a placeholder, then is renamed.
+# The pass stand-in keeps entries as files in $T/store; its mv fails on a
+# destination that reads as options, as pass does (password-store.sh,
+# cmd_copy_move: getopt, then "Usage" unless two paths are left).
+otp_setup() {
+	mkdir -p "$T/store"
+	cat >"$T/bin/pass" <<'EOF'
+#!/bin/sh
+echo "pass $*" >>"$VT_STATE/log"
+s=$T/store
+case $1 in
+otp) [ "$2" = insert ] && cat >"$s/$3" ;;
+mv) case $3 in -*) echo "Usage: pass mv [--force,-f] old-path new-path" >&2; exit 1 ;; esac
+    [ -f "$s/$2" ] && mv "$s/$2" "$s/$3" ;;
+rm) rm -f "$s/$3" ;;
+esac
+EOF
+	for p in pass-otp maim zbar xclip; do ln -s "$VT_MOCKS/_log" "$T/bin/$p"; done
+	printf '#!/bin/sh\necho "QR-Code:otpauth://totp/x?secret=ABC"\n' >"$T/bin/zbarimg"
+	chmod +x "$T/bin/pass" "$T/bin/zbarimg"
+	export PASSWORD_STORE_DIR=$T/store
+}
+t_otp_add_named() {
+	otp_setup
+	answers 🆕add 'two words' github
+	otp >/dev/null 2>&1
+	eq "stored under its name" "otpauth://totp/x?secret=ABC" "$(cat "$T/store/github-otp" 2>/dev/null)"
+	logged '^notify-send Successfully added\. github-otp has been created\.$'
+}
+# Three tries without a good name: the placeholder goes, so the secret is
+# not kept, and that must not be reported as added.
+t_otp_add_unnamed() {
+	otp_setup
+	answers 🆕add	# then Escape at every name prompt
+	otp >/dev/null 2>&1
+	notlogged '^notify-send Successfully added'
+	logged '^notify-send OTP not added\. '
+	eq "no placeholder left" "" "$(ls "$T/store")"
 }

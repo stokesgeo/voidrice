@@ -56,11 +56,13 @@ case $BLOCK_BUTTON in
 	6) detach "$TERMINAL" -e "$EDITOR" "$0" ;;
 esac
 
-# Fresh cache: show it. Otherwise fetch in the background (see sbar).
+# Fresh cache: show it. Otherwise fetch in the background (see sbar). The
+# fetcher lets go of stdout, which sbar reads.
 # shellcheck disable=SC2015
 checkforecast && showweather ||
-	( mkdir "${lock:=/tmp/sb-forecast-$(id -u).lock}" 2>/dev/null &&
-		( trap 'rmdir "$lock"' EXIT; tries=0; while [ $tries -ne 100 ]; do
+	( ( exec >/dev/null 2>&1; lock=/tmp/sb-forecast-$(id -u).lock
+		mkdir "$lock" || exit
+		trap 'rmdir "$lock"' EXIT; tries=0; while [ $tries -ne 100 ]; do
 			getforecast && break ||
 				{ tries=$((tries+1)); sleep .1; }
 		done

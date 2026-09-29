@@ -54,7 +54,7 @@ once, inside X. `~/.local/share/vertrice/tests/run` is the regression suite.
 | Window manager | dwm | cwm, with dwm's keys; dwm with `WM=dwm` |
 | Terminal | st | xterm |
 | Root | sudo | doas |
-| Status bar | dwmblocks | sbar under dwm; Super+b under cwm |
+| Status bar | dwmblocks | sbar: drawn by dwm, or a one-line terminal under cwm; Super+b as a notice |
 | Sound | PipeWire | sndio |
 | Wi-Fi | nmtui | `dmenuwifi`, Super+Shift+F11 |
 | Download queue | task-spooler | nq |

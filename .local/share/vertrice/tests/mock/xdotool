@@ -3,7 +3,7 @@
 # xdotool mock. Windows are lines "ID INSTANCE VISIBLE" in
 # $VT_STATE/windows (VISIBLE 1 or 0). `search [--onlyvisible] --classname
 # REGEX` prints matching ids and exits 1 when none match, as xdotool does.
-# Every other command (windowmap, windowunmap, windowactivate) is logged.
+# Every other command (windowminimize, windowactivate) is logged.
 
 if [ "$1" = search ]; then
 	shift; vis=

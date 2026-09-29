@@ -36,11 +36,16 @@ case $choice in
 		if echo "$info" | pass otp insert "$otp"; then
 			while [ "${num:-0}" -lt 3 ] ; do
 				export name="$(printf '' | dmenu -p "Give this One Time Password a one-word name:")"
-				echo "$name" | grep -qE -- "^[A-Za-z0-9-]+$" && break
+				echo "$name" | grep -qE -- "^[A-Za-z0-9-]+$" && named=1 && break
 				num="$((num + 1))"
 			done
-			pass mv "$otp" "$name-otp"
-			notify-send "Successfully added." "$name-otp has been created."
+			# With no good name after three tries, the trap removes the secret:
+			# say so, so the code is scanned again.
+			if [ -n "$named" ] && pass mv "$otp" "$name-otp"; then
+				notify-send "Successfully added." "$name-otp has been created."
+			else
+				notify-send "OTP not added." "It needs a one-word name (letters, digits, dashes). Scan the code again."
+			fi
 		else
 			notify-send "No OTP data found." "Try to scan the image again more precisely."
 		fi

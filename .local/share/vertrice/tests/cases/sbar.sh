@@ -52,6 +52,57 @@ t_sbar_refresh() {
 	kill "$pid"
 }
 
+# sbar -t, the bar under cwm: it turns off wrap and the cursor, then
+# redraws the one line in place; sb-refresh reaches it as it reaches sbar.
+t_sbar_term() {
+	fakeblocks
+	mkdir -p "$T/statusbar" && cp "$REPO/.local/bin/statusbar/sbar" "$T/statusbar/sbar"
+	"$VT_KSH" "$T/statusbar/sbar" -t >"$T/bar.out" &
+	pid=$!; track "$pid"
+	waitfor 3 grep -q mem1 "$T/bar.out" || fail "no first draw"
+	eq "first draw" "$(printf '\033[?7l\033[?25l\r\033[K%s' "$(line 1)")" "$(cat "$T/bar.out")"
+	sb-refresh
+	waitfor 2 grep -q mem2 "$T/bar.out" || fail "sb-refresh did not redraw the bar"
+	notlogged '^xsetroot'
+	kill "$pid"
+}
+
+# The session starts the bar and cwmrc knows it: for xterm and for st, the
+# instance name is one cwmrc puts in no group, the title one it ignores, and
+# a top gap keeps windows off it.
+t_sbar_cwm_bar() {
+	c=$REPO/.config/cwm/cwmrc
+	grep -Eq '^gap [1-9][0-9]* 0 0 0$' "$c" || fail "cwmrc: no top gap"
+	for t in xterm:-name:XTerm st:-n:St; do
+		IFS=: read -r term opt class <<-EOF
+		$t
+		EOF
+		x=$(grep -E "(^|then |else )$term .*-e sbar -t &" "$REPO/.config/x11/xinitrc") ||
+			fail "xinitrc starts no $term bar"
+		name=$(printf '%s\n' "$x" | sed -n "s/.* $opt \([^ ]*\) .*/\1/p")
+		[ -n "$name" ] || fail "the $term bar has no $opt"
+		has "$term title" "-T $name " "$x"
+		grep -qx "autogroup 0 \"$name,$class\"" "$c" || fail "cwmrc: no autogroup 0 for $name,$class"
+		grep -qx "ignore $name" "$c" || fail "cwmrc: no ignore $name"
+	done
+}
+
+# The xinitrc picks the bar's terminal by $TERMINAL, then runs cwm.
+t_sbar_session_start() {
+	sed -n '/^\[ "\$WM" = dwm \]/,$p' "$REPO/.config/x11/xinitrc" |
+		sed 's/^exec "\$@" cwm.*/echo cwm/' >"$T/tail"
+	grep -q '^echo cwm' "$T/tail" || fail "cannot cut the session tail from xinitrc"
+	for term in xterm st; do
+		: >"$VT_STATE/log"
+		out=$(WM=cwm TERMINAL=$term "$VT_SH" "$T/tail")
+		eq "$term: then cwm" cwm "$out"
+		waitfor 2 grep -q "^$term " "$VT_STATE/log" || fail "$term: no bar started"
+		notlogged "^xsetroot"
+		[ "$term" = xterm ] && logged '^xterm -name vbar -T vbar -geometry 300x1\+0\+0 -e sbar -t$'
+	done
+	logged '^st -n vbar -T vbar -g 300x1\+0\+0 -e sbar -t$'
+}
+
 t_sbar_exits_without_x() {
 	fakeblocks
 	echo 1 >"$VT_STATE/rc.xsetroot"

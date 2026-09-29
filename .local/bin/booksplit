@@ -25,7 +25,8 @@ escbook="$(echo "$booktitle" | iconv -c -f UTF-8 -t ASCII//TRANSLIT | tr -d '[:p
     exit 1
 
 # Get the total number of tracks from the number of lines.
-total="$(wc -l < "$2")"
+# (OpenBSD's wc pads the count with spaces.)
+total="$(wc -l < "$2" | tr -d ' ')"
 
 cmd="ffmpeg -i \"$inputaudio\" -nostdin -y"
 

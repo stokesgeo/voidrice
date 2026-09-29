@@ -25,6 +25,15 @@ snapdist 4
 autogroup 0 "spterm,XTerm"	# scratchpads (`scratch`) show on every group
 autogroup 0 "spcalc,XTerm"
 
+# The bar: xinitrc's one-line terminal (sbar -t) along the top. It shows
+# on every group, has no frame, is skipped by window cycling, and
+# maximized or tiled windows leave its 22 pixels free (xterm's height in
+# Plex Mono 10; st's may differ).
+autogroup 0 "vbar,XTerm"
+autogroup 0 "vbar,St"
+ignore vbar
+gap 22 0 0 0
+
 # Clear cwm's default keys: every key below is set here.
 unbind-key all
 
@@ -104,7 +113,7 @@ bind-key 4-c		"sh -c 'exec $TERMINAL -e profanity'"
 bind-key 4-n		"sh -c 'exec $TERMINAL -e nvim -c VimwikiIndex'"
 bind-key 4S-n		"sh -c '$TERMINAL -e newsboat; sb-refresh'"
 bind-key 4-m		"sh -c 'exec $TERMINAL -e ncmpcpp'"
-bind-key 4-b		sb-show			# cwm has no bar: show the status as a notice
+bind-key 4-b		sb-show			# the status as a notice, if a window covers the bar
 bind-key 4-grave	dmenuunicode
 bind-key 4-BackSpace	sysact
 bind-key 4S-q		sysact
