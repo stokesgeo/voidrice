@@ -62,6 +62,12 @@ The future: "we want to reason about the work from the perspective of
 the future and not make bad decisions now that could be smart if future
 aware today."
 
+What vertrice is for, the owner (2026-09-29): "to me voidrice is a set
+of ux principles with an implementation and organization scheme. My goal
+is to build that ux into my devices, as my default ux, and extend and
+specify it to my personal usage and intent over time." The OpenBSD port
+on the X220 is the first device, not the whole of it.
+
 The school, from the owner's own instruction file: "Hardened Plaintext
 ... Poles: plaintext (comprehensible, composable, suckless /
 worse-is-better) x hardened (adversarial-by-design, assume-breach) —
@@ -190,11 +196,17 @@ means in the tree; untested means not yet run on the X220.
   expectations, including prose style and such." vertrice(7) is the
   reference, the README is short, CHANGES went (git log keeps it), and
   this file and OPENBSD.md are what is left of the old notes. Done.
-- **The Mac.** "vertrice roadmap has Mac as an install target (different
-  wm and some other expected changes) so testing/polishing on Mac where
-  such can be done, is worth doing." And: "sync with Mac and such would
-  be a future concern." Held: a test round there, after the open items
-  close.
+- **The Mac: native.** "vertrice roadmap has Mac as an install target
+  (different wm and some other expected changes) so testing/polishing on
+  Mac where such can be done, is worth doing." And: "sync with Mac and
+  such would be a future concern." Then: "I'd definitely want Mac
+  native." Rules out running the X desktop under XQuartz on the Mac: the
+  Mac gets its own window manager, bar and menu, carrying the same UX
+  (see "What vertrice is for"). A test round there comes first. Nothing
+  is built for the Mac yet.
+- **Luke's leftovers.** Kept as they are: setbg's dwm lines, the st
+  lines in xresources, `tutorialvids`, Luke's site in `linkhandler`.
+  `sb-help-icon` opens `man vertrice`. Done.
 
 ## The walk: each Linux mechanism and what replaced it
 
@@ -278,14 +290,13 @@ cannot beat wear levelling); `hotplug-watch` with a real attach.
 - The window manager and terminal (see "ksh, cwm and xterm for now").
 - The Codex box: a separate Unix user; whether upstream Codex gains a
   pledge/unveil sandbox, which would retire cdxb.
-- The Mac: the install target and the test round.
+- The Mac: the test round, then which native window manager, bar and
+  menu carry the UX there, and how the repository holds two devices.
 - Held by the owner, in his words: a console writing session
   ("interesting, but too much for now, note as a future feature idea");
   word-level diffs for prose ("it might be great, but id want to
   actually experience test it"); got and the OpenBSD development stack
   ("got isn't something I plan to adopt yet, but I might want to learn
   the obsd development stack in the future").
-- Leftovers from dwm and Luke's setup, to discuss one by one: setbg's
-  dwm lines, `sb-help-icon`, the st lines in xresources, `tutorialvids`.
 - `cdxb ls` can show a crashed session as live if its pid is reused.
   Rare, no grant leaks; every fix tried would hide a live session. Left.
