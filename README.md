@@ -1,52 +1,55 @@
-# The Voidrice (Luke Smith <https://lukesmith.xyz>'s dotfiles)
+# vertrice
 
-**This branch is an OpenBSD port. Read [OPENBSD.md](OPENBSD.md) first:**
-what changed, how to install it, and what is not ported.
+vertrice is [voidrice](https://github.com/LukeSmithxyz/voidrice), Luke
+Smith's dotfiles, ported to OpenBSD and set up for a ThinkPad X220. It keeps
+voidrice's organization: scripts in `~/.local/bin`, config in `~/.config`,
+bookmarks compiled to shell shortcuts, dmenu for every menu, one status line.
+It runs on OpenBSD's base system: ksh for the shell, cwm with voidrice's dwm
+keys for the window manager, xterm for the terminal. Luke's dwm and st are
+opt-ins.
 
-These are the dotfiles deployed by [LARBS](https://larbs.xyz) and as seen on
-[my YouTube channel](https://youtube.com/c/lukesmithxyz).
+Tracks the latest OpenBSD release, or -current (snapshots); not pinned to a version.
+See "Which OpenBSD" in [OPENBSD.md](OPENBSD.md). It has been tested off the
+machine against mocked OpenBSD commands, not yet on an X220.
 
-- Very useful scripts are in `~/.local/bin/`
-- Settings for:
-	- vim/nvim (text editor)
-	- zsh (shell)
-	- lf (file manager)
-	- mpd/ncmpcpp (music)
-	- nsxiv (image/gif viewer)
-	- mpv (video player)
-	- other stuff like xdg default programs, inputrc and more, etc.
-- I try to minimize what's directly in `~` so:
-	- All configs that can be in `~/.config/` are.
-	- Some environmental variables have been set in `~/.zprofile` to move configs into `~/.config/`
-- Bookmarks in text files used by various scripts (like `~/.local/bin/shortcuts`)
-	- File bookmarks in `~/.config/shell/bm-files`
-	- Directory bookmarks in `~/.config/shell/bm-dirs`
+## Base first
 
-## Usage
+Use what OpenBSD ships. A package is added only for a feature we want that
+base does not provide, and the reason is written down. The package lists
+are in `~/.local/share/openbsd`: `pkglist` is the core that the default
+session and its keys need; `pkglist.extra` holds features you can skip
+(mail, news, torrents, web video and others).
 
-These dotfiles are intended to go with numerous suckless programs I use:
+## Install
 
-- [dwm](https://github.com/lukesmithxyz/dwm) (window manager)
-- [dwmblocks](https://github.com/lukesmithxyz/dwmblocks) (statusbar)
-- [st](https://github.com/lukesmithxyz/st) (terminal emulator)
+On a fresh OpenBSD install, as root: `pkg_add git`. Then, as your user:
 
-I also recommend trying out
-[mutt-wizard](https://github.com/lukesmithxyz/mutt-wizard), which additionally
-works with this setup. It gives you an easy-to-install terminal-based email
-client regardless of your email provider. It is integrated into these dotfiles
-as well.
+    git clone --bare https://github.com/stokesgeo/vertrice.git ~/.local/share/vertrice.git
+    git --git-dir=$HOME/.local/share/vertrice.git show HEAD:.local/bin/vertrice-install >/tmp/vertrice-install
+    ksh /tmp/vertrice-install -y home
+    doas ~/.local/bin/vertrice-install -y system    # first time: su -, then the full path
 
-## Install these dotfiles and all dependencies
+Add `-e` to the system stage to install `pkglist.extra` too. Without `-y`,
+each stage prints its plan and changes nothing. The full steps, and what
+each one does, are in [OPENBSD.md](OPENBSD.md), "Installing on the X220".
 
-Use [LARBS](https://larbs.xyz) to autoinstall everything:
+## Documentation
 
-```
-curl -LO larbs.xyz/larbs.sh
-```
+- [OPENBSD.md](OPENBSD.md): what changed from voidrice and why, the
+  dwm-to-cwm key table, X220 details, the install, the packages, and what
+  is not ported.
+- `~/.local/share/vertrice/CHANGES`: the changes relative to voidrice,
+  grouped.
+- Super+F1 lists the window manager's keys, read from
+  `~/.config/cwm/cwmrc`.
+- `~/.local/share/openbsd/check` tests on the machine what could not be
+  tested off it; `~/.local/share/vertrice/tests/run` is the regression
+  suite.
 
-or clone the repo files directly to your home directory and install the
-[dependencies](https://github.com/LukeSmithxyz/LARBS/blob/master/static/progs.csv).
+## Credits
 
-## Default Desktop Artwork
+vertrice is built on voidrice by [Luke Smith](https://lukesmith.xyz) and
+voidrice's contributors; most of the scripts and configs are theirs. The
+license is unchanged: GNU GPL version 3 (see [LICENSE](LICENSE)).
 
-Thomas Thiemeyer's *The Road to Samarkand* ([fb](https://www.facebook.com/t.thiemeyer/), [insta](https://www.instagram.com/tthiemeyer/))
+Default desktop artwork: Thomas Thiemeyer, *The Road to Samarkand*.

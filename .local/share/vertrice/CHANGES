@@ -1,0 +1,113 @@
+vertrice: changes relative to voidrice
+
+Upstream base: voidrice commit b45fc56 ("profile remove GTK2_RC_FILES").
+Everything below came after it. OPENBSD.md gives the reasons in full;
+`git log b45fc56..` gives each commit.
+
+
+Processes and signals
+
+- setsid(1) is not in OpenBSD. New `detach` (nohup, background, output
+  to /dev/null) replaces every `setsid -f`.
+- pidof and killall become pgrep and pkill; script lookups use pgrep -f.
+- OpenBSD has no real-time signals, so dwmblocks cannot build. New
+  `sbar` (ksh) runs the status blocks and redraws on SIGUSR1; new
+  `sb-refresh` sends that signal after checking the pid is sbar's.
+  Clickable blocks do nothing for now (they needed sigqueue(3)).
+
+Shell
+
+- ksh replaces zsh: `~/.profile` sets ENV to `.config/ksh/kshrc`.
+  What zsh did that ksh cannot is listed at the end of the kshrc.
+- Aliases use only flags OpenBSD's tools have. sudo becomes doas; the
+  rsync alias uses openrsync from base.
+- `config`: git on the bare dotfiles repository, with $HOME as work tree.
+
+X session and window manager
+
+- cwm and xterm from base are the default; dwm and st are opt-ins
+  (WM and TERMINAL in the profile).
+- `.config/cwm/cwmrc` carries voidrice's dwm keys to cwm. New `keys`
+  (Super+F1) lists them in dmenu; new `scratch` gives the scratchpads;
+  `sb-show` (Super+b) shows the status line as a notification.
+- xinitrc also serves xenodm (`~/.xsession`), starts the D-Bus session
+  bus first, and starts ssh-agent only when none runs.
+- Idle lock with xidle and xlock from base. slock is gone.
+- `nightlight` (Super+F4) warms the screen with sct.
+
+Sound
+
+- sndiod replaces PipeWire and PulseAudio; volume through sndioctl;
+  mpd outputs to sndio; dmenurecord records from sndio.
+
+Status blocks
+
+- Every block reads OpenBSD's own sources: apm, wsconsctl, sysctl
+  hw.sensors and kern.cp_time2, ifconfig, netstat -ibn, top, df.
+- sb-cpu shows temperature and CPU speed.
+- Network blocks lock with mkdir in /tmp instead of flock(1) in
+  XDG_RUNTIME_DIR (OpenBSD has neither); state files moved to ~/.cache.
+- Removed: sb-pacpackages, sb-popupgrade (pacman).
+
+GNU syntax
+
+- sed, grep, stat, file, date, shuf, numfmt, shred and mktemp calls use
+  BSD and POSIX forms. getbib's formatter is one awk pass.
+
+Files and drives
+
+- New `ext` extracts every archive type by name; lf's E key calls it.
+- mounter and unmounter rewritten on voidrice's flow: partitions from
+  disklabel, softraid CRYPTO through bioctl in place of LUKS, Android
+  through simple-mtpfs, fstab entries by DUID, every mount nosuid,nodev,
+  the system disk never offered.
+- USB notices: `hotplug-attach` (run by hotplugd as root) and
+  `hotplug-watch` (in the session, with entr). Nothing mounts by itself.
+- Removed: dmenumountcifs, dmenupass, remapd, cron/checkup.
+
+Editors
+
+- nvim is the daily editor; vi (nvi, base) is the fallback with its own
+  `.config/vi/exrc`. Root always gets vi. nvim's :w!! is removed.
+
+Root and doas
+
+- `doas.conf` (one rule for wheel, no nopass) and `root.kshrc` for root.
+
+Browsers
+
+- qutebrowser is $BROWSER; chromium on Super+Shift+w.
+
+Look
+
+- Day and night palettes (`theme`, switched by the clock or Super+F8),
+  IBM Plex fonts, cwm frames after OpenBSD's fvwm, dunst to match.
+
+ThinkPad X220
+
+- `touchpad` on/off (Super+F11), TrackPoint wheel scrolling in
+  `remaps`, notes on Fn keys, backlight, lid, battery and console.
+
+Install and tests
+
+- `vertrice-install`: a home stage (the dotfiles) and a system stage
+  (packages, doas, root's shell, hotplugd, login class for browsers,
+  apmd, obsdfreqd, unwind, Caps Lock as Escape on the console, battery
+  charge limit). Prints its plan without -y; running it again changes
+  nothing. -e also installs pkglist.extra.
+- Package lists: `pkglist` (core) and `pkglist.extra` (features you
+  can skip), each package argued in OPENBSD.md.
+- `.local/share/openbsd/check` tests on the machine what could not be
+  tested off it.
+- `.local/share/vertrice/tests/run`: regression suite against mocked
+  OpenBSD commands.
+
+Fixes found by the tests
+
+- shortcuts no longer runs rm -f on /dev/null (as root it deleted it).
+- mounter no longer offers unmounted partitions of the system disk.
+
+Not ported
+
+- `sd` (needs a helper for KERN_PROC_CWD). See OPENBSD.md, "Not ported,
+  or not tested".

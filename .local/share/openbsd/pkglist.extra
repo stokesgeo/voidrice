@@ -1,0 +1,21 @@
+# pkglist.extra: packages for features you would plausibly want but can
+# skip. The core list, pkglist, is what the default session and its keys
+# need; each package here serves one feature, named beside it in
+# OPENBSD.md ("Packages").
+#
+# Install them with the system stage and -e:
+#	doas ~/.local/bin/vertrice-install -e -y system
+# or by hand, as root (this file has comments, so not with pkg_add -l):
+#	pkg_add $(sed '/^#/d' ~/.local/share/openbsd/pkglist.extra)
+# Delete a line to leave that package out.
+mutt-wizard
+newsboat
+password-store
+pass-otp
+transmission
+yt-dlp
+xwallpaper
+unclutter
+ntfs_3g
+simple-mtpfs
+7zip
