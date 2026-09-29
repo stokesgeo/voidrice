@@ -174,8 +174,9 @@ means in the tree; untested means not yet run on the X220.
 - **Palette: day and night.** Agents': two themes, `theme clock` from
   xprofile (day 07:00, night 19:00), Super+F8 toggles; pywal is opt-in
   with `PALETTE=wal`. GTK follows it: "Either way I'd want to follow day
-  night." The GTK themes for day and night are placeholders
-  "pending the owner's pick" (`theme`). Done; the pick is open.
+  night." The owner picked "Palette colours on Adwaita": Adwaita by day,
+  Adwaita-dark by night, and `theme` writes a small gtk.css with the
+  palette's background, text and accent (color4). Done.
 - **Spelling and dictionary.** Agents': base spell(1) with a
   contractions list, nvim's own list for spelling while typing, no
   aspell or hunspell. The owner: "Obsd dictionary tooling for default,
@@ -278,7 +279,6 @@ cannot beat wear levelling); `hotplug-watch` with a real attach.
 - The Codex box: a separate Unix user; whether upstream Codex gains a
   pledge/unveil sandbox, which would retire cdxb.
 - The Mac: the install target and the test round.
-- The GTK themes for day and night.
 - Held by the owner, in his words: a console writing session
   ("interesting, but too much for now, note as a future feature idea");
   word-level diffs for prose ("it might be great, but id want to

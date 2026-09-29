@@ -25,9 +25,9 @@ t_palette_switch() {
 	done
 }
 
-# GTK follows day and night: theme writes settings.ini whole, so the
-# dotfiles need not track it. wal leaves it, but writes the day one if
-# there is none.
+# GTK follows day and night: theme writes settings.ini and gtk.css whole,
+# so the dotfiles need not track them. wal leaves them, but writes the
+# day settings.ini if there is none (and no gtk.css).
 t_palette_gtk() {
 	th_setup
 	ini=$XDG_CONFIG_HOME/gtk-3.0/settings.ini
@@ -39,13 +39,31 @@ t_palette_gtk() {
 	hasnt "no heredoc tabs" "	" "$(cat "$ini")"
 	"$VT_KSH" "$theme" day
 	eq "day" "gtk-theme-name=Adwaita" "$(grep '^gtk-theme-name=' "$ini")"
+	# gtk.css: Adwaita in the palette's background, text and accent.
+	css=$XDG_CONFIG_HOME/gtk-3.0/gtk.css
+	for p in day night; do
+		"$VT_KSH" "$theme" "$p"
+		bg=$(sed -n 's/^\*\.background: //p' "$REPO/.config/x11/themes/$p")
+		fg=$(sed -n 's/^\*\.foreground: //p' "$REPO/.config/x11/themes/$p")
+		ac=$(sed -n 's/^\*\.color4: //p' "$REPO/.config/x11/themes/$p")
+		has "$p css bg" "@define-color theme_bg_color $bg;" "$(cat "$css")"
+		has "$p css fg" "@define-color theme_fg_color $fg;" "$(cat "$css")"
+		has "$p css accent" "@define-color theme_selected_bg_color $ac;" "$(cat "$css")"
+		has "$p css views" "entry { color: $fg; background-color: $bg; }" "$(cat "$css")"
+		has "$p css selection" "*:selected { color: $bg; background-color: $ac; }" "$(cat "$css")"
+		hasnt "$p css no heredoc tabs" "	" "$(cat "$css")"
+	done
+	eq "not tracked" "" "$(git -C "$REPO" ls-files .config/gtk-3.0)"
 	mkdir -p "$XDG_CACHE_HOME/wal"
 	printf '*.background: #101010\n' >"$XDG_CACHE_HOME/wal/colors.Xresources"
 	: >"$XDG_CACHE_HOME/wal/dunstrc"; : >"$XDG_CACHE_HOME/wal/zathurarc"
 	"$VT_KSH" "$theme" night; "$VT_KSH" "$theme" wal
 	eq "wal leaves GTK" "gtk-theme-name=Adwaita-dark" "$(grep '^gtk-theme-name=' "$ini")"
+	hasnt "wal leaves gtk.css" "#101010" "$(cat "$css")"
+	rm "$css"
 	rm "$ini"; "$VT_KSH" "$theme" wal
 	eq "wal, no file: the day one" "gtk-theme-name=Adwaita" "$(grep '^gtk-theme-name=' "$ini")"
+	[ -e "$css" ] && fail "wal must not write gtk.css"
 	return 0
 }
 
