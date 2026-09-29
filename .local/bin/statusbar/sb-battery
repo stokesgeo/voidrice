@@ -1,9 +1,7 @@
 #!/bin/sh
 
 # Prints the battery percentage and an emoji for the charge state.
-# OpenBSD reports battery state through apm(8), which asks apmd(8) or the
-# kernel: -l percent left, -a AC state, -b battery state. apm merges all
-# batteries into one figure, so this prints one entry, not one per battery.
+# apm(8): -l percent, -a AC, -b state; all batteries as one figure.
 
 case $BLOCK_BUTTON in
 	3) notify-send "🔋 Battery module" "🔋: discharging

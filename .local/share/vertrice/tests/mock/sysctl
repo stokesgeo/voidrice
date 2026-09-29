@@ -1,8 +1,9 @@
 #!/bin/sh
 
-# sysctl(8) mock, read-only: `sysctl [-n] name`. A case sets values with
-# setsysctl (lib.sh), which writes "name=value" lines to $VT_STATE/sysctl;
-# anything not set there comes from the X220 defaults below.
+# sysctl(8) mock: `sysctl [-n] name`, and `sysctl name=value` (root's, run
+# through the doas mock), which appends to $VT_STATE/sysctl. A case sets
+# values with setsysctl (lib.sh), which writes "name=value" lines there;
+# the last line for a name wins; the rest comes from the X220 defaults below.
 #
 # Formats, and how sure they are:
 #	hw.sensors.*.temp0	"52.00 degC" (known: sysctl(8) sensor output)
@@ -35,7 +36,13 @@ EOF
 }
 
 for name; do
-	v=$(grep "^$name=" "$VT_STATE/sysctl" 2>/dev/null | head -n 1)
+	case $name in *=*)
+		old=$("$0" -n "${name%%=*}") || exit
+		echo "$name" >>"$VT_STATE/sysctl"
+		echo "${name%%=*}: $old -> ${name#*=}"
+		continue ;;
+	esac
+	v=$(grep "^$name=" "$VT_STATE/sysctl" 2>/dev/null | tail -n 1)
 	[ -n "$v" ] || v=$(defaults | grep "^$name=" | head -n 1)
 	if [ -z "$v" ] || [ "${v#*=}" = "<missing>" ]; then
 		echo "sysctl: $name: No such file or directory" >&2

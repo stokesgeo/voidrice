@@ -174,38 +174,28 @@ t_fetch_pauseallmpv() {
 	return 0
 }
 
-t_fetch_setbg_no_xwallpaper() {
-	command -v xwallpaper >/dev/null 2>&1 && skip "this host has xwallpaper"
-	mkdir -p "$XDG_CONFIG_HOME/x11"
-	ln -s "$REPO/.config/x11/themes" "$XDG_CONFIG_HOME/x11/themes"
-	echo night >"$XDG_CACHE_HOME/theme"
-	setbg -s
-	logged '^xsetroot -solid #24232e$'
-	: >"$VT_STATE/log"; "$VT_REAL_RM" "$XDG_CACHE_HOME/theme"
-	VT_EPOCH=1790665200 setbg -s	# 07:00 UTC, no theme applied yet: day
-	logged '^xsetroot -solid #f5f1e8$'
-	: >"$VT_STATE/log"
+t_fetch_setbg() {
 	printf '#!/bin/sh\necho "xwallpaper $*" >>"$VT_STATE/log"\n' >"$T/bin/xwallpaper"
 	chmod +x "$T/bin/xwallpaper"
 	setbg -s
 	logged '^xwallpaper --zoom '
-	notlogged '^xsetroot'
+}
+
+# scope runs under set -C; ksh then refuses ">/dev/null" when /dev/null is
+# a regular file (seen on a broken Linux host). There, point the
+# redirections at a scratch file.
+scope_path() {
+	if [ -c /dev/null ]; then printf '%s\n' "$REPO/.config/lf/scope"
+	else derived .config/lf/scope scope "s|/dev/null|$T/null|g"; fi
 }
 
 t_fetch_scope_no_highlight() {
 	command -v highlight >/dev/null 2>&1 && skip "this host has highlight"
+	scope=$(scope_path)
 	printf 'one\ntwo\nthree\nfour\n' >"$T/notes.txt"
 	eq "first screenful" "one
 two
-three" "$("$VT_SH" "$REPO/.config/lf/scope" "$T/notes.txt" 80 3 0 0)"
-}
-
-# scope runs under set -C; ksh then refuses ">/dev/null" when /dev/null is
-# a regular file (seen on a broken Linux host), so "command -v highlight
-# >/dev/null" would fail. There, point the redirections at a scratch file.
-scope_path() {
-	if [ -c /dev/null ]; then printf '%s\n' "$REPO/.config/lf/scope"
-	else derived .config/lf/scope scope "s|/dev/null|$T/null|g"; fi
+three" "$("$VT_SH" "$scope" "$T/notes.txt" 80 3 0 0)"
 }
 
 # With highlight: coloured (ANSI), plain for an unknown syntax, cut to
@@ -233,23 +223,15 @@ t_fetch_scope_html_width() {
 	logged '^lynx -width=80 -display_charset=utf-8 -dump .*/page\.html$'
 }
 
-# Archives list through the tool ext would use for the same name.
+# Archives list through bsdtar, by the names ext takes.
 t_fetch_scope_archives() {
-	for c in tar unzip bzip2 7z; do
-		printf '#!/bin/sh\necho "%s $*" >>"$VT_STATE/log"\n' "$c" >"$T/bin/$c"
-		chmod +x "$T/bin/$c"
-	done
-	for f in a.tar.gz b.tgz c.tar d.zip e.tar.bz2 f.7z; do : >"$T/$f"; done
-	for f in a.tar.gz b.tgz c.tar d.zip e.tar.bz2 f.7z; do
+	printf '#!/bin/sh\necho "bsdtar $*" >>"$VT_STATE/log"\n' >"$T/bin/bsdtar"
+	chmod +x "$T/bin/bsdtar"
+	for f in a.tar.gz b.tgz c.tar d.zip e.tar.bz2 f.7z g.iso h.rar; do
+		: >"$T/$f"
 		"$VT_SH" "$REPO/.config/lf/scope" "$T/$f" 80 20 41 1 >/dev/null
+		logged "^bsdtar -tf $T/$f\$"
 	done
-	logged "^tar tzf $T/a\.tar\.gz$"
-	logged "^tar tzf $T/b\.tgz$"
-	logged "^tar tf $T/c\.tar$"
-	logged "^unzip -l $T/d\.zip$"
-	logged "^bzip2 -dc -- $T/e\.tar\.bz2$"
-	logged "^tar tf -$"
-	logged "^7z l $T/f\.7z$"
 	notlogged 'atool'
 }
 

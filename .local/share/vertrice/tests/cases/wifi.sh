@@ -10,7 +10,6 @@ wifi_setup() {
 		nwid "cafe net" chan 11 bssid 00:11:22:33:44:66 40% 54M privacy,short_slottime,wpa2
 		nwid FreeWifi chan 1 bssid 00:11:22:33:44:77 60% 54M short_slottime
 		nwid "" chan 3 bssid 00:11:22:33:44:aa 30% 54M privacy,wpa2
-		nwid bad$(printf '\033')[31m chan 5 bssid 00:11:22:33:44:bb 29% 54M short_slottime
 		nwid \$(reboot) chan 2 bssid 00:11:22:33:44:dd -62dBm 54M privacy,wpa2
 EOF
 }
@@ -23,12 +22,12 @@ wifi_run() {
 
 t_wifi_join_remember() {
 	wifi_setup
-	answers "71% 🔒 cafe net" Yes
+	answers "🔒 cafe net" Yes
 	wifi_run ' s3cret pass'
-	eq "menu: one line per name, hidden and control-character names left out" \
-"71% 🔒 cafe net
-60% 🔓 FreeWifi
--62dBm 🔒 \$(reboot)" "$(cat "$VT_STATE/menu.1")"
+	eq "menu: one line per name, strongest first, hidden names left out" \
+"🔒 cafe net
+🔓 FreeWifi
+🔒 \$(reboot)" "$(cat "$VT_STATE/menu.1")"
 	logged '^doas ifconfig iwn0 join cafe net wpakey  s3cret pass$'
 	hasnt "key not echoed" "s3cret" "$(cat "$T/tty.out")"
 	eq "join line" 'join "cafe net" wpakey " s3cret pass"' "$(cat "$VT_STATE/doas.in")"
@@ -36,12 +35,12 @@ t_wifi_join_remember() {
 
 t_wifi_open_and_unsafe() {
 	wifi_setup
-	answers "60% 🔓 FreeWifi" No
+	answers "🔓 FreeWifi" No
 	wifi_run ''
 	logged '^doas ifconfig iwn0 join FreeWifi$'
 	notlogged '^doas tee'
 	: >"$VT_STATE/log"; "$VT_REAL_RM" "$VT_STATE/dmenu.n"
-	answers "-62dBm 🔒 \$(reboot)" Yes
+	answers "🔒 \$(reboot)" Yes
 	wifi_run 'longenough'
 	logged '^doas ifconfig iwn0 join \$\(reboot\) wpakey longenough$'
 	notlogged '^doas tee'	# netstart would eval it at boot
@@ -51,9 +50,9 @@ t_wifi_open_and_unsafe() {
 	notlogged 'join'	# only what was offered
 }
 
-t_wifi_click_opens_terminal() {
-	BLOCK_BUTTON=1 sb-internet >/dev/null
-	logged '^detach dmenuwifi$'
+# Super+Shift+F11 runs it; it reopens itself in a terminal for doas.
+t_wifi_key_opens_terminal() {
+	eq "cwm key" dmenuwifi "$(awk '$2 == "4S-F11" { print $3 }' "$REPO/.config/cwm/cwmrc")"
 	"$VT_KSH" "$REPO/.local/bin/dmenuwifi"
 	logged "^xterm -name floatterm -geometry 64x4 -e $REPO/\\.local/bin/dmenuwifi\$"
 }

@@ -31,9 +31,6 @@ checkprice() {
 	[ "$(stat -f %Sm -t %Y-%m-%d "$pricefile" 2>/dev/null)" = "$(date '+%Y-%m-%d')" ]
 }
 
-# Base ftp(1), one file per call; -M and -V keep it quiet. rate.sx, like
-# wttr.in, picks its format by User-Agent (from memory); -U curl gets
-# plain text.
 updateprice() { route -n get default >/dev/null 2>&1 &&
 	ftp -MV -U curl -o "$pricefile" "https://${denom}.${url}/1${target}" 2>/dev/null &&
 	ftp -MV -U curl -o "$chartfile" "https://${denom}.${url}/${target}${interval}" 2>/dev/null &&

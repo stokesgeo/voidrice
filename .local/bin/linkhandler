@@ -8,17 +8,7 @@
 
 url="${1:-$(xclip -o)}"
 
-# fetch: download $url into a new private directory, as $tmpfile. A fixed
-# name in /tmp, chosen by the URL, could be a planted symlink. The file keeps
-# its name, so the viewer sees its extension. /tmp is cleared at boot.
-fetch() {
-	d=$(mktemp -d) || return
-	name=$(echo "$url" | sed "s/.*\///;s/%20/ /g")
-	tmpfile="$d/${name:-download}"
-	ftp -MV -o "$tmpfile" "$url"
-}
-# Downloads use base ftp(1), which also fetches http(s) URLs and follows
-# redirects. -M: no progress meter, -V: no messages; errors still print.
+fetch() { d=$(mktemp -d) && tmpfile=$d/${url##*/} && ftp -MV -o "$tmpfile" "$url"; }	# a private dir, not /tmp/NAME
 
 case "$url" in
 	*mkv|*webm|*mp4|*youtube.com/watch*|*youtube.com/playlist*|*youtube.com/shorts*|*youtu.be*|*hooktube.com*|*bitchute.com*|*videos.lukesmith.xyz*|*odysee.com*)

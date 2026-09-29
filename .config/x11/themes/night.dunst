@@ -1,0 +1,9 @@
+[urgency_low]
+    background = "#24232e"
+    foreground = "#dcd6ca"
+[urgency_normal]
+    background = "#24232e"
+    foreground = "#dcd6ca"
+[urgency_critical]
+    background = "#24232e"
+    foreground = "#dcd6ca"

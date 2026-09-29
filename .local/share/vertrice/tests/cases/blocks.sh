@@ -153,11 +153,9 @@ t_sb_doppler_pick() {
 	return 0
 }
 
-# sb-help-icon: the LARBS guide needs Luke's dwm; without it, keys.
-t_sb_help_icon_keys() {
-	printf '#!/bin/sh\necho "keys $*" >>"$VT_STATE/log"\n' >"$T/bin/keys"
-	chmod +x "$T/bin/keys"
-	eq "icon" "❓" "$(BLOCK_BUTTON=1 sb-help-icon)"
-	logged '^keys ?$'
-	notlogged '^groff'
+# The key sheet is Super+F1: the cwmrc's bind lines in dmenu.
+t_cwmrc_key_sheet() {
+	has "Super+F1" "grep ^bind ~/.config/cwm/cwmrc | dmenu" \
+		"$(awk '$2 == "4-F1"' "$REPO/.config/cwm/cwmrc")"
+	eq "sb-help-icon" "❓" "$(sb-help-icon)"
 }

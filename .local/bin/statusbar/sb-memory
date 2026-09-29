@@ -1,8 +1,6 @@
 #!/bin/sh
 
-# Prints memory in use and total. OpenBSD has no free(1): the in-use figure
-# is the "Real" active figure from top(1)'s header ("Real: 450M/1466M
-# act/tot"), the total is hw.physmem in bytes.
+# Memory in use (top's "Real: 450M/1466M act/tot") of hw.physmem: no free(1) here.
 
 case $BLOCK_BUTTON in
 	1) notify-send "🧠 Memory hogs" "$(ps -Ao comm= -o %mem= | awk '{cmd[$1]+=$2} END {for (i in cmd) print i, cmd[i]}' | sort -nrk2 | head)" ;;

@@ -6,24 +6,12 @@
 # Add all directories in `~/.local/bin` to $PATH
 export PATH="$PATH:$(find ~/.local/bin -type d | paste -sd ':' -)"
 
-# Default programs. OpenBSD base first: cwm and xterm ship with the system.
-# Luke's dwm and st are the opt-ins: build them into ~/.local/src, then set
-# WM="dwm" and TERMINAL="st" here.
+# Default programs: cwm and xterm are base; WM="dwm" and TERMINAL="st" for Luke's.
 export WM="cwm"
+export EDITOR="nvim"
 export TERMINAL="xterm"
-export TERMINAL_PROG="$TERMINAL"
-export BROWSER="qutebrowser"	# Super+w; chromium is Super+Shift+w
-
-# Editor: nvim when installed, else vi from base, the fallback that always
-# works (root, single-user mode, a broken package). Each has its own
-# config: nvim reads .config/nvim/init.vim, vi reads NEXINIT (set below).
-if command -v nvim >/dev/null 2>&1; then
-	export EDITOR="nvim"
-else
-	export EDITOR="vi"
-fi
-export VISUAL="$EDITOR"
-export WRITING_DIR="$HOME/writing"	# writemode, proof, sb-words, nvim's prose settings
+export TERMINAL_PROG="xterm"
+export BROWSER="qutebrowser"
 
 # Change the default crypto/weather monitor sites.
 # export CRYPTOURL="rate.sx"
@@ -65,8 +53,6 @@ export LESS_TERMCAP_so="$(printf '%b' '[01;44;33m')"
 export LESS_TERMCAP_se="$(printf '%b' '[0m')"
 export LESS_TERMCAP_us="$(printf '%b' '[1;32m')"
 export LESS_TERMCAP_ue="$(printf '%b' '[0m')"
-# No LESSOPEN: OpenBSD's less has no input preprocessor (usr.bin/less:
-# nothing reads it). ccat colours a file with highlight.
 export QT_QPA_PLATFORMTHEME="gtk3"        # Have QT use gtk theme.
 export MOZ_USE_XINPUT2=1                  # Mozilla smooth scrolling/touchpads.
 export AWT_TOOLKIT="MToolkit wmname LG3D" # May have to install wmname
@@ -76,5 +62,3 @@ export _JAVA_AWT_WM_NONREPARENTING=1      # Fix for Java applications in dwm
 
 # Start graphical server on user's current tty if not already running.
 [ "$(tty)" = "/dev/ttyC0" ] && ! pgrep -x Xorg >/dev/null 2>&1 && exec startx "$XINITRC"
-
-# Console caps-to-escape is system config on OpenBSD (wsconsctl.conf); see OPENBSD.md.

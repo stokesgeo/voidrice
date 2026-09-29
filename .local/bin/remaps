@@ -9,16 +9,7 @@ setxkbmap -option caps:super,altwin:menu_win
 pkill -x xcape 2>/dev/null ; xcape -e 'Super_L=Escape'
 # Turn off caps lock if on since there is no longer a key for it.
 xset -q | grep -q "Caps Lock:[[:space:]]*on" && xdotool key Caps_Lock
-
-# TrackPoint scrolling: hold the middle button and push the stick. X reads
-# the TrackPoint through the wsmouse mux, "/dev/wsmouse" (a touchpad gets
-# its own /dev/wsmouseN device). The ws(4) driver emulates
-# a wheel: while button 2 is held, motion becomes buttons 4/5 (up/down)
-# and 6/7 (left/right); the axes list is x-left x-right y-up y-down.
-# A press shorter than the timeout (200 ms, the driver's default) is still
-# a middle click, so paste keeps working. Property names are from xenocara's
-# xf86-input-ws include/ws-properties.h. A USB mouse on the mux gets the
-# same behaviour, which is harmless.
+# TrackPoint scrolling: hold the middle button and push the stick; a short press still pastes.
 tp="/dev/wsmouse"
 xinput set-prop "$tp" "WS Pointer Wheel Emulation" 1 &&
 xinput set-prop "$tp" "WS Pointer Wheel Emulation Button" 2 &&

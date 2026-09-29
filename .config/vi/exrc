@@ -1,9 +1,4 @@
-" exrc: settings for vi(1), OpenBSD's base editor (nvi). The profile points
-" NEXINIT here; nvi reads NEXINIT before EXINIT, so nvim and other vi
-" clones never load this file. vi is the fallback: it is always installed,
-" it runs as root and in single-user mode, and it needs no packages.
-"
-" nvi takes ex commands, one per line; see vi(1) under SET OPTIONS.
+" exrc: base vi(1), for root and single-user mode; the profile's NEXINIT reads it.
 set showmode
 set ruler
 set showmatch

@@ -1,0 +1,29 @@
+Reading list: small base programs worth reading on this machine.
+For each, the manual page first, then the source.
+
+Shell (ksh), installed with the system:
+
+  /etc/netstart           Brings interfaces up from /etc/hostname.IF:
+                          small functions, case, `while read` over a file.
+  /etc/rc                 The boot script: read the functions at the top,
+                          then follow the order at the bottom.
+  /etc/rc.d/rc.subr       What every daemon script shares; read
+                          /etc/rc.d/sshd beside it.
+  /usr/sbin/sysupgrade    getopts, an err() function, and checking the
+                          sets with signify(1) before trusting them.
+  /usr/sbin/rcctl         getopts, and editing /etc/rc.conf.local
+                          through a mktemp file.
+  /usr/sbin/sysmerge      The longest; read it last.
+
+C, in /usr/src. All follow style(9) and call pledge(2) first.
+
+  /usr/src/usr.bin/yes/yes.c      The smallest: a pledge and a loop.
+  /usr/src/bin/echo/echo.c        Options parsed by hand; a comment
+                                  forbids getopt(3). Work out why.
+  /usr/src/bin/cat/cat.c          getopt(3), files or standard input,
+                                  err(3), a second, narrower pledge.
+  /usr/src/usr.bin/head/head.c    Numbers from options with strtonum(3).
+  /usr/src/usr.bin/wc/wc.c        Counting over several files, a total.
+
+/usr/src is empty until fetched with cvs(1); the FAQ has the commands
+(www.openbsd.org/faq/faq5.html, mirrors on www.openbsd.org/anoncvs.html).

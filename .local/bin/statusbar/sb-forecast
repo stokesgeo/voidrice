@@ -6,9 +6,7 @@
 url="${WTTRURL:-wttr.in}"
 weatherreport="${XDG_CACHE_HOME:-$HOME/.cache}/weatherreport"
 
-# Get a weather report from 'wttr.in' and save it locally, with base
-# ftp(1). wttr picks its format by User-Agent; -U curl gets the terminal
-# report. -M and -V keep ftp quiet.
+# Get a weather report from 'wttr.in' and save it locally.
 getforecast() { route -n get default >/dev/null 2>&1 &&
 	ftp -MV -U curl -o "$weatherreport" "https://$url/$LOCATION" 2>/dev/null &&
 	touch "$weatherreport"

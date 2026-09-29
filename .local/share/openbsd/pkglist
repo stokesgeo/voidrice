@@ -26,10 +26,7 @@ xwallpaper
 qutebrowser
 chromium
 exfat-fuse
-unzip
-bzip2
-xz
-zstd
+libarchive
 sct
 ibm-plex
 obsdfreqd

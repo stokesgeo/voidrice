@@ -1,6 +1,4 @@
 #!/bin/sh
 
-# Run by wal after it writes its colours (setbg, with PALETTE=wal).
-# pywal recolours terminals through /dev/pts, which OpenBSD lacks; theme
-# does it, and puts wal's dunst and zathura colours in place.
+# wal runs this (setbg, PALETTE=wal); theme recolours the terminals, dunst and zathura.
 exec theme wal

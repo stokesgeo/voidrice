@@ -9,9 +9,6 @@
 
 report="${XDG_CACHE_HOME:-$HOME/.cache}/weatherreport"
 
-# Fetched with base ftp(1): -o - writes to stdout, -M and -V keep it quiet.
-# wttr picks its format by User-Agent; -U curl gets the terminal report.
-# -w 5 limits only the wait for the connection, not the whole transfer.
 data="$([ -z "$1" ] && cat "$report" 2>/dev/null ||
 	ftp -MV -w 5 -U curl -o - "https://${WTTRURL:-wttr.is}/$1?F${copy:+T}" 2>/dev/null)" ||
 	{ printf "Failed to get weather forecast!\nCheck your internet connection and the supplied location.\n" >&2; exit 1 ;}

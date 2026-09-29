@@ -1,29 +1,16 @@
 #!/bin/sh
 
-# scratch: show or hide a scratchpad terminal, as dwm's togglescratch did.
-#	scratch term	a terminal (Super+Shift+Return)
-#	scratch calc	bc in a small terminal (Super+')
-# The window is found by its instance name, spterm or spcalc. cwmrc puts
-# those in group 0 (no group), so a scratchpad shows on every group.
-# Hiding unmaps the window; cwm forgets it and manages it again when it
-# is mapped back.
+# scratch term|calc: show or hide a scratchpad terminal, as dwm's togglescratch.
 
 case $1 in
 	term) name=spterm geo=120x34 cmd= ;;
-	calc) name=spcalc geo=50x20 cmd="bc -lq" ;;
+	calc) name=spcalc geo=50x20 cmd="bc -l" ;;
 	*) echo "usage: scratch term|calc" >&2; exit 1 ;;
 esac
 
 id=$(xdotool search --classname "^$name\$" | head -n 1)
-
 if [ -z "$id" ]; then
-	# st names a window with -n and sizes it with -g; xterm uses -name
-	# and -geometry.
-	case $TERMINAL in
-		st) set -- -n "$name" -g "$geo" ;;
-		*) set -- -name "$name" -geometry "$geo" ;;
-	esac
-	exec "$TERMINAL" "$@" ${cmd:+-e $cmd}
+	exec xterm -name "$name" -geometry "$geo" ${cmd:+-e $cmd}
 elif xdotool search --onlyvisible --classname "^$name\$" >/dev/null; then
 	xdotool windowunmap "$id"
 else

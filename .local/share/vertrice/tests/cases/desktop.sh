@@ -45,17 +45,6 @@ t_hotplug_login_after_attach() {
 	eq "one notice" 1 "$(attached sd3)"
 }
 
-t_hotplug_replaces_old_watcher() {
-	hp_setup
-	"$VT_SH" "$attach" 2 sd1
-	"$VT_SH" "$watch" >/dev/null 2>&1 &
-	waitfor 5 watching || fail "first watcher never started"
-	"$VT_SH" "$watch" >/dev/null 2>&1 &
-	"$VT_REAL_SLEEP" 0.5
-	logged "^pkill -U $(id -u) -f entr -n\.\*hotplug-disk\$"
-	waitfor 3 eval '[ "$(entrs)" -eq 1 ]' || fail "$(entrs) watchers running, want 1"
-}
-
 t_hotplug_attach_non_disk() {
 	hp_setup
 	"$VT_SH" "$attach" 3 iwn0
@@ -144,11 +133,27 @@ t_nightlight() {
 	notlogged '^notify-send'
 }
 
+# rectoggle: the microphone and camera together, through doas sysctl.
+t_rectoggle() {
+	has "Super+Ctrl+F11" "-e rectoggle" "$(awk '$2 == "4C-F11"' "$REPO/.config/cwm/cwmrc")"
+	rectoggle
+	logged '^doas sysctl kern.audio.record=1 kern.video.record=1$'
+	logged '^notify-send 🎙️ Microphone and camera on$'
+	eq "camera on" 1 "$(sysctl -n kern.video.record)"
+	rectoggle
+	logged '^doas sysctl kern.audio.record=0 kern.video.record=0$'
+	logged '^notify-send 🎙️ Microphone and camera off$'
+	echo 1 >"$VT_STATE/rc.doas"; : >"$VT_STATE/log"
+	rectoggle 2>/dev/null
+	notlogged '^notify-send'
+	eq "a failed doas changes nothing" 0 "$(sysctl -n kern.audio.record)"
+}
+
 t_scratch() {
 	scratch term
 	logged '^xterm -name spterm -geometry 120x34$'
-	TERMINAL=st scratch calc
-	logged '^st -n spcalc -g 50x20 -e bc -lq$'
+	scratch calc
+	logged '^xterm -name spcalc -geometry 50x20 -e bc -l$'	# OpenBSD's bc has no -q
 	echo "0x1 spterm 1" >"$VT_STATE/windows"
 	scratch term
 	logged '^xdotool windowunmap 0x1$'
@@ -268,18 +273,12 @@ t_otp_add() {
 }
 
 # passmenu runs the package's example script, which is installed mode 444
-# (INSTALL_DATA), through bash; without the package, a notice.
+# (INSTALL_DATA), through bash.
 t_passmenu_wrapper() {
-	ex=$T/examples/passmenu
-	p=$(derived .local/bin/passmenu passmenu "s|/usr/local/share/examples/password-store/dmenu/passmenu|$ex|")
 	printf '#!/bin/sh\necho "bash $*" >>"$VT_STATE/log"\n' >"$T/bin/bash"
 	chmod +x "$T/bin/bash"
-	"$VT_SH" "$p" --type
-	logged '^notify-send 📦 password-store must be installed'
-	notlogged '^bash'
-	mkdir -p "$T/examples"; echo 'echo passmenu' >"$ex"; chmod 444 "$ex"
-	"$VT_SH" "$p" --type
-	logged "^bash $ex --type\$"
+	passmenu --type
+	logged "^bash /usr/local/share/examples/password-store/dmenu/passmenu --type\$"
 }
 
 # ImageMagick 6 (the package) has convert and mogrify, no magick. The

@@ -6,9 +6,7 @@ secs=600 # Download a new doppler radar if one hasn't been downloaded in $secs s
 radarloc="${XDG_CACHE_HOME:-$HOME/.cache}/radar"
 doppler="${XDG_CACHE_HOME:-$HOME/.cache}/doppler.gif"
 
-# Voidrice's dmenu has -r (only an entry from the list may be picked), a
-# patch of Luke's build; the dmenu package is suckless dmenu without it
-# (-r there is not an option). So the pick is checked against the list.
+# The dmenu package has no -r (a patch in Luke's build): the pick is checked below.
 pickloc() { locs="US: CONUS: Continental United States
 US: Northeast
 US: Southeast

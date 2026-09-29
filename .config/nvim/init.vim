@@ -47,11 +47,8 @@ colorscheme vim
 	vnoremap . :normal .<CR>
 " Goyo plugin makes text more readable when writing prose:
 	map <leader>f :Goyo \| set bg=light \| set linebreak<CR>
-" Prose: .md and .txt under $WRITING_DIR (else ~/writing) wrap long lines at
-" word ends on screen, never insert line breaks, and show no line numbers.
-" Spelling stays off; ,o turns it on (nvim's own en.utf-8.spl, no download).
-	let s:writing = escape(substitute(empty($WRITING_DIR) ? expand('~/writing') : $WRITING_DIR, '/*$', '/', ''), ' ')
-	execute 'autocmd BufRead,BufNewFile' s:writing.'*.md,'.s:writing.'*.txt setlocal wrap linebreak nonumber norelativenumber textwidth=0 nospell'
+" Prose in ~/writing: soft-wrapped at word ends, no line numbers:
+	autocmd BufRead,BufNewFile ~/writing/*.md,~/writing/*.txt setlocal wrap linebreak nonumber norelativenumber textwidth=0 nospell
 " Spell-check set to <leader>o, 'o' for 'orthography':
 	map <leader>o :setlocal spell! spelllang=en_us<CR>
 " Splits open at the bottom and right, which is non-retarded, unlike vim defaults.
@@ -106,9 +103,7 @@ colorscheme vim
 	autocmd BufRead,BufNewFile *.ms,*.me,*.mom,*.man set filetype=groff
 	autocmd BufRead,BufNewFile *.tex set filetype=tex
 
-" No w!! (write as root): under nvim, doas has no terminal to ask for a
-" password, so it would need a nopass rule, which makes root free for anything
-" running as the user. Edit root's files with `doas vi file` instead.
+" No w!!: doas cannot ask for a password inside nvim. Use `doas vi file`.
 
 " Enable Goyo by default for mutt writing
 	autocmd BufRead,BufNewFile /tmp/neomutt* :Goyo 80 | call feedkeys("jk")

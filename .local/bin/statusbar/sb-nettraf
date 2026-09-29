@@ -3,11 +3,7 @@
 # Module showing network traffic. Shows how much data has been received (RX) or
 # transmitted (TX) since the previous time this script ran. So if run every
 # second, gives network traffic per second.
-#
-# OpenBSD: `netstat -ibn` lists byte counters per interface; the <Link> row
-# of each interface carries its totals in the last two columns (the address
-# column is empty for some interfaces, so count from the end). Loopback is
-# skipped. numfmt(1) is GNU; a short awk does the human units.
+# OpenBSD: the byte totals are the last two columns of netstat -ibn's <Link> rows.
 
 case $BLOCK_BUTTON in
 	1) detach "$TERMINAL" -e systat ifstat ;;

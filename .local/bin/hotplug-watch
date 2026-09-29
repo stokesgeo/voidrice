@@ -1,22 +1,7 @@
 #!/bin/sh
 
-# hotplug-watch: notify when a disk is plugged in. The root side,
-# /etc/hotplug/attach (see ~/.local/share/openbsd/hotplug-attach), writes the
-# disk's name to /var/run/hotplug-disk; this loop, started by xprofile in the
-# user's session, watches that file with entr(1) and sends the notification.
-# Root never reaches into the session; the session only reads a file.
+# hotplug-watch: a notice when /etc/hotplug/attach writes a new disk's name.
 
 f=/var/run/hotplug-disk
-
-# One watcher per user. An old one may have outlived its X session (and
-# would notify a dead display), so replace it rather than defer to it.
-pkill -U "$(id -u)" -f 'entr -n.*hotplug-disk' 2>/dev/null
-
-# The file appears on the first attach after boot (/var/run is cleared).
-# If it existed already, it names an old disk: -p skips entr's first run.
-# If we waited for it, that first run is the attach that just happened.
-postpone=-p
-while [ ! -e "$f" ]; do postpone=; sleep 10; done
-
-echo "$f" | exec entr -n $postpone sh -c \
-	'notify-send "💾 $(cat /var/run/hotplug-disk) attached" "Super+F9 to mount it."'
+p=-p; while [ ! -e "$f" ]; do p=; sleep 10; done	# made by the first attach after boot: notify it
+echo "$f" | exec entr -n $p sh -c 'notify-send "💾 $(cat /var/run/hotplug-disk) attached" "Super+F9 to mount it."'

@@ -1,58 +1,10 @@
 #!/bin/sh
 
-# proof: the checks on a piece of writing, one after another, in a pager.
-#	proof [FILE]	FILE, or the writing file changed last
-#	proof -l	print that file's name and stop
-#
-# The writing file changed last is the newest .md or .txt under
-# $WRITING_DIR (default ~/writing), hidden directories left out.
-#
-# The checks, each a filter that reads the file and prints what it found:
-#	spellcheck	base spell(1), each word in its line
-#	dupwords	doubled words ("the the"), in awk
-#	diction -s	wordy and misused phrases, with suggestions
-#	style		readability grades, sentence lengths, passive voice
-# diction and style are the diction package (GNU's versions of the Unix
-# Writer's Workbench commands); without it, those two say so.
+# proof [FILE]: the checks on FILE, or on the writing file changed last, in a pager.
+# proof -l names that file: the newest .md or .txt under ~/writing.
 
-dir=${WRITING_DIR:-$HOME/writing}
-
-# The newest file. find hands the names to one ls -t, which sorts them by
-# modification time; this holds while they fit on one command line.
-last() {
-	f=$(cd "$dir" 2>/dev/null && find . -name '.?*' -prune -o -type f \
-	    \( -name '*.md' -o -name '*.txt' \) -exec ls -t {} + | head -n 1)
-	[ -n "$f" ] && printf '%s\n' "$dir/${f#./}"
-}
-
-case $1 in
--l) last; exit ;;
-'') f=$(last) || { echo "proof: no .md or .txt file in $dir" >&2; exit 1; } ;;
-*) f=$1 ;;
-esac
-[ -r "$f" ] || { echo "proof: cannot read $f" >&2; exit 1; }
-
-# check CMD ARGS...: a heading, then what the check printed.
-check() {
-	printf '== %s\n' "$1"
-	if command -v "$1" >/dev/null 2>&1; then
-		out=$("$@" 2>&1)
-		printf '%s\n\n' "${out:-(nothing found)}"
-	else
-		printf '(not installed: pkg_add diction)\n\n'
-	fi
-}
-
-report() {
-	printf '%s\n\n' "$f"
-	check spellcheck "$f"
-	check dupwords "$f"
-	check diction -s "$f"
-	check style "$f"
-}
-
-if [ -t 1 ]; then
-	report | ${PAGER:-less}
-else
-	report
-fi
+last() { find ~/writing -name '.?*' -prune -o -type f \( -name '*.md' -o -name '*.txt' \) -exec ls -t {} + 2>/dev/null | head -n 1; }
+[ "$1" = -l ] && { f=$(last); [ -n "$f" ] && echo "$f"; exit; }
+f=${1:-$(last)}
+[ -r "$f" ] || { echo "proof: cannot read ${f:-a file in ~/writing}" >&2; exit 1; }
+for c in spellcheck dupwords "diction -s" style; do echo "== $c"; $c "$f"; done 2>&1 | less

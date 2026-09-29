@@ -1,12 +1,7 @@
 #!/bin/sh
 
-# dupwords: doubled words ("the the"), the typo spell cannot see because
-# each word alone is spelt right. It looks across line ends too, where the
-# eye misses them most. Case is ignored ("The the"). A word that closes on
-# punctuation, or one that opens on a quote, starts afresh, so "Go. Go."
-# is not flagged. "had had" and "that that" are flagged: you decide.
-#	dupwords FILE ...	prints FILE:LINE: word word
-# Exit: 0 none found, 1 found.
+# dupwords FILE...: doubled words ("the the"), across line ends, case ignored.
+# Punctuation between them breaks the pair ("Go. Go."). Exit 1 when found.
 
 LC_ALL=C exec awk '
 FNR == 1 { prev = "" }

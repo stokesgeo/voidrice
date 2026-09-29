@@ -2,9 +2,7 @@
 
 # xdg-open will use these settings to determine how to open filetypes.
 # These .desktop entries can also be seen and changed in ~/.local/share/applications/
-# On OpenBSD, xdg-open (xdg-utils 1.2.1, a chromium dependency) finds each
-# Exec program on PATH, so the entries name programs, not paths; it ignores
-# Terminal=, so terminal programs go through xdg-terminal-exec ($TERMINAL).
+# xdg-open ignores Terminal=: terminal programs go through xdg-terminal-exec.
 
 text/x-shellscript=text.desktop;
 x-scheme-handler/magnet=torrent.desktop;
