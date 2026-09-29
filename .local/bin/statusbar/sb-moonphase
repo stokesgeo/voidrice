@@ -14,9 +14,12 @@ getmoon() { route -n get default >/dev/null 2>&1 &&
 	touch "$moonfile"
 }
 
+# Stale: fetch in the background (see sbar). The fetcher lets go of
+# stdout, which sbar reads.
 checkmoon ||
-	( mkdir "${lock:=/tmp/sb-moonphase-$(id -u).lock}" 2>/dev/null &&
-		( trap 'rmdir "$lock"' EXIT; tries=0; while [ $tries -ne 100 ]; do
+	( ( exec >/dev/null 2>&1; lock=/tmp/sb-moonphase-$(id -u).lock
+		mkdir "$lock" || exit
+		trap 'rmdir "$lock"' EXIT; tries=0; while [ $tries -ne 100 ]; do
 			# shellcheck disable=SC2015
 			getmoon && break ||
 				{ tries=$((tries+1)); sleep .1; }
