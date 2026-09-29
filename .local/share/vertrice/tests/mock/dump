@@ -1,12 +1,13 @@
 #!/bin/sh
 
 # dump(8) mock. Logs "dump ARGS" and writes a fake dump to stdout: one line,
-# "VTDUMP ARGS", which the restore mock checks for. $VT_STATE/rc.dump makes
-# it fail at the start, writing nothing, with that status (dump exits 1 on
-# a startup error and 3 on an abnormal end: dump.8). It does not touch
-# /etc/dumpdates.
+# "VTDUMP ARGS". $VT_STATE/rc.dump makes it fail at the start, writing
+# nothing, with that status (dump exits 1 on a startup error and 3 on an
+# abnormal end: dump.8). `dump -w` prints $VT_STATE/dumpw, the file systems
+# due, in dump.c's lastdump() form. It does not touch /etc/dumpdates.
 
 echo "dump $*" >>"$VT_STATE/log"
+[ "$1" = -w ] && { echo "Dump these file systems:"; cat "$VT_STATE/dumpw" 2>/dev/null; exit 0; }
 rc=$(cat "$VT_STATE/rc.dump" 2>/dev/null || echo 0)
 [ "$rc" -eq 0 ] || { echo "  DUMP: The ENTIRE dump is aborted." >&2; exit "$rc"; }
 echo "VTDUMP $*"
