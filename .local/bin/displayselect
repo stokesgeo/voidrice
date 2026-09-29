@@ -58,7 +58,7 @@ onescreen() { # If only one output available or chosen.
 
 postrun() { # Stuff to run to clean up.
 	setbg		# Fix background if screen size/arangement has changed.
-	{ killall dunst ; detach dunst ;} >/dev/null 2>&1 # Restart dunst to ensure proper location on screen
+	{ pkill -x dunst ; detach dunst ;} >/dev/null 2>&1 # Restart dunst to ensure proper location on screen
 	}
 
 # Get all possible displays
