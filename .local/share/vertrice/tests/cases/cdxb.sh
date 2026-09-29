@@ -138,6 +138,28 @@ t_cdxb_walls() {
 	return 0
 }
 
+# / holds every protected path: a write grant of it is refused, whether
+# from -w, the grants file or add.
+t_cdxb_root_refused() {
+	cdxb_setup
+	cd "$HOME/src/proj" || fail "no project"
+	out=$(cdxb -w / 2>&1 </dev/null) && fail "-w / was accepted"
+	has "says why" "holds protected files" "$out"
+	notlogged '^codex-box -u'
+	echo 'rw /' >>"$HOME/.config/cdxb/grants"
+	out=$(cdxb 2>&1 </dev/null) || fail "cdxb failed: $out"
+	nowall "a grants line rw / is skipped" "rwxc:/"
+	cat >"$T/fakecodex" <<'EOF'
+#!/bin/sh
+cdxb add / 2>>"$VT_STATE/add.err" && echo "added root" >>"$VT_STATE/log"
+exit 0
+EOF
+	cdxb </dev/null >/dev/null 2>&1 || fail "cdxb failed"
+	notlogged '^added root'
+	grep -q 'holds protected files' "$VT_STATE/add.err" || fail "add: $(cat "$VT_STATE/add.err")"
+	return 0
+}
+
 # What the box inherits: its own TMPDIR, no display, the outbox; cdxb
 # keeps its own TMPDIR. -a marks the project untrusted.
 t_cdxb_box_env() {

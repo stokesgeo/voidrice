@@ -58,12 +58,12 @@ path() {
 # list FILE: a grants or deny file without its comments and blank lines.
 list() { [ -r "$1" ] && grep -v -e '^[[:space:]]*#' -e '^[[:space:]]*$' -- "$1"; }
 
-# anc P: P and each folder above it. Three tests take a path and a LIST of
-# paths, one per line:
+# anc P: P and each folder above it, / last. Three tests take a path and a
+# LIST of paths, one per line:
 #	under P LIST	P is, or is inside, a path in LIST
 #	holds P LIST	a path in LIST is P, or inside it
 #	deep D LIST	a path in LIST is two or more folders below D (D/a/b)
-anc() { typeset p=$1; while [ -n "$p" ]; do print -r -- "$p"; p=${p%/*}; done; }
+anc() { typeset p=${1%/}; while [ -n "$p" ]; do print -r -- "$p"; p=${p%/*}; done; print /; }
 under() { anc "$1" | grep -qxF -e "$2"; }
 holds() { print -r -- "$2" | while read -r q; do anc "$q"; done | grep -qxF -- "$1"; }
 deep() { print -r -- "$2" | while read -r q; do anc "${q%/*/*}"; done | grep -qxF -- "$1"; }
