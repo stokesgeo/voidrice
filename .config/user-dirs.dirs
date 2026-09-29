@@ -1,1 +1,2 @@
+# Desktop is $HOME itself, so no ~/Desktop directory is made.
 XDG_DESKTOP_DIR="$HOME/"

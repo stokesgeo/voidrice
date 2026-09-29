@@ -1,5 +1,7 @@
 #!/bin/sh
 
+# Aliases for ksh(1) and other POSIX shells; kshrc loads this file.
+
 # Use neovim for vim if present.
 [ -x "$(command -v nvim)" ] && alias vim="nvim" vimdiff="nvim -d"
 
@@ -13,6 +15,7 @@ for command in mount umount shutdown reboot halt ; do
 	alias $command="doas $command"
 done; unset command
 
+# se: pick a script in ~/.local/bin, then edit it.
 se() {
 	choice="$(find ~/.local/bin -mindepth 1 | sed "s|^$HOME/.local/bin/||" | fzf)"
 	[ -f "$HOME/.local/bin/$choice" ] && $EDITOR "$HOME/.local/bin/$choice"
@@ -48,6 +51,7 @@ alias \
 	v='$EDITOR' \
 	z="zathura"
 
+# ref: rebuild the bookmark shortcuts and load them into this shell.
 alias \
 	lf="lfub" \
 	magit="nvim -c MagitOnly" \
