@@ -430,6 +430,15 @@ names, and Codex may change any
 .Pa .git
 it can write: in those repositories git is Codex's job, done in the box.
 .Pp
+For Codex to push, make a token on GitHub (Settings, Developer settings,
+Fine-grained tokens): only the repositories you choose, Contents read and
+write, and an expiry.
+Put it in
+.Pa ~/.config/cdxb/github-token
+with mode 600; the dotfiles ignore it.
+In the box git then pushes over https to those repositories; git outside
+the box does not use it.
+.Pp
 .Ic cdxb
 .Op Fl adH
 .Op Fl r Ar path
@@ -491,6 +500,8 @@ and
 Reminders.
 .It Pa ~/.config/cdxb/grants , ~/.config/cdxb/deny
 What the Codex box may use, and what it hides.
+.It Pa ~/.config/cdxb/github-token
+The token git in the Codex box pushes with; yours to make, never committed.
 .It Pa ~/.local/share/man/man7/vertrice.7
 This page.
 The profile's
