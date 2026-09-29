@@ -122,11 +122,11 @@ EOF
 	printf '#!/bin/sh\nexit 0\n' >"$T/bin/pkg_info"
 	chmod +x "$T/bin/install" "$T/bin/pkg_info"
 	mkdir -p "$T/root/etc" "$T/root/root"
-	echo 'wheel:*:0:root,geo' >"$T/root/etc/group"
-	echo 'geo:*:1000:1000:staff:0:0:Geo:/home/geo:/bin/ksh' >"$T/root/etc/master.passwd"
+	echo 'wheel:*:0:root,user' >"$T/root/etc/group"
+	echo 'user:*:1000:1000:staff:0:0:User:/home/user:/bin/ksh' >"$T/root/etc/master.passwd"
 	printf 'staff:\\\n\t:tc=default:\n' >"$T/root/etc/login.conf"
 	printf '0\t*\t*\t*\t*\t/usr/bin/newsyslog\n' >"$VT_STATE/crontab.root"
-	export ROOT=$T/root VERTRICE_USER=geo
+	export ROOT=$T/root VERTRICE_USER=user
 }
 
 t_install_updates() {

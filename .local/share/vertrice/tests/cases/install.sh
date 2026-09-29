@@ -117,10 +117,10 @@ doas_setup() {
 	cp -R "$REPO/.local/share/openbsd" "$T/x/share/"
 	echo 'permit nopass :wheel as root cmd /usr/sbin/rcctl args restart sndiod' \
 		>>"$T/x/share/openbsd/doas-agent.conf"
-	echo 'wheel:*:0:root,geo' >"$ROOT/etc/group"
-	echo 'geo:*:1000:1000:staff:0:0:Geo:/home/geo:/bin/ksh' >"$ROOT/etc/master.passwd"
+	echo 'wheel:*:0:root,user' >"$ROOT/etc/group"
+	echo 'user:*:1000:1000:staff:0:0:User:/home/user:/bin/ksh' >"$ROOT/etc/master.passwd"
 	for c in pkg_add pkg_info rcctl usermod cap_mkdb; do ln -s "$VT_MOCKS/_log" "$T/bin/$c"; done
-	export VERTRICE_USER=geo
+	export VERTRICE_USER=user
 	joined=$T/joined
 	cat "$T/x/share/openbsd/doas.conf" "$T/x/share/openbsd/doas-agent.conf" >"$joined"
 }
