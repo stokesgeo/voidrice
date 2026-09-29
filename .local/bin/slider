@@ -60,13 +60,17 @@ Timecodes and filenames must be separated by Tabs." &&
 	exit 1
 	}
 
+# HH:MM:SS[.frac] to whole seconds. GNU `date -d` did this; BSD date cannot
+# parse a bare time of day.
+secs() { echo "$1" | awk -F: '{printf "%d\n", $1 * 3600 + $2 * 60 + $3}'; }
+
 if [ -n "${audio+x}" ]; then
 	# Check that the audio file looks like an actual audio file.
-	case "$(file --dereference --brief --mime-type -- "$audio")" in
+	case "$(file -biL -- "$audio")" in
 		audio/*) ;;
 		*) echo "That doesn't look like an audio file."; exit 1 ;;
 	esac
-	totseconds="$(date '+%s' -d $(ffmpeg -i "$audio" 2>&1 | awk '/Duration/ {print $2}' | sed s/,//))"
+	totseconds="$(secs "$(ffmpeg -i "$audio" 2>&1 | awk '/Duration/ {print $2}' | sed s/,//)")"
 fi
 
 prepdir="${prepdir:-$cache/$file}"
@@ -81,7 +85,7 @@ while read -r x;
 do
 	# Get the time from the first column.
 	time="${x%%	*}"
-	seconds="$(date '+%s' -d "$time")"
+	seconds="$(secs "$time")"
 	# Duration is not used on the first looped item.
 	duration="$((seconds - prevseconds))"
 
@@ -107,7 +111,7 @@ duration $duration"
 	# Keep the information required for the next file.
 	prevbase="$base"
 	prevtime="$time"
-	prevseconds="$(date '+%s' -d "$prevtime")"
+	prevseconds="$(secs "$prevtime")"
 done < "$file"
 # Do last file which must be given twice as follows
 endtime="$((totseconds-seconds))"

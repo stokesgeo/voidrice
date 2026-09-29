@@ -32,7 +32,7 @@ cmd open ${{
     case ${mime%%;*} in
 	application/vnd.openxmlformats-officedocument.spreadsheetml.sheet) localc $fx ;;
 	image/vnd.djvu|application/vnd.djvu|application/pdf|application/postscript|application/epub*) detach zathura $fx >/dev/null 2>&1 ;;
-        text/*|application/json|inode/x-empty|application/x-subrip) $EDITOR $fx;;
+        text/*|application/json|inode/x-empty|application/x-empty|application/x-subrip) $EDITOR $fx;;
 	image/x-xcf) detach gimp $f >/dev/null 2>&1 ;;
 	image/svg+xml) display -- $f ;;
 	image/*) rotdir $f | grep -iE '\.(png|jpg|jpeg|gif|webp|avif|tif|ico)(_large)*$' |

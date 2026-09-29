@@ -2,7 +2,7 @@
 
 # If transmission-daemon is running, will ask to kill, else will ask to start.
 
-ifinstalled transmission-cli || exit 1
+ifinstalled transmission-daemon || exit 1
 
 pgrep -x transmission-daemon >/dev/null &&
 	{ [ "$(printf "No\nYes" | dmenu -i -p "Turn off transmission-daemon?")" = Yes ] &&

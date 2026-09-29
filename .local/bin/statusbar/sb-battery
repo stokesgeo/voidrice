@@ -13,8 +13,8 @@ case $BLOCK_BUTTON in
 ⚡: charged
 ❗: battery very low!
 - Scroll to change the backlight." ;;
-	4) wsconsctl -q display.brightness+=10 ;;
-	5) wsconsctl -q display.brightness-=10 ;;
+	4) wsconsctl display.brightness+=10 >/dev/null ;;
+	5) wsconsctl display.brightness-=10 >/dev/null ;;
 	6) detach "$TERMINAL" -e "$EDITOR" "$0" ;;
 esac
 

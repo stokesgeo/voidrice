@@ -37,12 +37,14 @@ The commits follow the same order.
    `.config/shell/profile`) is read by login shells and sets `ENV` to
    `.config/ksh/kshrc`, which every interactive shell reads. What zsh
    did that ksh cannot is listed at the end of the kshrc. Aliases use
-   only POSIX flags, because an alias with a flag OpenBSD lacks breaks
-   the command it shadows.
+   only flags OpenBSD's tools have (POSIX, plus `ls -h`), because an
+   alias with a missing flag breaks the command it shadows.
 5. **The X session.** `startx` from the first console (`ttyC0`), as
    voidrice does from tty1; or xenodm, which runs `~/.xsession` (a
-   symlink to xinitrc). xinitrc starts dwm and sbar when dwm is
-   installed, and cwm from base otherwise.
+   symlink to xinitrc). xinitrc starts the D-Bus session bus first, so
+   dunst and notify-send share one bus; then dwm and sbar when dwm is
+   installed, and cwm from base otherwise. It starts ssh-agent only if
+   none is running (xenodm may have started one).
 6. **Sound.** sndiod(8) is the base sound server, started by rc(8).
    mpd outputs to sndio, volume goes through sndioctl(1), recording
    through ffmpeg's sndio input.
@@ -52,10 +54,19 @@ The commits follow the same order.
    Traffic: netstat -ibn. Memory: top(1) and hw.physmem.
 8. **GNU syntax.** `\s \S \+ \|` in sed and grep become POSIX classes or
    `-E`; `grep -P`, `sed \L`, `stat -c`, `file --mime-type`, `shuf`,
-   `numfmt`, `shred` and `--suffix` get BSD equivalents. getbib's
-   formatter became one awk pass.
+   `numfmt`, `shred`, `date -d` and `--suffix` get BSD equivalents.
+   getbib's formatter became one awk pass.
 9. **Root.** sudo becomes doas(1). Scripts that need root open a
    terminal so doas can ask for the password.
+10. **No XDG_RUNTIME_DIR, no flock(1).** Linux sets XDG_RUNTIME_DIR per
+    login; OpenBSD does not, and has no flock command. Four network
+    blocks (forecast, moonphase, iplocate, price) locked through both.
+    They now lock with `mkdir` on a directory in /tmp: mkdir is atomic,
+    and OpenBSD's rc clears /tmp at boot, so a crash cannot leave a
+    stale lock. State files that were in /tmp and could be abused by a
+    planted symlink (OpenBSD has no protected_symlinks) moved to
+    `~/.cache`. Upstream's other /tmp downloads (linkhandler,
+    dmenuhandler, noisereduce) are unchanged.
 
 ## Installing on the X220
 
@@ -65,7 +76,13 @@ System side (root, typed by the owner):
   from memory, not checked against the current ports tree; `check`
   reports any that did not install.
 - `rcctl enable apmd && rcctl start apmd` for zzz/ZZZ and battery data.
-- `/etc/doas.conf`: at least `permit persist :wheel`.
+  `rcctl set apmd flags -A` adds automatic CPU speed. Whether a normal
+  user may run `zzz` depends on apmd's socket permissions: not checked.
+- `rcctl enable messagebus && rcctl start messagebus` (the system D-Bus
+  from the dbus package; see its readme in /usr/local/share/doc/pkg-readmes
+  for the machine-id step).
+- `/etc/doas.conf`: at least `permit persist :wheel`. nvim's `:w!!`
+  runs doas with no terminal, so it works only under a `nopass` rule.
 - Console caps-to-escape: `keyboard.map+="keysym Caps_Lock = Escape"`
   in `/etc/wsconsctl.conf`.
 - Screen recording with sound: `sysctl kern.audio.record=1` (off by
@@ -93,6 +110,13 @@ that patch needs replacing before his dwm builds here.
   match), pinentry/preexec (Linux library paths), ueberzug previews
   (not packaged; lfub falls back to plain lf), cron jobs that notify
   (no fixed D-Bus address to point cron at).
+- lf's opener trusts OpenBSD file(1)'s MIME database, which differs from
+  libmagic's. A type it does not know comes back as
+  application/octet-stream and opens in zathura. Try an mp3, mp4, epub
+  and an empty file once on the machine.
+- otp writes the scanned QR image to /tmp, which is on disk on OpenBSD
+  (Linux used a RAM-backed runtime directory). `rm -P` overwrites the
+  file, but on an SSD wear levelling can keep the old blocks.
 
 ## Open
 

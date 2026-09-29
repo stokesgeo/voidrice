@@ -13,8 +13,8 @@ getmoon() { route -n get default >/dev/null 2>&1 &&
 }
 
 checkmoon ||
-	( flock -n 9 &&
-		( tries=0; while [ $tries -ne 100 ]; do
+	( mkdir "${lock:=/tmp/sb-moonphase-$(id -u).lock}" 2>/dev/null &&
+		( trap 'rmdir "$lock"' EXIT; tries=0; while [ $tries -ne 100 ]; do
 			# shellcheck disable=SC2015
 			getmoon && break ||
 				{ tries=$((tries+1)); sleep .1; }
@@ -23,7 +23,7 @@ checkmoon ||
 			until getmoon; do sleep 60; done
 		sb-refresh
 		) &
-	echo; exit ) 9>"${XDG_RUNTIME_DIR}/sb-moonphase.lock"
+	echo; exit )
 
 icon="$(cat "$moonfile")"
 

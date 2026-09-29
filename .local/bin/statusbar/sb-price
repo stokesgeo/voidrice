@@ -59,8 +59,8 @@ esac
 	else
 		# shellcheck disable=SC2015
 		[ -n "$4" ] &&
-			( flock -n 9 &&
-				( tries=0; while [ $tries -ne 100 ]; do
+			( mkdir "${lock:=/tmp/sb-price-$(id -u).lock}" 2>/dev/null &&
+				( trap 'rmdir "$lock"' EXIT; tries=0; while [ $tries -ne 100 ]; do
 					updateprice && break ||
 						{ tries=$((tries+1)); sleep .1; }
 				done
@@ -68,7 +68,7 @@ esac
 					until updateprice; do sleep 60; done
 				sb-refresh
 				) &
-			echo; exit ) 9>"${XDG_RUNTIME_DIR}/sb-price.lock" ||
+			echo; exit ) ||
 				updateprice
 	fi
 

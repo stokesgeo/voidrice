@@ -13,7 +13,9 @@ case $BLOCK_BUTTON in
 	6) detach "$TERMINAL" -e "$EDITOR" "$0" ;;
 esac
 
-temp=$(sysctl -n hw.sensors.cpu0.temp0 2>/dev/null) ||
-	temp=$(sysctl -n hw.sensors.acpitz0.temp0 2>/dev/null) || exit 1
+# Test the value, not the exit status: sysctl may exit 0 for a missing node.
+temp=$(sysctl -n hw.sensors.cpu0.temp0 2>/dev/null)
+[ -n "$temp" ] || temp=$(sysctl -n hw.sensors.acpitz0.temp0 2>/dev/null)
+[ -n "$temp" ] || exit 1
 
 printf "🌡 %d°C\n" "${temp%%.*}"

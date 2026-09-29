@@ -26,4 +26,4 @@ pass (password manager)	https://videos.lukesmith.xyz/videos/watch/432fc942-5e28-
 # Tab-separated: name, then URL. awk -F'\t' does what grep -P and sed '\t'
 # did (neither \t in sed nor -P in grep exists on OpenBSD).
 choice="$(echo "$vidlist" | awk -F'\t' '/https:/ {print $1}' | dmenu -i -p "Learn about what? (ESC to cancel)" -l 20 | awk '{print $1}')"
-[ -n "$choice" ] && echo "$vidlist" | awk -F'\t' -v c="$choice" '$1 ~ "^" c " " {print $NF}' | xargs mpv
+[ -n "$choice" ] && echo "$vidlist" | awk -F'\t' -v c="$choice" '$1 == c || index($1, c " ") == 1 {print $NF}' | xargs -r mpv

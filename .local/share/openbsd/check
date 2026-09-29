@@ -40,7 +40,7 @@ v=$(apm -a 2>/dev/null); num "$v" && pass "apm -a AC state ($v)" || fail "apm -a
 v=$(apm -b 2>/dev/null); num "$v" && pass "apm -b battery state ($v)" || fail "apm -b battery state" "$v"
 v=$(wsconsctl -n display.brightness 2>&1) && pass "wsconsctl reads brightness ($v)" ||
 	fail "wsconsctl reads brightness" "$v (log in on the console so fbtab gives you ttyC0)"
-try "wsconsctl += syntax (battery-block scroll)" wsconsctl -q display.brightness+=0
+try "wsconsctl += syntax (battery-block scroll)" wsconsctl display.brightness+=0
 v=$(sysctl -n hw.sensors.cpu0.temp0 2>/dev/null || sysctl -n hw.sensors.acpitz0.temp0 2>/dev/null)
 [ -n "$v" ] && pass "CPU temperature sensor ($v)" || fail "CPU temperature sensor" "neither cpu0.temp0 nor acpitz0.temp0"
 v=$(sysctl -n kern.cp_time2.0 2>/dev/null)
@@ -76,7 +76,7 @@ if [ -n "$DISPLAY" ]; then
 	for b in sb-battery sb-brightness sb-cpu sb-cpubars sb-internet sb-memory sb-nettraf sb-volume sb-clock sb-disk; do
 		v=$("$b" 2>&1) && [ -n "$v" ] && pass "$b: $v" || fail "$b" "$v"
 	done
-	try "sbar -p is on PATH" command -v sbar
+	try "sbar is on PATH" command -v sbar
 else
 	skip "blocks" "run inside the X session"
 fi

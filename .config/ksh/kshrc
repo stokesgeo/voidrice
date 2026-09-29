@@ -23,15 +23,11 @@ unset f
 # lfcd: browse with lf, and cd to the directory lf was in when it quit.
 lfcd() {
 	typeset tmp dir
-	tmp=$(mktemp -uq) || return
-	trap 'rm -f "$tmp"' EXIT
+	tmp=$(mktemp) || return
 	lf -last-dir-path="$tmp" "$@"
-	if [ -f "$tmp" ]; then
-		dir=$(<"$tmp")
-		[ -d "$dir" ] && [ "$dir" != "$PWD" ] && cd "$dir"
-	fi
+	dir=$(<"$tmp")
 	rm -f "$tmp"
-	trap - EXIT
+	[ -d "$dir" ] && [ "$dir" != "$PWD" ] && cd "$dir"
 }
 
 # Not carried over from .zshrc, because ksh has no equivalent:

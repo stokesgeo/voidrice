@@ -16,7 +16,7 @@ case $BLOCK_BUTTON in
 	6) detach "$TERMINAL" -e "$EDITOR" "$0" ;;
 esac
 
-cache=/tmp/nettraf-$(id -u)
+cache="${XDG_CACHE_HOME:-$HOME/.cache}"/nettraf
 
 set -- $(netstat -ibn | awk '$3 ~ /<Link>/ && $1 !~ /^lo/ { rx += $(NF-1); tx += $NF }
 	END { printf "%d %d\n", rx, tx }')
@@ -28,6 +28,7 @@ human() {
 	awk -v n="$1" 'BEGIN {
 		split(" K M G T", u, " "); i = 1
 		while (n >= 1024 && i < 5) { n /= 1024; i++ }
+		if (n < 0) n = 0	# counters reset: an interface went away
 		if (i == 1) printf "%d", n; else printf "%.1f%s", n, u[i - 1]
 	}'
 }

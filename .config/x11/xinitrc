@@ -6,6 +6,12 @@
 # xenodm starts X without a login shell, so ~/.profile has not run yet.
 [ -z "$XDG_CONFIG_HOME" ] && . "$HOME/.profile"
 
+# Session bus first: dunst (started in xprofile) and notify-send must share
+# one bus. Started later, GLib would autolaunch a second, private bus for
+# dunst. --exit-with-session ends the bus when X ends.
+[ -z "$DBUS_SESSION_BUS_ADDRESS" ] && command -v dbus-launch >/dev/null 2>&1 &&
+	eval "$(dbus-launch --sh-syntax --exit-with-session)"
+
 # There are some small but important commands that need to be run when we start
 # the graphical environment. There is a link to this file in ~/.xprofile
 # because that file is run automatically if someone uses a display manager
@@ -28,5 +34,9 @@ else
 	wm=cwm
 fi
 
-# dbus-launch gives notify-send and dunst a session bus.
-exec dbus-launch ssh-agent "$wm"
+# One ssh-agent: xenodm may already have started one.
+if [ -z "$SSH_AUTH_SOCK" ]; then
+	exec ssh-agent "$wm"
+else
+	exec "$wm"
+fi

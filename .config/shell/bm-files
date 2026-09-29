@@ -4,11 +4,11 @@
 bf	${XDG_CONFIG_HOME:-$HOME/.config}/shell/bm-files	# This file, a list of bookmarked files
 bd	${XDG_CONFIG_HOME:-$HOME/.config}/shell/bm-dirs		# A list of bookmarked directories similar to this file
 cfx	${XDG_CONFIG_HOME:-$HOME/.config}/x11/xresources	# Colors, themes and variables for X11
-cfb	~/.local/src/dwmblocks/config.h				# dwmblocks: the status bar for dwm
 
 
 # These do not update automatically, but on the next new instance of a program:
 
+cfb	~/.local/bin/statusbar/sbar				# sbar: the status bar ($blocks; restart sbar)
 cfv	${XDG_CONFIG_HOME:-$HOME/.config}/nvim/init.vim		# vim/neovim config
 cfk	${XDG_CONFIG_HOME:-$HOME/.config}/ksh/kshrc		# ksh (shell) config
 cfa	${XDG_CONFIG_HOME:-$HOME/.config}/shell/aliasrc		# aliases used by ksh (and other POSIX shells)

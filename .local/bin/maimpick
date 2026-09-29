@@ -16,5 +16,5 @@ case "$(printf "a selected area\\ncurrent window\\nfull screen\\na selected area
     "a selected area (copy)") maim -u -s | ${xclip_cmd} ;;
     "current window (copy)") maim -q -d 0.2 -i "$(xdotool getactivewindow)" | ${xclip_cmd} ;;
     "full screen (copy)") maim -q -d 0.2 | ${xclip_cmd} ;;
-    "copy selected image to text") tmpfile=$(mktemp /tmp/ocr-XXXXXX.png) && maim -u -s > "$tmpfile" && tesseract "$tmpfile" - -l eng | ${ocr_cmd} && rm "$tmpfile" ;;
+    "copy selected image to text") tmpfile=$(mktemp) && maim -u -s > "$tmpfile" && tesseract "$tmpfile" - -l eng | ${ocr_cmd} && rm "$tmpfile" ;;
 esac

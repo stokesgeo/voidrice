@@ -1,6 +1,6 @@
 #!/bin/sh
 
-ifinstalled stig transmission-cli || exit 1
+ifinstalled stig transmission-daemon || exit 1
 
 ! pgrep -x transmission-daemon >/dev/null && transmission-daemon && notify-send "Starting torrent daemon..."
 

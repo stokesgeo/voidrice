@@ -9,7 +9,7 @@
 # user,nice,sys,spin,intr,idle. With SMT off (the default, hw.smt=0), half
 # the threads are offline: their counters never move, so they get no bar.
 
-cache=/tmp/cpubarscache-$(id -u)
+cache="${XDG_CACHE_HOME:-$HOME/.cache}"/cpubarscache
 
 case $BLOCK_BUTTON in
 	2) detach "$TERMINAL" -e top ;;
