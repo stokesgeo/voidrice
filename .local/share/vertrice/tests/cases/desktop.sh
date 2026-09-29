@@ -281,3 +281,35 @@ t_passmenu_wrapper() {
 	"$VT_SH" "$p" --type
 	logged "^bash $ex --type\$"
 }
+
+# ImageMagick 6 (the package) has convert and mogrify, no magick. The
+# host may have ImageMagick 7: mocks stand in either way.
+im_setup() {
+	for v in convert mogrify ffmpeg; do ln -s "$VT_MOCKS/_log" "$T/bin/$v"; done
+	printf '#!/bin/sh\nexit 0\n' >"$T/bin/pkg_info"
+	printf '#!/bin/sh\necho "magick $*" >>"$VT_STATE/log"; exit 127\n' >"$T/bin/magick"
+	chmod +x "$T/bin/pkg_info" "$T/bin/magick"
+}
+
+t_nsxiv_rotate_flip() {
+	im_setup
+	for k in r R f; do
+		echo "$T/pic.jpg" | "$VT_SH" "$REPO/.config/nsxiv/exec/key-handler" "$k"
+	done
+	logged "^mogrify -rotate 90 $T/pic\.jpg\$"
+	logged "^mogrify -rotate -90 $T/pic\.jpg\$"
+	logged "^mogrify -flop $T/pic\.jpg\$"
+	notlogged '^magick'
+}
+
+t_slider_convert() {
+	im_setup
+	cd "$T" || fail "no dir"
+	: >img.png
+	printf '00:00:00\timg.png\n00:00:03\tHello\n' >list
+	slider -i list >/dev/null 2>&1
+	logged '^convert -size 1920x1080 canvas:black -gravity center img\.png -resize 1920x1080 -composite '
+	logged '^convert -size 1920x1080 -background black -fill white -font Sans -pointsize 150 -gravity center label:Hello '
+	logged '^ffmpeg -hide_banner -y -f concat -safe 0 -i '
+	notlogged '^magick'
+}

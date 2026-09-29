@@ -39,11 +39,12 @@ esac
 
 case "$(file -biL -- "$1" | cut -d';' -f1)" in
 	image/avif) CACHE="${XDG_CACHE_HOME:-$HOME/.cache}/lf/thumb.$(stat -f '%N %i %HT %z %B %m' -- "$(readlink -f "$1")" | md5)" CACHE="${CACHE%% *}"
-		[ ! -f "$CACHE.jpg" ] && magick "$1" "$CACHE.jpg"
+		# convert: ImageMagick 6, OpenBSD's package, has no magick.
+		[ ! -f "$CACHE.jpg" ] && convert "$1" "$CACHE.jpg"
 		image "$CACHE.jpg" "$2" "$3" "$4" "$5" "$1" ;;
 	image/vnd.djvu)
 		CACHE="${XDG_CACHE_HOME:-$HOME/.cache}/lf/thumb.$(stat -f '%N %i %HT %z %B %m' -- "$(readlink -f "$1")" | md5)" CACHE="${CACHE%% *}"
-		[ ! -f "$CACHE.jpg" ] && djvused "$1" -e 'select 1; save-page-with /dev/stdout' | magick -density 200 - "$CACHE.jpg" > /dev/null 2>&1
+		[ ! -f "$CACHE.jpg" ] && djvused "$1" -e 'select 1; save-page-with /dev/stdout' | convert -density 200 - "$CACHE.jpg" > /dev/null 2>&1
 		image "$CACHE.jpg" "$2" "$3" "$4" "$5" "$1" ;;
 	image/svg+xml)
 		CACHE="${XDG_CACHE_HOME:-$HOME/.cache}/lf/thumb.$(stat -f '%N %i %HT %z %B %m' -- "$(readlink -f "$1")" | md5)" CACHE="${CACHE%% *}"
@@ -51,7 +52,7 @@ case "$(file -biL -- "$1" | cut -d';' -f1)" in
 		image "$CACHE.png" "$2" "$3" "$4" "$5" "$1" ;;
 	image/x-xcf)
 		CACHE="${XDG_CACHE_HOME:-$HOME/.cache}/lf/thumb.$(stat -f '%N %i %HT %z %B %m' -- "$(readlink -f "$1")" | md5)" CACHE="${CACHE%% *}"
-		[ ! -f "$CACHE.jpg" ] && magick "$1[0]" "$CACHE.jpg"
+		[ ! -f "$CACHE.jpg" ] && convert "$1[0]" "$CACHE.jpg"
 		image "$CACHE.jpg" "$2" "$3" "$4" "$5" "$1" ;;
 	image/*) image "$1" "$2" "$3" "$4" "$5" "$1" ;;
 	# $2 is the width; upstream passed $4 (the pane's x position).
