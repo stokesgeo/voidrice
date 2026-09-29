@@ -1,8 +1,7 @@
 #!/bin/sh
 
-# sysact: dmenu menu of session and power actions.
-# zzz and ZZZ (suspend, hibernate) go through apmd(8), whose /etc/apm/suspend
-# hook locks the screen first.
+# A dmenu wrapper script for system functions.
+# zzz and ZZZ go through apmd, whose /etc/apm/suspend locks the screen first.
 
 # Mute and pause music while locked. Unmute after only if it was not muted
 # before.

@@ -1,13 +1,14 @@
 #!/bin/sh
 
-# slider -i LIST [options]: make a slideshow video. Each line of LIST is a
-# timecode (00:00:00), a tab, then an image file or the text of a text slide.
+# Give a file with images and timecodes and creates a video slideshow of them.
 #
-# Needs ImageMagick 6 (convert, not magick) and ffmpeg.
+# Timecodes must be in format 00:00:00.
+#
+# Imagemagick and ffmpeg required. ImageMagick 6 here: convert, not magick.
 
 ifinstalled ImageMagick ffmpeg || exit 1
 
-# Prepared slide images stay here between runs.
+# Application cache if not stated elsewhere.
 cache="${XDG_CACHE_HOME:-$HOME/.cache}/slider"
 
 while getopts "hvrpi:c:a:o:d:f:t:e:x:s:" o; do case "${o}" in
@@ -86,7 +87,7 @@ do
 	# Get the time from the first column.
 	time="${x%%	*}"
 	seconds="$(secs "$time")"
-	# How long the previous slide ran. The first line has no previous slide.
+	# Duration is not used on the first looped item.
 	duration="$((seconds - prevseconds))"
 
 	# Get the filename/text content from the rest.
@@ -104,7 +105,7 @@ do
 			convert -size "${res:-1920x1080}" -background "${bgc:-black}" -fill "${fgc:-white}" -font "${font:-Sans}" -pointsize "${ppt:-150}" -gravity center label:"$content" "$prepdir/$base"
 	fi
 
-	# Each slide is written when the next timecode gives its length.
+	# If the first line, do not write yet.
 	[ "$time" = "00:00:00" ] || echo "file '$prevbase'
 duration $duration"
 

@@ -1,7 +1,6 @@
 #!/bin/sh
 
-# podentr: run queueandnotify each time newsboat changes its queue file, with
-# entr(1). Only one copy runs.
+# entr command to run `queueandnotify` when newsboat queue is changed
 
 # A script runs as its interpreter, so match the command line, not the name.
 [ "$(pgrep -f podentr | wc -l)" -gt 1 ] && exit

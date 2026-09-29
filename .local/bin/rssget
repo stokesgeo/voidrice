@@ -1,10 +1,11 @@
 #!/bin/sh
 
-# rssget [URL [TAGS]]: find the RSS feeds of a site and add one to the
-# newsboat url list. URL comes from the X clipboard if not given. YouTube,
-# Reddit, Vimeo, GitHub, GitLab and Medium hide their feeds, so each has its
-# own rule; any other site is searched for feed links. With several feeds,
-# dmenu asks which one.
+# Searches the website for RSS feeds and adds them to newsboat url list. Can
+# also find hidden RSS feeds on various websites, namely Youtube, Reddit,
+# Vimeo, Github, Gitlab and Medium. Gets site url as $1 or (if not present)
+# from X clipboard. Gets tags as $2. If it finds more than one feed, calls
+# dmenu for the user to choose which one to add. I have bound it to a keyboard
+# shortcut so i copy a site link and easily add its feed to the reader.
 
 # Inspired by and based on the logic of this extension:
 # https://github.com/shevabam/get-rss-feed-url-extension
@@ -95,10 +96,12 @@ if echo $url | grep -Ex "$yt_regex" >/dev/null ; then
 	list="$(getYoutubeRss "$url")"
 elif echo $url | grep -Ex "$reddit_regex" >/dev/null ; then
 	list="$(getRedditRss "$url")"
+# vimeo actually works with getlink
 elif echo $url | grep -E "$vimeo_regex" >/dev/null ; then
 	list="$(getVimeoRss "$url")"
 elif echo $url | grep -E "github.com" >/dev/null ; then
 	list="$(getGithubRss "$url")"
+# gitlab also works with getlink
 elif echo $url | grep -E "gitlab.com/[a-zA-Z0-9].*" >/dev/null ; then
 	list="$(getGitlabRss "$url")"
 elif echo $url | grep -E "medium.com/tag" >/dev/null ; then

@@ -1,7 +1,6 @@
 #!/bin/sh
 
-# td-toggle: ask in dmenu to stop transmission-daemon if it runs, or to start
-# it if it does not.
+# If transmission-daemon is running, will ask to kill, else will ask to start.
 
 ifinstalled transmission-daemon || exit 1
 

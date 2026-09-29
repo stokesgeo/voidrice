@@ -10,7 +10,7 @@ usage ()
     exit
 }
 
-# Both tools must be installed.
+# Tests for requirements
 ifinstalled ffmpeg || { echo >&2 "We require 'ffmpeg' but it's not installed."; exit 1; }
 ifinstalled sox || { echo >&2 "We require 'ffmpeg' but it's not installed."; exit 1; }
 

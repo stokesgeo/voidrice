@@ -1,7 +1,8 @@
 #!/bin/sh
 
-# tutorialvids: pick a tutorial video in dmenu and play it in mpv. Add or
-# remove videos in the list below: a title, a tab, then the URL.
+# This gives the user a list of videos they can select and watch without a
+# browser. If you want to check a tutorial video, it makes it easy. I'll
+# add/remove videos from this list as I go on.
 
 vidlist="
 dwm (window manager)	https://videos.lukesmith.xyz/videos/watch/f6b78db7-b368-4647-bc64-28c08fff1988

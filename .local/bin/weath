@@ -1,8 +1,8 @@
 #!/bin/sh
 
-# weath [cp] [LOCATION]: show the weather forecast. With no LOCATION, show the
-# cached report. "cp" copies the forecast as plain text to the clipboard.
-# WTTRURL sets another wttr.in-style host.
+# Get the weather on the terminal. An alternative location can be passed as an
+# argument, and/or 'cp' to copy the forecast as plaintext to the clipboard.
+# With no location, the cached report shows; WTTRURL sets another wttr.in-style host.
 
 [ "$1" = cp ] && copy=true && shift
 

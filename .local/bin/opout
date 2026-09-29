@@ -1,7 +1,8 @@
 #!/bin/sh
 
-# opout FILE: open what FILE builds into: the pdf of a source document, the
-# html page, or the sent slides. Meant to be called from an editor.
+# opout: "open output": A general handler for opening a file's intended output,
+# usually the pdf of a compiled document.  I find this useful especially
+# running from vim.
 
 basename="${1%.*}"
 
