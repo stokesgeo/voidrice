@@ -1,5 +1,6 @@
 #!/bin/sh
 
-# sb-refresh: redraw the bar now. SIGUSR1 ends sbar's 5 second wait.
+# sb-refresh: redraw the bar now. SIGUSR1 ends sbar's 5 second wait,
+# under dwm (sbar) and under cwm (sbar -t, in the bar's xterm).
 
-pkill -USR1 -f 'statusbar/sbar$'
+pkill -USR1 -f 'statusbar/sbar( -t)?$'

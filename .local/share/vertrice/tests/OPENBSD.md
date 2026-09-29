@@ -82,7 +82,10 @@ The commits follow the same order.
    symlink to xinitrc). xinitrc starts the D-Bus session bus first, so
    dunst and notify-send share one bus; then `$WM`: cwm with
    `.config/cwm/cwmrc` by default, or dwm plus sbar when `WM=dwm` and dwm
-   is installed. It starts ssh-agent only if none is running (xenodm may
+   is installed. Under cwm the bar is a one-line xterm (st when
+   `TERMINAL=st`) named vbar along the top, running `sbar -t`; cwmrc's
+   `gap`, `ignore` and `autogroup 0` lines keep it clear of maximized and
+   tiled windows, frameless, and on every group (cwmrc(5)). It starts ssh-agent only if none is running (xenodm may
    have started one). xprofile now loads xresources, where xterm gets
    voidrice's font and Alt-as-Meta.
 6. **Sound.** sndiod(8) is the base sound server, started by rc(8).
@@ -129,7 +132,7 @@ against cwm's source, and `cwm -n` accepts the file.
 | Tab, \ / g, ; / PgUp, PgDn | last tag / prev, next tag | `group-last` / `group-rcycle`, `group-cycle` |
 | Return / Shift+Return / ' | terminal / scratch terminal / scratch calculator | `$TERMINAL` / `scratch term` / `scratch calc` |
 | d | dmenu_run | `menu-exec`, cwm's own run prompt |
-| b | toggle bar | `sb-show`: the status line as a notification |
+| b | toggle bar | `sb-show`: the status line as a notification (the bar itself stays) |
 | w / Shift+w | browser / nmtui | qutebrowser (`$BROWSER`) / chromium |
 | e, r, n, m, c, Shift+d/e/n/r | mail, lf, wiki, music, chat, passmenu, abook, news, top | same programs (top from base for htop) |
 | F9 / F10 | mounter / unmounter | same, OpenBSD versions, in a terminal for doas |
@@ -153,7 +156,9 @@ What does not carry over, because cwm has no equivalent:
 - Automatic layouts. cwm tiles only when asked; after opening or closing
   a window, press Super+t again. Spiral, dwindle, deck and centered
   master (y, u, i) and the master count (o) are gone.
-- Gaps (a, z, x) and the bar. Super+b shows the status line instead.
+- Gaps between windows (a, z, x), and hiding the bar. cwm does not keep
+  the bar on top: a window moved over it by hand covers it (maximized
+  and tiled windows do not), and Super+b shows the status line then.
 - Moving a window to the next or previous tag (Shift+g, Shift+;), and
   floating toggle (cwm windows are always floating).
 - The XF86 media and brightness keys. The X220's volume, mute and

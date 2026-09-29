@@ -169,6 +169,14 @@ The session starts a D-Bus session bus, runs
 .Pa ~/.config/x11/xprofile ,
 then
 .Xr cwm 1 .
+The status line is a one-line
+.Xr xterm 1
+along the top of the screen, running
+.Ic sbar Fl t ;
+the cwmrc keeps it on every group, without a frame, and keeps
+maximized and tiled windows below it.
+It is an st window when
+.Ev TERMINAL Ns = Ns Cm st .
 .Ev WM Ns = Ns Cm dwm
 in the profile runs dwm instead, with
 .Ic sbar
@@ -193,9 +201,9 @@ voidrice's dwm keys are kept: groups are dwm's tags, and windows float
 until
 .Ic 4-t
 tiles them.
-cwm has no bar, so
+cwm does not keep the bar on top, so
 .Ic 4-b
-shows the status line as a notification.
+also shows the status line as a notification.
 The keys that differ from voidrice:
 .Bl -tag -width "4C-F11" -offset indent
 .It Ic 4-Return

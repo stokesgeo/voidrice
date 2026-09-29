@@ -4,8 +4,10 @@
 # one line and sets it as the root window name, where dwm draws it. It
 # redraws every 5 seconds, or at once on SIGUSR1 (see sb-refresh).
 #
-# Usage: sbar [-1]
+# Usage: sbar [-1|-t]
 # 	-1	print the line once and exit (sb-show does this)
+# 	-t	draw in this terminal instead: the one-line terminal that is
+# 		the bar under cwm (xinitrc starts it; cwmrc keeps windows off it)
 #
 # Edit $blocks to choose and order the blocks.
 #
@@ -25,4 +27,10 @@ trap : USR1
 blocks="sb-music sb-news sb-mailbox sb-updates sb-cpu sb-memory sb-volume sb-battery sb-internet sb-words sb-clock"
 line() { for b in $blocks; do $b; done 2>/dev/null | grep . | paste -sd ' ' -; }
 [ "$1" = -1 ] && { line; exit; }
+if [ "$1" = -t ]; then
+	# No line wrap, no cursor; theme recolours this terminal with the others.
+	printf '\033[?7l\033[?25l'
+	while printf '\r\033[K%s' "$(line)"; do sleep 5 & wait $!; done
+	exit
+fi
 while xsetroot -name "$(line)"; do sleep 5 & wait $!; done
