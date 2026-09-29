@@ -68,16 +68,16 @@ t_install_pf_needs_root() {
 }
 
 t_install_pf_sample() {
-	# The sample opens nothing inbound: every "pass in" is commented out
-	# except IPv6 neighbour discovery.
-	sample=$REPO/.local/share/openbsd/pf.conf
-	got=$(grep -E '^[[:space:]]*pass[[:space:]]+in' "$sample")
-	eq "the only active pass in" \
-		"pass in inet6 proto icmp6 icmp6-type { neighbrsol neighbradv routeradv }" "$got"
-	grep -qx 'block in' "$sample" || fail "no default block in"
-	grep -qx 'pass out' "$sample" || fail "no pass out"
-	grep -qx 'block return in quick on ! lo0 proto tcp to port 6000:6010' "$sample" ||
-		fail "the default X11 block is gone"
+	# The active rules, comments stripped: nothing opens inbound but IPv6
+	# neighbour discovery, and OpenBSD's X11 and _pbuild blocks stay.
+	eq "active rules" "set skip on lo
+block in
+pass out
+pass in inet6 proto icmp6 icmp6-type { neighbrsol neighbradv routeradv }
+antispoof quick for lo0
+block return in quick on ! lo0 proto tcp to port 6000:6010
+block return out log proto {tcp udp} user _pbuild" \
+		"$(sed 's/[[:space:]]*#.*//' "$REPO/.local/share/openbsd/pf.conf" | grep .)"
 }
 
 # /etc/apm/suspend: a fake xidle in $T records the signal it gets. SIGUSR1
@@ -93,15 +93,16 @@ EOF
 	"$T/xidle" &
 	track $!
 	waitfor 2 "$VT_REAL_PGREP" -x xidle || fail "fake xidle never started"
-	VT_SLEEP=0 sh "$REPO/.local/share/openbsd/apm-suspend" || fail "exit status not 0"
+	VT_SLEEP=0 sh "$REPO/.local/share/openbsd/apm-suspend"
 	logged '^pkill -USR1 -x xidle$'
 	waitfor 2 test -e "$T/xidle.got" || fail "xidle got no signal"
 	eq "signal xidle got" USR1 "$(cat "$T/xidle.got")"
 }
 
 t_apm_suspend_no_x() {
-	# No X session: nothing to lock, and suspend must still go ahead.
-	sh "$REPO/.local/share/openbsd/apm-suspend" || fail "exit status not 0 without xidle"
+	# No X session: nothing to lock. apmd ignores the exit status
+	# (apmd.c, do_etc_file), so suspend goes ahead either way.
+	sh "$REPO/.local/share/openbsd/apm-suspend"
 	logged '^pkill -USR1 -x xidle$'
 }
 

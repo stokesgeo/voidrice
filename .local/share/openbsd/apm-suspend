@@ -1,12 +1,3 @@
 #!/bin/sh
-# apm-suspend: lock X before the machine sleeps. Installed by
-# `vertrice-install system` as /etc/apm/suspend and /etc/apm/hibernate.
-#
-# apmd(8) runs these as root before zzz, ZZZ, Fn+F4 and a low-battery
-# suspend. xidle(1) runs its locker (xlock) when sent SIGUSR1, so root only
-# sends a signal and never runs anything inside the user's session. The
-# pause lets xlock cover the screen before the machine stops; without it
-# the unlocked desktop can show for a moment on wake.
-
+# /etc/apm/suspend and hibernate: xidle locks X on USR1; the pause lets xlock cover the screen first.
 pkill -USR1 -x xidle && sleep 1
-exit 0
