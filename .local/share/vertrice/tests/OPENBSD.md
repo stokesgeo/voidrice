@@ -66,9 +66,11 @@ The commits follow the same order.
    OpenBSD has no real-time signals, so the signal cannot be named. New
    `sbar` (ksh) runs the blocks and writes the root window name; it
    sleeps in the background and `wait`s, so SIGUSR1 interrupts the wait
-   and it redraws. `sb-refresh` sends SIGUSR1, after checking that the
-   pid in the pidfile is still sbar (SIGUSR1 kills a process that does
-   not catch it). Cost: a refresh redraws every block. Clickable blocks
+   and it redraws. `sb-refresh` sends SIGUSR1 with `pkill -f`, matched
+   on sbar's own command line (`statusbar/sbar`, or `sbar -t` for the
+   bar under cwm), so no other process gets it (SIGUSR1 kills a process
+   that does not catch it). There is no pidfile. Cost: a refresh redraws
+   every block. Clickable blocks
    rode on sigqueue(3), also absent, so clicks do nothing for now.
 4. **The shell.** ksh is base. `~/.profile` (a symlink to
    `.config/shell/profile`) is read by login shells and sets `ENV` to
@@ -645,10 +647,10 @@ replaces it:
   round, by choice. The frames stay the same in day and night.
 - **Notifications.** dunst in Plex Mono, slate with pastel text, framed in
   the window-border colours.
-- **dunst, zathura and the root window follow the palette.** Each switch
-  writes `~/.config/dunst/dunstrc.d/theme.conf` (then `dunstctl reload`)
-  and `~/.config/zathura/theme` (zathurarc includes it), and without
-  xwallpaper sets the root window's colour.
+- **dunst and zathura follow the palette.** Each switch writes
+  `~/.config/dunst/dunstrc.d/theme.conf` (then `dunstctl reload`) and
+  `~/.config/zathura/theme` (zathurarc includes it). The root window
+  keeps the wallpaper, which setbg sets with xwallpaper.
 - **pywal instead, if you want it.** Colours from the wallpaper, as in
   voidrice. pywal has no package, and base Python refuses `pip install`
   (EXTERNALLY-MANAGED), so: `doas pkg_add py3-pipx ImageMagick; pipx
@@ -1215,7 +1217,7 @@ Core (`pkglist`), and why base does not cover it:
 | lf, fzf | file manager (lfub, `ext` on E); fzf for lf's bookmark moves and `se` | none |
 | nsxiv, mpv, zathura, zathura-pdf-mupdf | images, video, PDF: lf, linkhandler, dmenuhandler, compiler | no viewers in base |
 | mpd, mpc, ncmpcpp | music: autostart, sb-music, Super+m, p, [, ] and the rest | sndiod plays sound, but base has no music player |
-| dunst, libnotify, dbus | notify-send in about 30 scripts; sb-show is the status line under cwm | no notifications in base |
+| dunst, libnotify, dbus | notify-send in about 30 scripts; sb-show (Super+b) | no notifications in base |
 | xclip | clipboard: maimpick, otp, dmenuunicode, lf, linkhandler | no command-line clipboard in X |
 | xdotool | scratchpads (Super+Shift+Return, Super+'), dmenuunicode, maimpick | none |
 | xcape | remaps: Super tapped alone is Escape | setxkbmap maps keys, not taps |
@@ -1224,6 +1226,7 @@ Core (`pkglist`), and why base does not cover it:
 | entr | hotplug-watch (USB notices), podentr | no file-watch command |
 | noto-emoji | emoji in blocks, menus and notifications | none in X fonts |
 | dmenu | every menu | cwm's menu-exec runs commands only |
+| xwallpaper | setbg: the wallpaper, at login and on change | xsetroot(1) sets a colour or a bitmap, not a picture |
 | qutebrowser, chromium | `$BROWSER` and Super+Shift+w | none |
 | exfat-fuse | mounter: exFAT sticks and SD cards | base has no exFAT |
 | unzip, bzip2, xz, zstd | ext | tar, gzip and compress cover the rest |
@@ -1237,8 +1240,7 @@ password-store and pass-otp (Super+Shift+d, otp), pinentry-dmenu (the
 passphrase prompt passmenu needs without a terminal), zbar (otp: reads the
 QR code; it pulls in ImageMagick), transmission (torrents), tremc
 (Super+F6; stig has no port), yt-dlp (web video in mpv), nq (qndl's
-download queue), xwallpaper (setbg; without it the
-root window takes the theme's background colour), unclutter (hides an idle pointer), ntfs_3g
+download queue), unclutter (hides an idle pointer), ntfs_3g
 and simple-mtpfs (mounter: NTFS disks and Android phones), 7zip (ext: 7z,
 rar), highlight (coloured text: lf previews and `ccat`), ImageMagick
 (slider, nsxiv's rotate and flip, lf's avif/djvu/xcf thumbnails;
@@ -1259,8 +1261,6 @@ Left out:
 - pandoc: compiler uses it for Markdown only when lowdown or groff is
   missing and you installed pandoc yourself (a large Haskell build).
 - groffdown, atool, youtube-viewer, gnome-epub-thumbnailer: no port.
-- xwallpaper is extra: without it, setbg sets the root window to the
-  current theme's background colour with xsetroot(1).
 - calcurse: only sb-clock's click, and sbar blocks take no clicks.
 - libiconv: only booksplit. git installs it anyway.
 - noto-fonts: no config names it; IBM Plex and Noto Color Emoji cover
