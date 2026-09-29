@@ -24,7 +24,8 @@ printf "# vim: filetype=sh\\n" > "$shell_env_shortcuts"
 printf "\" vim: filetype=vim\\n" > "$vifm_shortcuts"
 
 # Format the `directories` file in the correct syntax and sent it to all three configs.
-eval "echo \"$(cat "$bmdirs")\"" | \
+# Comments are cut before eval: only the paths are expanded.
+eval "echo \"$(sed 's/[[:space:]]*#.*//' "$bmdirs")\"" | \
 awk "!/^[[:space:]]*#/ && !/^[[:space:]]*\$/ {gsub(\"[[:space:]]*#.*$\",\"\");
 	printf(\"%s=\42cd %s && ls -A\42 \\\\\n\",\$1,\$2)   >> \"$shell_shortcuts\" ;
 	printf(\"[ -n \42%s\42 ] && export %s=\42%s\42 \n\",\$1,\$1,\$2)   >> \"$shell_env_shortcuts\" ;
@@ -36,7 +37,7 @@ awk "!/^[[:space:]]*#/ && !/^[[:space:]]*\$/ {gsub(\"[[:space:]]*#.*$\",\"\");
 	printf(\"cmap ;%s %s\n\",\$1,\$2)                    >> \"$vim_shortcuts\" }"
 
 # Format the `files` file in the correct syntax and sent it to both configs.
-eval "echo \"$(cat "$bmfiles")\"" | \
+eval "echo \"$(sed 's/[[:space:]]*#.*//' "$bmfiles")\"" | \
 awk "!/^[[:space:]]*#/ && !/^[[:space:]]*\$/ {gsub(\"[[:space:]]*#.*$\",\"\");
 	printf(\"%s=\42\$EDITOR %s\42 \\\\\n\",\$1,\$2)  >> \"$shell_shortcuts\" ;
 	printf(\"[ -n \42%s\42 ] && export %s=\42%s\42 \n\",\$1,\$1,\$2)   >> \"$shell_env_shortcuts\" ;

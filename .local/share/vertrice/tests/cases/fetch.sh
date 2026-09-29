@@ -54,6 +54,9 @@ t_fetch_sb_price() {
 	logged '^ftp -MV -U curl -o .*/crypto-prices/btc-usd https://usd\.rate\.sx/1btc$'
 	logged '^ftp -MV -U curl -o .*/crypto-prices/btc-usd-chart https://usd\.rate\.sx/btc@14d$'
 	eq "price" 'B$61234.57' "$out"
+	# sbar joins the blocks' lines: the price must end its line.
+	eq "ends its line" 'B$61234.57 next' \
+		"$({ sb-price btc-usd Bitcoin B; echo next; } | grep . | paste -sd ' ' -)"
 }
 
 t_fetch_sb_ticker() {
@@ -121,6 +124,15 @@ t_fetch_rssget() {
 		"$(rssget https://www.youtube.com/c/someone)"
 	[ -e "$T/tmp_rssget_yt" ] && fail "left a temporary file behind"
 	return 0
+}
+
+# rssadd takes a downloaded feed: the whole self link is added, exit 0.
+t_fetch_rssadd_file() {
+	mkdir -p "$XDG_CONFIG_HOME/newsboat"; : >"$XDG_CONFIG_HOME/newsboat/urls"
+	printf '<feed><link href="https://example.org/feed.xml" rel="self" type="application/atom+xml"/></feed>\n' >feed.xml
+	rssadd feed.xml; eq "exit status" 0 "$?"
+	eq "urls" "https://example.org/feed.xml" "$(cat "$XDG_CONFIG_HOME/newsboat/urls")"
+	logged '^notify-send RSS feed added\.$'
 }
 
 t_fetch_peertubetorrent() {
