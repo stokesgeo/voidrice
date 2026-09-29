@@ -1,19 +1,12 @@
-# Luke's lf settings
+# lf settings.
 
 
-# Note on Image Previews
-# For those wanting image previews, like this system, there are four steps to
-# set it up. These are done automatically for LARBS users, but I will state
-# them here for others doing it manually.
-#
-# 1. ueberzug must be installed.
-# 2. The scope file (~/.config/lf/scope for me), must have a command similar to
-#    mine to generate ueberzug images.
-# 3. A `set cleaner` line as below is a cleaner script.
-# 4. lf should be started through a wrapper script (~/.local/bin/lfub for me)
-#    that creates the environment for ueberzug. This command can be be aliased
-#    in your shellrc (`alias lf="lfub") or if set to a binding, should be
-#    called directly instead of normal lf.
+# Image previews need four parts:
+# 1. ueberzug, installed.
+# 2. A previewer (~/.config/lf/scope) that draws images through ueberzug.
+# 3. A cleaner (`set cleaner` below) that removes the image again.
+# 4. lf started through the wrapper ~/.local/bin/lfub, which sets up the
+#    ueberzug environment. Alias lf to lfub, and call lfub in key bindings.
 
 # Basic vars
 set shellopts '-eu'
@@ -26,7 +19,7 @@ set cleaner '~/.config/lf/cleaner'
 set previewer '~/.config/lf/scope'
 set autoquit true
 
-# cmds/functions
+# Commands. open picks a program by MIME type; other files go to $OPENER.
 cmd open ${{
     mime=$(file -bi "$(readlink -f $f)")
     case ${mime%%;*} in
@@ -76,6 +69,8 @@ cmd delete ${{
 	[ $ans = "y" ] && rm -rf -- $fx
 }}
 
+# moveto and copyto: pick a directory from bm-dirs with fzf, show the
+# files and the target, and act only on "y".
 cmd moveto ${{
 	set -f
 	clear; tput cup $(($(tput lines)/3))
@@ -114,6 +109,8 @@ cmd copyto ${{
 
 cmd setbg "$1"
 
+# bulkrename: edit the names in $EDITOR, one per line. Line N of the new list
+# renames line N of the old. Nothing happens if the line count changes.
 cmd bulkrename ${{
     tmpfile_old="$(mktemp)"
     tmpfile_new="$(mktemp)"
@@ -170,6 +167,8 @@ map W $detach $TERMINAL >/dev/null 2>&1
 
 map U $printf "%s" "$fx" | xclip -selection clipboard
 map u $printf "%s" "$fx" | sed 's/.*\///' | xclip -selection clipboard
+# . and >: copy a YouTube or piped.video link built from the video id in the
+# file name (yt-dlp names files "title [id].ext").
 map . $printf "%s" "$fx" | sed -E 's/^.+\[/https:\/\/www.youtube.com\/watch?v=/' | sed -E 's/\]\..+//' | xclip -selection clipboard
 map <gt> $printf "%s" "$fx" | sed -E 's/^.+\[/https:\/\/piped.video\/watch?v=/' | sed -E 's/\]\..+//' | xclip -selection clipboard
 map T $nsxiv -t "$(pwd)" # opens thumbnail mode
@@ -177,5 +176,5 @@ map <c-l> unselect
 
 
 
-# Source Bookmarks
+# Directory shortcuts, generated from bm-dirs by the shortcuts script:
 source "~/.config/lf/shortcutrc"
