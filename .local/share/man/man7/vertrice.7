@@ -101,9 +101,7 @@ with
 as a link to it, and
 .Pa /etc/hotplug/attach ;
 .It
-adds a line to root's crontab that counts waiting updates, and a
-.Xr calendar 1
-line to the user's crontab;
+adds a line to root's crontab that counts waiting updates;
 .It
 adds
 .Dq root: Ar user
@@ -480,7 +478,8 @@ writable but
 .Pa ~/.cache ,
 .Pa ~/.config
 and
-.Pa ~/.local .
+.Pa ~/.local ;
+a folder that is a symbolic link is skipped.
 .It Fl r Ar path
 Codex may read
 .Ar path .
