@@ -4,14 +4,15 @@
 # stages, and test the result.
 #
 #	vertrice-install [-y] home		as you: fetch the dotfiles into $HOME
-#	doas vertrice-install [-y] [-r] system	as root: packages, doas, daemons
+#	doas vertrice-install [-y] [-e] [-r] system	as root: packages, doas, daemons
 #	vertrice-install check			run ~/.local/share/openbsd/check
 #
 # Without -y it only prints the plan: what is already done ("ok") and what
 # it would do ("would"). With -y it does it. Each step first looks at the
 # current state and is skipped when already done, so running it again
-# changes nothing. -r also turns on audio recording (kern.audio.record=1),
-# which stays off otherwise.
+# changes nothing. -e also installs pkglist.extra (features you can skip);
+# without it only pkglist, the core, is installed. -r also turns on audio
+# recording (kern.audio.record=1), which stays off otherwise.
 #
 # There is no `set -e`: one failed step should not stop the others, and
 # set -e is silently ignored inside functions called from `if`, so it
@@ -40,14 +41,15 @@ R=${ROOT:-/}; R=${R%/}	# "" for the real system, so "$R/etc" is /etc
 staffcaps="datasize-cur=4096M datasize-max=infinity openfiles-cur=4096 openfiles-max=8192"
 
 usage() {
-	print -u2 "usage: vertrice-install [-y] home | [-y] [-r] system | check"
+	print -u2 "usage: vertrice-install [-y] home | [-y] [-e] [-r] system | check"
 	exit 2
 }
 
-apply=0 record=0
-while getopts yr o; do
+apply=0 record=0 extra=0
+while getopts yer o; do
 	case $o in
 	y)	apply=1 ;;
+	e)	extra=1 ;;
 	r)	record=1 ;;
 	*)	usage ;;
 	esac
@@ -337,7 +339,7 @@ system() {
 		print -u2 "after the home stage."
 		exit 1
 	fi
-	typeset user p missing="" class
+	typeset user p l lists missing="" class
 	# shellcheck disable=SC2012 # one known directory; its owner, not names
 	user=${VERTRICE_USER:-$(ls -ld "$data" | awk '{ print $3 }')}
 	if [ "$user" = root ]; then
@@ -346,17 +348,30 @@ system() {
 	fi
 	print "system: packages, doas, root's shell, daemons, for user $user"
 
-	# Packages. pkg_add skips what is installed; the check here only
-	# decides whether to run it at all, and lists what is missing.
-	while read -r p; do
-		pkg_info -qe "$p-*" >/dev/null 2>&1 || missing="$missing $p"
-	done <"$data/pkglist"
+	# Packages: pkglist, and pkglist.extra with -e. Lines starting with #
+	# are comments. Only the missing names go to pkg_add, which also skips
+	# anything already installed under a different package name.
+	lists=pkglist
+	[ $extra = 1 ] && lists="pkglist pkglist.extra"
+	for l in $lists; do
+		if [ ! -r "$data/$l" ]; then
+			print "  FAILED  no $data/$l"
+			fails=$((fails + 1))
+			continue
+		fi
+		while read -r p; do
+			case $p in ""|"#"*) continue ;; esac
+			pkg_info -qe "$p-*" >/dev/null 2>&1 || missing="$missing $p"
+		done <"$data/$l"
+	done
 	if [ -z "$missing" ]; then
-		ok "all packages in pkglist installed"
+		ok "all packages in $lists installed"
 	else
 		note "missing:$missing"
-		step "pkg_add -l $data/pkglist" pkg_add -l "$data/pkglist"
+		# shellcheck disable=SC2086 # one word per package name
+		step "pkg_add$missing" pkg_add $missing
 	fi
+	[ $extra = 1 ] || note "pkglist.extra skipped (add -e to install it)"
 
 	# doas. The rule permits group wheel, so a user outside wheel would be
 	# locked out by it: refuse rather than install that.

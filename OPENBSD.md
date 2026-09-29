@@ -1,15 +1,15 @@
 # vertrice: voidrice on OpenBSD
 
-vertrice is Geo's fork of Luke Smith's voidrice, ported to OpenBSD for a
-ThinkPad X220.
-Upstream is Arch/Void Linux; the port keeps the pattern (suckless tools,
-scripts in `~/.local/bin`, config in `~/.config`, bookmarks compiled to
-shell shortcuts) and swaps each Linux mechanism for the OpenBSD base one.
+[README.md](README.md) says what vertrice is, the base-first rule, and the
+short install. This file is the detail. Upstream voidrice targets Arch and
+Void Linux; "The walk" below names each Linux mechanism and the OpenBSD one
+that replaced it.
 
-**Base first by default.** The default setup is what OpenBSD ships: ksh,
-cwm and xterm. voidrice's tiling keys are carried into cwm (see "Keys"
-below). Luke's dwm and st are opt-ins: build them into `~/.local/src`, then
-set `WM="dwm"` and `TERMINAL="st"` in `.config/shell/profile`.
+**The default session.** ksh, cwm and xterm, all from base. voidrice's
+tiling keys are carried into cwm (see "Keys" below). Luke's dwm and st are
+opt-ins: build them into `~/.local/src`, then set `WM="dwm"` and
+`TERMINAL="st"` in `.config/shell/profile`. What each package is for, and
+why base does not cover it, is under "Packages".
 
 **State.** Written and tested off the machine: every shell file parses under
 oksh (the portable OpenBSD ksh), the status blocks run against mocked
@@ -192,8 +192,8 @@ does not take outside ports. That is not "well maintained" yet.
 
 - `ext file ...` extracts any archive by its name: tar in all its
   compressions, gz, bz2, xz, zst, Z, zip (and jar, epub), 7z, rar and
-  iso. Base tar, gzip and compress do most of it; bzip2, xz, zstd, unzip
-  and 7zip are in pkglist. Single compressed files are decompressed next
+  iso. Base tar, gzip and compress do most of it; bzip2, xz, zstd and
+  unzip are in pkglist, 7zip (7z, rar, iso) in pkglist.extra. Single compressed files are decompressed next
   to the original, which is kept, and an existing file is never
   overwritten (7z skips files that exist). lf's E key calls ext, so the
   shell and lf share one table.
@@ -387,10 +387,12 @@ use su and the full path:
 Later runs: `doas ~/.local/bin/vertrice-install -y system`. It reads the
 files in `~/.local/share/openbsd` and does:
 
-- Packages: `pkg_add -l pkglist`, if any are missing. Most names match
-  a port directory; zathura-pdf-mupdf, noto-emoji, noto-fonts and ntfs_3g
-  do not (a package name can differ from its directory) and are not
-  checked. `check` reports any that did not install.
+- Packages: `pkg_add` with the names from pkglist that are not
+  installed; with `-e`, from pkglist.extra too (see "Packages"). Most
+  names match a port directory; zathura-pdf-mupdf, noto-emoji, noto-fonts
+  and ntfs_3g do not (a package name can differ from its directory) and
+  are not checked. `check` fails on a core package that did not install
+  and lists the extra ones that are not installed.
 - doas: installs `doas.conf` as /etc/doas.conf only after `doas -C`
   accepts it, and only if your user is in wheel (the rule permits wheel,
   so anyone else would be locked out). The new file is renamed into place,
@@ -469,6 +471,7 @@ What the system stage does, as commands. They are not idempotent: run
 each once.
 
     pkg_add -l ~/.local/share/openbsd/pkglist
+    pkg_add $(sed '/^#/d' ~/.local/share/openbsd/pkglist.extra)   # optional
     install -o root -g wheel -m 0640 ~/.local/share/openbsd/doas.conf /etc/doas.conf.new
     doas -C /etc/doas.conf.new && mv /etc/doas.conf.new /etc/doas.conf
     install -o root -g wheel -m 0644 ~/.local/share/openbsd/root.kshrc /root/.kshrc
@@ -494,6 +497,51 @@ OpenBSD once `config.mk` points at `/usr/X11R6` (their config.mk has
 OpenBSD lines). Luke's dwm sends status-bar clicks with sigqueue(3), so
 that patch needs replacing before his dwm builds here. dmenu comes from
 packages.
+
+## Packages
+
+The rule: base first; a package is added only for a feature we want that
+base does not provide. `pkglist` is the core: what the default session,
+its autostart and its keys call. `pkglist.extra` is one feature per
+package, each one you can skip; `vertrice-install -e system` installs it.
+
+Core (`pkglist`), and why base does not cover it:
+
+| Package | Used by | Base |
+|---|---|---|
+| git | the dotfiles (bare repository, `config`) | no git client in base |
+| neovim | `$EDITOR`, init.vim | vi (nvi) stays as the fallback |
+| lf, fzf | file manager (lfub, `ext` on E); fzf for lf's bookmark moves and `se` | none |
+| nsxiv, mpv, zathura, zathura-pdf-mupdf | images, video, PDF: lf, linkhandler, dmenuhandler, compiler | no viewers in base |
+| mpd, mpc, ncmpcpp | music: autostart, sb-music, Super+m, p, [, ] and the rest | sndiod plays sound, but base has no music player |
+| dunst, libnotify, dbus | notify-send in about 30 scripts; sb-show is the status line under cwm | no notifications in base |
+| xclip | clipboard: maimpick, otp, dmenuunicode, lf, linkhandler | no command-line clipboard in X |
+| xdotool | scratchpads (Super+Shift+Return, Super+'), dmenuunicode, maimpick | none |
+| xcape | remaps: Super tapped alone is Escape | setxkbmap maps keys, not taps |
+| maim, slop | Print keys; slop picks the area for dmenurecord | xwd(1) dumps only xwd images |
+| ffmpeg | dmenurecord (Super+Print); mpv needs it anyway | none |
+| entr | hotplug-watch (USB notices), podentr | no file-watch command |
+| noto-emoji | emoji in blocks, menus and notifications | none in X fonts |
+| dmenu | every menu | cwm's menu-exec runs commands only |
+| qutebrowser, chromium | `$BROWSER` and Super+Shift+w | none |
+| exfat-fuse | mounter: exFAT sticks and SD cards | base has no exFAT |
+| unzip, bzip2, xz, zstd | ext | tar, gzip and compress cover the rest |
+| sct | nightlight (Super+F4) | xrandr's gamma keeps white at full blue |
+| ibm-plex | the font everywhere | none |
+| obsdfreqd | CPU speed per power source, with a heat ceiling | apmd -A has no cap or ceiling |
+
+Extra (`pkglist.extra`): mutt-wizard (mail: neomutt, isync, msmtp and pass
+come with it; Super+e, sb-mailbox), newsboat (Super+Shift+n, sb-news),
+calcurse, password-store and pass-otp (Super+Shift+d, otp), transmission
+(torrents), yt-dlp (web video in mpv, qndl), xwallpaper (setbg; without
+it the root window keeps its colour), unclutter (hides an idle pointer),
+socat (pauseallmpv), bash (rssget and sb-ticker), libiconv (iconv(1) for
+booksplit; base has none), noto-fonts (wider Unicode), ntfs_3g and
+simple-mtpfs (mounter: NTFS disks and Android phones), 7zip (ext: 7z, rar).
+
+Not listed: curl and highlight. The scripts' curl calls could all go
+through base ftp(1); curl stays installed now only because git needs it.
+Nothing runs highlight; lf's previewer calls bat, which is not listed.
 
 ## Not ported, or not tested
 

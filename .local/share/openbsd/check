@@ -103,10 +103,18 @@ print "== packages"
 list=${0%/*}/pkglist
 if [ -r "$list" ]; then
 	while read -r p; do
+		case $p in ""|"#"*) continue ;; esac
 		pkg_info -qe "$p-*" && pass "package $p" || fail "package $p" "not installed, or the name differs in ports"
 	done <"$list"
 else
 	skip "packages" "no pkglist beside this script"
+fi
+# pkglist.extra is optional: a missing package there is reported, not failed.
+if [ -r "$list.extra" ]; then
+	while read -r p; do
+		case $p in ""|"#"*) continue ;; esac
+		pkg_info -qe "$p-*" && pass "package $p (extra)" || print "INFO  package $p (extra) not installed"
+	done <"$list.extra"
 fi
 
 print "== blocks (each should print something)"
