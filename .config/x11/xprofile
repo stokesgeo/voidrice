@@ -5,7 +5,7 @@
 
 xrandr --dpi 96		# Set DPI. User may want to use a larger number for larger screens.
 setbg &			# set the background with the `setbg` script
-#xrdb ${XDG_CONFIG_HOME:-$HOME/.config}/x11/xresources & xrdbpid=$!	# Uncomment to use Xresources colors/settings on startup
+xrdb ${XDG_CONFIG_HOME:-$HOME/.config}/x11/xresources & xrdbpid=$!	# xterm, the default terminal, reads its font and colors from here
 
 # Sound is sndiod(8), a system daemon started by rc(8), so nothing to start here.
 autostart="mpd xcompmgr dunst unclutter"

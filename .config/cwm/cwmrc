@@ -1,0 +1,144 @@
+# cwmrc: voidrice's dwm keys on cwm(1), OpenBSD's window manager in base.
+# xinitrc starts `cwm -c` on this file. See cwmrc(5); OPENBSD.md has the
+# table of dwm keys and what each became here.
+#
+# How the dwm habits carry over:
+# - Tags are cwm groups. sticky mode puts each new window in the group
+#   you are looking at, as dwm puts it on the current tag.
+# - cwm floats by default and tiles on request: window-vtile makes the
+#   focused window the master on the left and stacks the others in its
+#   group on the right (dwm's tile); window-htile puts the master on top
+#   (bstack). Press it again after opening or closing a window.
+# - Super is the only modifier used, so application shortcuts on Alt and
+#   Control stay free (cwm's defaults use both).
+
+sticky yes
+vtile 55			# dwm mfact 0.55
+htile 55
+borderwidth 3
+color activeborder "#770000"
+color inactiveborder "#444444"
+fontname "monospace:size=10"
+snapdist 4
+
+# Scratchpads belong to no group, so they show on every group.
+autogroup 0 "spterm"
+autogroup 0 "spcalc"
+
+unbind-key all
+
+# --- windows: focus, close, tile ---------------------------------------
+bind-key 4-j		window-cycle-ingroup
+bind-key 4-k		window-rcycle-ingroup
+bind-key 4-q		window-close
+bind-key 4-t		window-vtile
+bind-key 4S-t		window-htile
+bind-key 4-space	window-vtile		# dwm zoom: focused window to master
+bind-key 4-f		window-fullscreen
+bind-key 4S-u		window-maximize		# dwm monocle, one window
+bind-key 4-h		window-resize-left-big	# dwm mfact: master narrower
+bind-key 4-l		window-resize-right-big	# dwm mfact: master wider
+bind-key 4S-h		window-move-left-big
+bind-key 4S-j		window-move-down-big
+bind-key 4S-k		window-move-up-big
+bind-key 4S-l		window-move-right-big
+bind-key 4C-h		window-resize-left
+bind-key 4C-j		window-resize-down
+bind-key 4C-k		window-resize-up
+bind-key 4C-l		window-resize-right
+bind-key 4-s		window-stick		# dwm togglesticky
+bind-key 4S-0		window-stick		# dwm tag all: on every group
+
+# --- groups (dwm tags) --------------------------------------------------
+bind-key 4-1		group-only-1
+bind-key 4-2		group-only-2
+bind-key 4-3		group-only-3
+bind-key 4-4		group-only-4
+bind-key 4-5		group-only-5
+bind-key 4-6		group-only-6
+bind-key 4-7		group-only-7
+bind-key 4-8		group-only-8
+bind-key 4-9		group-only-9
+bind-key 4S-1		window-movetogroup-1
+bind-key 4S-2		window-movetogroup-2
+bind-key 4S-3		window-movetogroup-3
+bind-key 4S-4		window-movetogroup-4
+bind-key 4S-5		window-movetogroup-5
+bind-key 4S-6		window-movetogroup-6
+bind-key 4S-7		window-movetogroup-7
+bind-key 4S-8		window-movetogroup-8
+bind-key 4S-9		window-movetogroup-9
+bind-key 4C-1		group-toggle-1
+bind-key 4C-2		group-toggle-2
+bind-key 4C-3		group-toggle-3
+bind-key 4C-4		group-toggle-4
+bind-key 4C-5		group-toggle-5
+bind-key 4C-6		group-toggle-6
+bind-key 4C-7		group-toggle-7
+bind-key 4C-8		group-toggle-8
+bind-key 4C-9		group-toggle-9
+bind-key 4-0		group-toggle-all
+bind-key 4-Tab		group-last
+bind-key 4-backslash	group-last
+bind-key 4-g		group-rcycle
+bind-key 4-semicolon	group-cycle
+bind-key 4-Prior	group-rcycle
+bind-key 4-Next		group-cycle
+
+# --- launchers ----------------------------------------------------------
+bind-key 4-Return	"sh -c 'exec $TERMINAL'"
+bind-key 4S-Return	"scratch term"
+bind-key 4-apostrophe	"scratch calc"
+bind-key 4-d		menu-exec
+bind-key 4S-d		passmenu
+bind-key 4-w		"sh -c 'exec $BROWSER'"
+bind-key 4-e		"sh -c '$TERMINAL -e neomutt; sb-refresh'"
+bind-key 4S-e		"sh -c 'exec $TERMINAL -e abook'"
+bind-key 4-r		"sh -c 'exec $TERMINAL -e lfub'"
+bind-key 4S-r		"sh -c 'exec $TERMINAL -e top'"
+bind-key 4-c		"sh -c 'exec $TERMINAL -e profanity'"
+bind-key 4-n		"sh -c 'exec $TERMINAL -e nvim -c VimwikiIndex'"
+bind-key 4S-n		"sh -c '$TERMINAL -e newsboat; sb-refresh'"
+bind-key 4-m		"sh -c 'exec $TERMINAL -e ncmpcpp'"
+bind-key 4-b		sb-show			# no bar in cwm: status as a notification
+bind-key 4-grave	dmenuunicode
+bind-key 4-BackSpace	sysact
+bind-key 4S-q		sysact
+bind-key 4S-BackSpace	sysact
+
+# --- music and volume (mpd, sndio) ---------------------------------------
+bind-key 4-p		"mpc toggle"
+bind-key 4S-p		"sh -c 'mpc pause; pauseallmpv'"
+bind-key 4-bracketleft	"mpc seek -10"
+bind-key 4S-bracketleft	"mpc seek -60"
+bind-key 4-bracketright	"mpc seek +10"
+bind-key 4S-bracketright "mpc seek +60"
+bind-key 4-comma	"mpc prev"
+bind-key 4S-comma	"mpc seek 0%"
+bind-key 4-period	"mpc next"
+bind-key 4S-period	"mpc repeat"
+bind-key 4-minus	"sh -c 'sndioctl -q output.level=-0.05; sb-refresh'"
+bind-key 4S-minus	"sh -c 'sndioctl -q output.level=-0.15; sb-refresh'"
+bind-key 4-equal	"sh -c 'sndioctl -q output.level=+0.05; sb-refresh'"
+bind-key 4S-equal	"sh -c 'sndioctl -q output.level=+0.15; sb-refresh'"
+bind-key 4S-m		"sh -c 'sndioctl -q output.mute=!; sb-refresh'"
+
+# --- function keys, screenshots, recording ----------------------------------
+bind-key 4-F1		"sh -c 'exec $TERMINAL -e less ${XDG_CONFIG_HOME:-$HOME/.config}/cwm/cwmrc'"
+bind-key 4-F2		tutorialvids
+bind-key 4-F3		displayselect
+bind-key 4-F5		restart			# reread this file
+bind-key 4-F6		torwrap
+bind-key 4-F7		td-toggle
+bind-key 4-F12		remaps
+bind-key Print		"sh -c 'maim pic-full-$(date +%y%m%d-%H%M-%S).png'"
+bind-key S-Print	maimpick
+bind-key 4-Print	dmenurecord
+bind-key 4S-Print	"dmenurecord kill"
+bind-key 4-Delete	"dmenurecord kill"
+
+# Mouse: Super-drag moves, Super-right-drag resizes (as in dwm). cwm's own
+# root-window menus stay: left click lists windows, middle groups, right
+# the `command` entries above.
+bind-mouse 4-1		window-move
+bind-mouse 4-3		window-resize

@@ -38,3 +38,4 @@ password-store
 pass-otp
 libiconv
 transmission
+dmenu

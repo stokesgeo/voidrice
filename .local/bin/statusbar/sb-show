@@ -1,0 +1,6 @@
+#!/bin/sh
+
+# sb-show: cwm draws no bar, so Super+b shows the status line (the same
+# blocks sbar runs for dwm) as a notification for a few seconds.
+
+notify-send -t 5000 "$(sbar -1)"
