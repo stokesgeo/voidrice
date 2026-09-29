@@ -1,8 +1,7 @@
 # cdxb, the Codex box. Off OpenBSD there is no unveil or pledge, so these
 # cases test cdxb's own logic, not the kernel's walls: $T/src/codex-box is
-# a mock that logs its arguments and runs the program after "--", and
-# Codex is a script ($T/fakecodex). The walls themselves are checked as
-# the lines cdxb would hand to codex-box (-n prints them).
+# a mock that logs its arguments, writes each -u wall to $VT_STATE/walls
+# and runs the program after "--"; Codex is a script ($T/fakecodex).
 
 # cdxb_setup: a home with the dotfiles' grants and deny list, a project
 # with a git directory, and the mocks.
@@ -22,10 +21,10 @@ cdxb_setup() {
 #!/bin/sh
 echo "codex-box $*" >>"$VT_STATE/log"
 case $1 in -C|-D) exit 0 ;; esac
+: >"$VT_STATE/walls"
 while [ $# -gt 0 ]; do
 	case $1 in
-	-p) echo $$ >"$2"; shift 2 ;;
-	-u) shift 2 ;;
+	-u) printf '%s\n' "$2" >>"$VT_STATE/walls"; shift 2 ;;
 	--) shift; break ;;
 	*) break ;;
 	esac
@@ -55,35 +54,14 @@ tty_in() {
 	fi
 }
 
-# snap: every file and directory under the home and the cache, with its
-# mode, size and contents' checksum, to compare before and after.
-snap() {
-	find "$HOME" "$XDG_CACHE_HOME" -exec ls -ld {} + 2>/dev/null |
-		awk '{ $6 = $7 = $8 = ""; print }' | sort
-	find "$HOME" "$XDG_CACHE_HOME" -type f -exec cksum {} + 2>/dev/null | sort
+# wall DESC LINE / nowall DESC LINE: the last box had (not) this wall.
+wall() {
+	grep -qFx -- "$2" "$VT_STATE/walls" && return 0
+	fail "$1: no wall [$2] in: $(cat "$VT_STATE/walls")"
 }
-
-t_cdxb_dry_run_changes_nothing() {
-	cdxb_setup
-	# The source is newer than the program, so a real run would build;
-	# a proposal waits, so a real run would review it.
-	"$VT_REAL_SLEEP" 1; : >"$T/src/codex-box.c"
-	mkdir -p "$state/proposals"
-	printf 'rw /\n' >"$state/proposals/grants"
-	before=$(snap)
-	cd "$HOME/src/proj" || fail "no project"
-	out=$(cdxb -n -d 2>&1) || fail "cdxb -n failed: $out"
-	eq "nothing changed" "$before" "$(snap)"
-	notlogged '^make'
-	notlogged '^codex-box'
-	has "says it would build" "would build codex-box" "$out"
-	has "says it would seed" "would copy $HOME/.local/share/openbsd/codex/config.toml" "$out"
-	has "names the proposal" "would review the waiting proposal: grants" "$out"
-	has "says it would start the relay" "would start the doas relay" "$out"
-	has "prints the start dir wall" "rwxc:$HOME/src/proj" "$out"
-	has "prints the command" "command: $T/fakecodex" "$out"
-	[ -e "$HOME/.codex" ] && fail "made ~/.codex"
-	return 0
+nowall() {
+	grep -qFx -- "$2" "$VT_STATE/walls" || return 0
+	fail "$1: unwanted wall [$2]"
 }
 
 t_cdxb_control_chars_refused() {
@@ -92,52 +70,106 @@ t_cdxb_control_chars_refused() {
 '
 	bad="$HOME/x${nl}rwxc:"
 	mkdir -p "$bad/" || fail "cannot make the test directory"
-	out=$(cdxb -n "$bad" 2>&1) && fail "a newline in the dir was accepted: $out"
+	out=$(cdxb "$bad" 2>&1) && fail "a newline in the dir was accepted: $out"
 	has "says why" "control character" "$out"
-	hasnt "no extra unveil line" "${nl}rwxc:${nl}" "$out"
-	case $out in *"rwxc:/"*) fail "an injected wall was printed: $out" ;; esac
-	out=$(cdxb -n -w "$bad" "$HOME/src/proj" 2>&1) && fail "-w with a newline was accepted"
+	out=$(cdxb -w "$bad" "$HOME/src/proj" 2>&1) && fail "-w with a newline was accepted"
 	has "-w: says why" "control character" "$out"
-	out=$(cdxb -n -r "$HOME/src$(printf '\033')x" "$HOME/src/proj" 2>&1) &&
+	out=$(cdxb -r "$HOME/src$(printf '\033')x" "$HOME/src/proj" 2>&1) &&
 		fail "-r with an escape was accepted"
 	# add: refused before any session is looked up.
 	out=$(cdxb add "$bad" 123 2>&1) && fail "add with a newline was accepted"
 	has "add: says why" "control character" "$out"
+	notlogged '^codex-box'
+	# A grants line with an escape is skipped; the session still starts.
+	mkdir -p "$HOME/Documents$(printf '\033')x"
+	printf 'rw ~/Documents\033x\n' >>"$HOME/.config/cdxb/grants"
+	cd "$HOME/src/proj" || fail "no project"
+	out=$(cdxb 2>&1 </dev/null) || fail "cdxb failed: $out"
+	has "grants: says why" "control character" "$out"
+	grep -q "$(printf '\033')" "$VT_STATE/walls" && fail "an escape reached the walls"
+	eq "one box started" 1 "$(nlogged '^codex-box -u')"
 	return 0
 }
 
 t_cdxb_walls() {
 	cdxb_setup
-	mkdir -p "$HOME/.codex" "$HOME/.config/git" "$HOME/.local/share/vertrice.git" "$HOME/.cache"
+	mkdir -p "$HOME/.codex" "$HOME/.config/git" "$HOME/.local/share/vertrice.git" \
+		"$HOME/.cache" "$HOME/.ssh"
 	cd "$HOME/src/proj" || fail "no project"
-	out=$(cdxb -n 2>&1) || fail "cdxb -n failed: $out"
-	has "git config read-only" "r:$HOME/src/proj/.git/config" "$out"
-	has "git hooks read-only" "r:$HOME/src/proj/.git/hooks" "$out"
-	has "git commondir cannot be made" "r:$HOME/src/proj/.git/commondir" "$out"
-	has "credentials hidden" ":$HOME/.config/git/credentials" "$out"
-	has "AGENTS.override.md read-only" "r:$HOME/.codex/AGENTS.override.md" "$out"
-	has "rules read-only" "r:$HOME/.codex/rules" "$out"
-	has "hooks.json read-only" "r:$HOME/.codex/hooks.json" "$out"
-	hasnt "TMPDIR is not cdxb's" "TMPDIR" "$(env | grep TMPDIR)"
+	out=$(cdxb 2>&1 </dev/null) || fail "cdxb failed: $out"
+	wall "start dir" "rwxc:$HOME/src/proj"
+	wall "git config read-only" "r:$HOME/src/proj/.git/config"
+	wall "git hooks read-only" "r:$HOME/src/proj/.git/hooks"
+	wall "git commondir cannot be made" "r:$HOME/src/proj/.git/commondir"
+	wall "credentials hidden" ":$HOME/.config/git/credentials"
+	wall "deny list hides" ":$HOME/.ssh"
+	wall "a grant" "rwxc:$HOME/Documents"
+	wall "config.toml read-only" "r:$HOME/.codex/config.toml"
+	wall "AGENTS.override.md read-only" "r:$HOME/.codex/AGENTS.override.md"
+	wall "rules read-only" "r:$HOME/.codex/rules"
+	wall "hooks.json read-only" "r:$HOME/.codex/hooks.json"
+	wall "grants read-only" "r:$HOME/.config/cdxb"
+	wall "cdxb's state hidden" ":$state"
 	# -H: the top of home cannot be changed; ~/.config and ~/.local are
 	# read-only; the folders beside them may be changed.
-	out=$(cdxb -n -H "$HOME" 2>&1) || fail "cdxb -n -H failed: $out"
-	has "home is read and run" "	rx:$HOME
-" "$out"
-	hasnt "home is not rwxc" "rwxc:$HOME
-" "$out"
-	has "~/.config read-only" "r:$HOME/.config
-" "$out"
-	has "~/.local read-only" "r:$HOME/.local
-" "$out"
-	has "the dotfiles repo read-only" "r:$HOME/.local/share/vertrice.git" "$out"
-	has "Documents may change" "rwxc:$HOME/Documents" "$out"
-	has "cache may change" "rwxc:$HOME/.cache" "$out"
-	# A write grant that holds a protected path is refused.
-	out=$(cdxb -n -w "$HOME/.local" 2>&1) && fail "-w ~/.local was accepted: $out"
+	out=$(cdxb -H "$HOME" 2>&1 </dev/null) || fail "cdxb -H failed: $out"
+	wall "home is read and run" "rx:$HOME"
+	nowall "home is not rwxc" "rwxc:$HOME"
+	wall "~/.config read-only" "r:$HOME/.config"
+	wall "~/.local read-only" "r:$HOME/.local"
+	wall "the dotfiles repo read-only" "r:$HOME/.local/share/vertrice.git"
+	wall "Documents may change" "rwxc:$HOME/Documents"
+	wall "cache may change" "rwxc:$HOME/.cache"
+	wall "-H: the deny list still hides" ":$HOME/.ssh"
+	# A write grant that holds a protected path, or a denied one, is refused.
+	out=$(cdxb -w "$HOME/.local" 2>&1) && fail "-w ~/.local was accepted: $out"
 	has "says why" "holds protected files" "$out"
-	out=$(cdxb -n "$HOME" 2>&1) && fail "home without -H was accepted"
-	out=$(cdxb -n -H "${HOME%/*}" 2>&1) && fail "a dir holding home was accepted"
+	out=$(cdxb -w "$HOME/.codex/config.toml" 2>&1) && fail "-w config.toml was accepted"
+	has "says why" "is protected" "$out"
+	out=$(cdxb -r "$HOME/.ssh" 2>&1) && fail "-r ~/.ssh was accepted"
+	has "says why" "deny list" "$out"
+	out=$(cdxb "$HOME" 2>&1) && fail "home without -H was accepted"
+	out=$(cdxb -H "${HOME%/*}" 2>&1) && fail "a dir holding home was accepted"
+	# Grants that are denied or hold protected paths are skipped.
+	printf 'rw ~/.ssh\nrw ~/.local\n' >>"$HOME/.config/cdxb/grants"
+	out=$(cdxb 2>&1 </dev/null) || fail "cdxb failed: $out"
+	nowall "denied grant skipped" "rwxc:$HOME/.ssh"
+	nowall "protected grant skipped" "rwxc:$HOME/.local"
+	return 0
+}
+
+# What the box inherits: its own TMPDIR, no display, the outbox; cdxb
+# keeps its own TMPDIR. -a marks the project untrusted.
+t_cdxb_box_env() {
+	cdxb_setup
+	printf '#!/bin/sh\necho "codex $* TMPDIR=$TMPDIR DISPLAY=$DISPLAY OUTBOX=$CDXB_OUTBOX" >>"$VT_STATE/log"\n' >"$T/fakecodex"
+	cd "$HOME/src/proj" || fail "no project"
+	DISPLAY=:0 cdxb -a . -m x </dev/null >/dev/null 2>&1 || fail "cdxb failed"
+	logged "^codex -c projects=\\{\"$HOME/src/proj\"=\\{trust_level=\"untrusted\"\\}\\} -m x TMPDIR=$state/[0-9]+/tmp DISPLAY= OUTBOX=$state/proposals\$"
+	[ -e "$HOME/.codex/config.toml" ] || fail "config.toml not seeded"
+	hasnt "TMPDIR is not cdxb's" "TMPDIR" "$(env | grep TMPDIR)"
+	[ -z "$(ls -d "$state"/[0-9]* 2>/dev/null)" ] || fail "session directory left"
+	return 0
+}
+
+# add: a running session gets the path, starts again and resumes; a
+# denied path is refused.
+t_cdxb_add_restarts() {
+	cdxb_setup
+	cat >"$T/fakecodex" <<'EOF'
+#!/bin/sh
+echo "codex $*" >>"$VT_STATE/log"
+case $* in *resume*) exit 0 ;; esac
+cdxb add "$HOME/.ssh" 2>>"$VT_STATE/add.err" && echo "added ssh" >>"$VT_STATE/log"
+cdxb add -r "$HOME/notes"
+EOF
+	mkdir -p "$HOME/notes" "$HOME/.ssh"
+	cd "$HOME/src/proj" || fail "no project"
+	cdxb </dev/null >/dev/null 2>&1 || fail "cdxb failed"
+	notlogged '^added ssh'
+	grep -q 'deny list' "$VT_STATE/add.err" || fail "no reason: $(cat "$VT_STATE/add.err")"
+	logged '^codex .* resume --last$'
+	wall "the added path, read-only" "r:$HOME/notes"
 	return 0
 }
 
@@ -157,7 +189,8 @@ t_cdxb_doas_client_relay() {
 	command -v cc >/dev/null 2>&1 || skip "no cc"
 	printf '#!/bin/sh\necho "doas $*"\necho oops >&2\nexit 3\n' >"$T/fakedoas"
 	chmod +x "$T/fakedoas"
-	cc -Wall -Wextra -Werror -DDOAS="\"$T/fakedoas\"" -o "$T/cb" \
+	cc -Wall -Wextra -Werror -D_GNU_SOURCE -D'pledge(a,b)=0' -D'unveil(a,b)=0' \
+		-DDOAS="\"$T/fakedoas\"" -o "$T/cb" \
 		"$REPO/.local/src/codex-box/codex-box.c" 2>"$T/cc.out" ||
 		fail "codex-box.c does not build: $(cat "$T/cc.out")"
 	"$T/cb" -D "$T/s" & track $!
@@ -168,6 +201,9 @@ t_cdxb_doas_client_relay() {
 oops" "$out"
 	out=$("$T/cb" -C "$T/s" -- "two words" 2>&1) && fail "a word with a blank was sent"
 	has "says why" "blank" "$out"
+	# shellcheck disable=SC2046
+	out=$("$T/cb" -C "$T/s" -- $(seq 40) 2>&1) && fail "40 words were run"
+	has "too many words" "more than 32 words" "$out"
 	return 0
 }
 
@@ -181,7 +217,6 @@ t_cdxb_review_applies_what_was_shown() {
 #!/bin/sh
 o=$CDXB_OUTBOX
 printf 'rw ~/src\nrw ~/notes\n' >"$o/grants"
-echo "add notes" >"$o/grants.why"
 exec 3>>"$o/grants"
 (
 	"$VT_REAL_SLEEP" 1
@@ -211,8 +246,43 @@ t_cdxb_review_rejects_escapes() {
 	printf 'bidi \342\200\256 override\n' >"$state/proposals/grants"
 	tty_in y cdxb review
 	eq "AGENTS.md unchanged" "$before" "$(cksum <"$HOME/.codex/AGENTS.md")"
-	grep -q 'agents rejected: control characters' "$state/log" || fail "no log: $(cat "$state/log")"
-	grep -q 'grants rejected: control characters' "$state/log" || fail "bidi override accepted"
+	grep -q 'agents refused: not printable ASCII' "$T/tty.out" || fail "agents: $(cat "$T/tty.out")"
+	grep -q 'grants refused: not printable ASCII' "$T/tty.out" || fail "bidi override accepted"
 	[ -e "$state/proposals/agents" ] && fail "the proposal was left in the outbox"
+	return 0
+}
+
+# A link is moved, never followed: a link to a secret is refused unread,
+# and a FIFO does not make cdxb wait.
+t_cdxb_review_rejects_links() {
+	cdxb_setup
+	mkdir -p "$state/proposals"
+	printf 'SECRET\n' >"$T/secret"
+	ln -s "$T/secret" "$state/proposals/deny"
+	mkfifo "$state/proposals/codex" || skip "no mkfifo"
+	before=$(cksum <"$HOME/.config/cdxb/deny")
+	tty_in y cdxb review
+	hasnt "the secret was not shown" "SECRET" "$(cat "$T/tty.out")"
+	grep -q 'deny refused: not a plain file' "$T/tty.out" || fail "link: $(cat "$T/tty.out")"
+	grep -q 'codex refused: not a plain file' "$T/tty.out" || fail "fifo: $(cat "$T/tty.out")"
+	eq "deny unchanged" "$before" "$(cksum <"$HOME/.config/cdxb/deny")"
+	return 0
+}
+
+# doas-agent.conf is written only once /etc/doas.conf holds it.
+t_cdxb_review_doas() {
+	cdxb_setup
+	mkdir -p "$state/proposals"
+	rules='permit nopass :wheel as root cmd /usr/sbin/zzz args'
+	printf '%s\n' "$rules" >"$state/proposals/doas"
+	echo 1 >"$VT_STATE/rc.doas"
+	tty_in y cdxb review
+	hasnt "not written when doas failed" "$rules" "$(cat "$HOME/.local/share/openbsd/doas-agent.conf")"
+	rm "$VT_STATE/rc.doas"
+	printf '%s\n' "$rules" >"$state/proposals/doas"
+	tty_in y cdxb review
+	logged '^doas -C .*/doas\.conf$'
+	logged '^doas install -o root -g wheel -m 0640 .* /etc/doas\.conf$'
+	eq "written once installed" "$rules" "$(cat "$HOME/.local/share/openbsd/doas-agent.conf")"
 	return 0
 }

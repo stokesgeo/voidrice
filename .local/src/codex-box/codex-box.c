@@ -1,62 +1,14 @@
 /*
- * codex-box: run one program inside a box built from unveil(2) and pledge(2),
- * or serve a small doas relay for programs in such a box.  cdxb(1) in
- * ~/.local/bin is the front end; this file is the part that must be C,
- * because unveil and pledge are system calls with no command of their own.
- *
- *	codex-box [-p pidfile] [-u perms:path ...] program [arg ...]
- *	codex-box -D socket
- *	codex-box -C socket word ...
- *
- * How the box works, in the order the kernel sees it:
- *
- * 1. unveil(path, perms) for each -u.  The first call hides the whole
- *    file system; each call opens one path again with some of r (read),
- *    w (write), x (execute) and c (create and remove).  An empty perms
- *    string hides a path inside a directory that was opened: the most
- *    specific unveil wins.
- * 2. unveil(NULL, NULL) locks the list.  Later unveil calls fail, in this
- *    process and in every process it starts.
- * 3. pledge(promises, execpromises).  The first string limits this
- *    launcher.  The second is the one that matters: it is the set of
- *    system-call groups the NEXT program starts with, after execve(2).
- * 4. execvp(program).
- *
- * Why step 3 is needed at all: execve(2) normally wipes the unveil list,
- * so the new program would see everything.  The kernel keeps the list
- * across execve only when execpromises are set (sys/kern/kern_exec.c:
- * "if (pr->ps_flags & PS_EXECPLEDGE) ... else ... unveil_destroy(pr)").
- * fork(2) copies both the list and the execpromises to every child
- * (unveil_copy() and PS_FLAGS_INHERITED_ON_FORK), so Codex and every
- * command it runs stay in the same box.
- *
- * The execpromises below are deliberately wide: they carry the box across
- * execve and should not break a coding agent.  "error" makes a forbidden
- * call fail with ENOSYS instead of killing the process, and makes a
- * pledge(2) call that asks for more succeed without granting it.
- * What the box still forbids: files outside the unveiled paths, ptrace of
- * your other processes, and running setuid programs (the kernel refuses
- * setuid execve under execpromises), so doas and su cannot run inside.
- * That last rule is why the relay below exists.
- *
- * The relay (-D) runs OUTSIDE the box.  It listens on a unix socket that
- * the box can reach, reads one line "command arg ...", and runs
- * "/usr/bin/doas -n -- command arg ...".  doas -n never asks for a
- * password and fails for any rule without nopass, even when a doas
- * persist ticket is live, so the owner's doas.conf nopass rules are the
- * whole list of what the relay can do.  It sends back the output and a
- * last line "cdxb: exit N".
- *
- * The client (-C) runs INSIDE the box: `cdxb doas` calls it.  It sends
- * its words as one request line, copies the relay's answer to standard
- * output without that last line, and exits with the status it gives.
- * It exists because nc(1) cannot do this in the box: nc -U calls
- * unveil(2) for its socket (usr.bin/nc/netcat.c), which fails once the
- * box has locked the list.  The client calls no unveil of its own; the
- * box already lets it reach the socket (cdxb unveils it "rw").
+ * codex-box: the box cdxb(1) runs Codex in, and its doas relay.
+ *	codex-box [-u perms:path ...] program [arg ...]	run program in the box
+ *	codex-box -D socket	relay: run "doas -n -- words" for each request
+ *	codex-box -C socket word ...	client, in the box: nc -U calls unveil
+ * The box unveils each path, locks the list and sets execpromises: only
+ * then does the kernel keep the list across execve, and fork copies both,
+ * so all that Codex runs stays in the box, and no setuid program can run.
+ * The relay, outside the box, answers with the output and "cdxb: exit N".
  */
 
-#include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <sys/wait.h>
@@ -70,83 +22,42 @@
 #include <string.h>
 #include <unistd.h>
 
-#ifndef __OpenBSD__
-/*
- * Stubs so the file builds for a syntax check on other systems.
- * They confine nothing: on those systems the "box" is no box at all.
- */
-static int
-pledge(const char *promises, const char *execpromises)
-{
-	(void)promises;
-	(void)execpromises;
-	return 0;
-}
-
-static int
-unveil(const char *path, const char *permissions)
-{
-	(void)path;
-	(void)permissions;
-	return 0;
-}
-#endif
-
-/* What programs in the box may do; see the comment at the top. */
-#define BOX_PROMISES \
-	"stdio rpath wpath cpath dpath fattr chown flock unix dns inet " \
-	"tty proc exec getpw ps vminfo sendfd recvfd prot_exec error"
-
-#define MAXGRANTS	120	/* the kernel keeps at most 128 per process */
-#define MAXARGS		32	/* words in one relay request */
-#define MAXREQ		1024	/* bytes in one request, newline included */
-#define MAXANSWER	(16 * 1024 * 1024)	/* bytes of answer the client keeps */
+/* Wide on purpose: "error" fails a forbidden call instead of killing. */
+#define PROMISES "stdio rpath wpath cpath dpath fattr chown flock unix dns " \
+	"inet tty proc exec getpw ps vminfo sendfd recvfd prot_exec error"
+#define MAXGRANTS	120	/* the kernel keeps 128 */
+#define MAXWORDS	32
 #ifndef DOAS
-#define DOAS		"/usr/bin/doas"	/* cc -DDOAS='"..."' for a test */
+#define DOAS		"/usr/bin/doas"
 #endif
 
-struct grant {
-	const char	*perms;
-	const char	*path;
-};
-
-static struct grant	grants[MAXGRANTS];
-static int		ngrants;
-
-static void	addgrant(char *);
-static void	client(const char *, int, char **);
-static void	writepid(const char *);
+static void	client(const char *, char **);
 static void	relay(const char *);
 static void	serve(int, int);
+static struct sockaddr_un sockaddr(const char *);
 static void	usage(void);
 
 int
 main(int argc, char *argv[])
 {
-	const char *pidfile = NULL, *sock = NULL, *csock = NULL;
-	int ch, i;
+	const char *csock = NULL, *dsock = NULL;
+	char *grant[MAXGRANTS], *path;
+	int ch, i, n = 0;
 
-	/*
-	 * Before anything else: only what any mode needs.  In the box (the
-	 * client) the kernel keeps only what the box's execpromises hold;
-	 * "error" there makes asking for more succeed without granting it.
-	 */
 	if (pledge("stdio rpath wpath cpath unix proc exec unveil", NULL) == -1)
 		err(1, "pledge");
-
-	while ((ch = getopt(argc, argv, "C:D:p:u:")) != -1) {
+	while ((ch = getopt(argc, argv, "C:D:u:")) != -1) {
 		switch (ch) {
 		case 'C':
 			csock = optarg;
 			break;
 		case 'D':
-			sock = optarg;
-			break;
-		case 'p':
-			pidfile = optarg;
+			dsock = optarg;
 			break;
 		case 'u':
-			addgrant(optarg);
+			if (n == MAXGRANTS)
+				errx(1, "more than %d paths", MAXGRANTS);
+			grant[n++] = optarg;
 			break;
 		default:
 			usage();
@@ -154,311 +65,176 @@ main(int argc, char *argv[])
 	}
 	argc -= optind;
 	argv += optind;
-
-	if (csock != NULL) {
-		if (argc == 0 || sock != NULL || ngrants != 0 || pidfile != NULL)
-			usage();
-		client(csock, argc, argv);
-		/* NOTREACHED */
-	}
-	if (sock != NULL) {
-		if (argc != 0 || ngrants != 0 || pidfile != NULL)
-			usage();
-		relay(sock);
-		/* NOTREACHED */
-	}
-	if (argc == 0)
+	if (csock != NULL && dsock == NULL && n == 0 && argc > 0)
+		client(csock, argv);
+	if (dsock != NULL && csock == NULL && n == 0 && argc == 0)
+		relay(dsock);
+	if (csock != NULL || dsock != NULL || argc == 0)
 		usage();
 
-	/*
-	 * The pid is written before the box closes, because the pid file
-	 * lives outside it.  execvp keeps the pid, so this is also the pid
-	 * of the program that runs in the box.
-	 */
-	if (pidfile != NULL)
-		writepid(pidfile);
-
-	for (i = 0; i < ngrants; i++)
-		if (unveil(grants[i].path, grants[i].perms) == -1)
-			err(1, "unveil %s", grants[i].path);
+	for (i = 0; i < n; i++) {
+		if ((path = strchr(grant[i], ':')) == NULL || path[1] != '/')
+			errx(1, "%s: want perms:/path", grant[i]);
+		*path++ = '\0';
+		if (unveil(path, grant[i]) == -1)
+			err(1, "unveil %s", path);
+	}
 	if (unveil(NULL, NULL) == -1)
-		err(1, "unveil lock");
-
-	if (pledge("stdio exec", BOX_PROMISES) == -1)
+		err(1, "unveil");
+	if (pledge("stdio exec", PROMISES) == -1)
 		err(1, "pledge");
-
 	execvp(argv[0], argv);
 	err(127, "%s", argv[0]);
 }
 
-/* addgrant: parse "perms:path", for example "rwc:/home/you/letters". */
+/* client: send the words as one line; print the answer, exit with its N. */
 static void
-addgrant(char *arg)
+client(const char *path, char **argv)
 {
-	char *path;
-
-	if ((path = strchr(arg, ':')) == NULL)
-		errx(1, "%s: want perms:path", arg);
-	*path++ = '\0';
-	if (strspn(arg, "rwxc") != strlen(arg))
-		errx(1, "%s: perms are made of r, w, x and c", arg);
-	if (*path != '/')
-		errx(1, "%s: path must be absolute", path);
-	if (ngrants == MAXGRANTS)
-		errx(1, "more than %d paths", MAXGRANTS);
-	grants[ngrants].perms = arg;
-	grants[ngrants].path = path;
-	ngrants++;
-}
-
-/*
- * client: send "word word ...\n" to the relay at path, copy its answer
- * to standard output without the last line "cdxb: exit N", and exit N.
- * Words the relay would split or cut (blanks, a newline, or an empty
- * word) are refused, so the request is exactly the words given.
- */
-static void
-client(const char *path, int argc, char **argv)
-{
-	struct sockaddr_un sun;
-	char req[MAXREQ], *ans, *last, *end;
-	size_t len = 0, alen = 0, asize = 0;
-	ssize_t n;
-	long code;
+	struct sockaddr_un sun = sockaddr(path);
+	FILE *f;
+	char *line = NULL, *last = NULL, *p, *q;
+	size_t size = 0, lastsize = 0, t;
+	ssize_t len, lastlen = 0;
 	int s, i;
 
-	if (pledge("stdio unix", NULL) == -1)
-		err(1, "pledge");
-	if (argc > MAXARGS)
-		errx(1, "more than %d words", MAXARGS);
-	for (i = 0; i < argc; i++) {
-		if (argv[i][0] == '\0' || strpbrk(argv[i], " \t\n") != NULL)
-			errx(1, "\"%s\": a word may not be empty or hold a blank "
-			    "or a newline", argv[i]);
-		n = snprintf(req + len, sizeof(req) - len, "%s%s",
-		    i ? " " : "", argv[i]);
-		if (n < 0 || (size_t)n >= sizeof(req) - len - 1)
-			errx(1, "request longer than %d bytes", MAXREQ - 1);
-		len += n;
-	}
-	req[len++] = '\n';
-
-	memset(&sun, 0, sizeof(sun));
-	sun.sun_family = AF_UNIX;
-	if ((size_t)snprintf(sun.sun_path, sizeof(sun.sun_path), "%s",
-	    path) >= sizeof(sun.sun_path))
-		errx(1, "%s: path too long", path);
-	if ((s = socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0)) == -1)
+	if ((s = socket(AF_UNIX, SOCK_STREAM, 0)) == -1)
 		err(1, "socket");
 	if (connect(s, (struct sockaddr *)&sun, sizeof(sun)) == -1)
 		err(1, "the relay did not answer: %s", path);
 	if (pledge("stdio", NULL) == -1)
 		err(1, "pledge");
-
-	for (i = 0; (size_t)i < len; i += n)
-		if ((n = write(s, req + i, len - i)) == -1) {
-			if (errno == EINTR) {
-				n = 0;
-				continue;
-			}
-			err(1, "write to the relay");
-		}
+	for (i = 0; argv[i] != NULL; i++) {
+		if (*argv[i] == '\0' || strpbrk(argv[i], " \t\n") != NULL)
+			errx(1, "\"%s\": a word may not be empty or hold a blank",
+			    argv[i]);
+		dprintf(s, "%s%s", i ? " " : "", argv[i]);
+	}
+	dprintf(s, "\n");
 	shutdown(s, SHUT_WR);
 
-	/* Keep the whole answer: the status is its last line. */
-	ans = NULL;
-	for (;;) {
-		if (alen == asize) {
-			if (asize == MAXANSWER)
-				errx(1, "answer longer than %d bytes", MAXANSWER);
-			asize = asize ? asize * 2 : 8192;
-			if (asize > MAXANSWER)
-				asize = MAXANSWER;
-			if ((ans = realloc(ans, asize + 1)) == NULL)
-				err(1, NULL);
-		}
-		if ((n = read(s, ans + alen, asize - alen)) == -1) {
-			if (errno == EINTR)
-				continue;
-			err(1, "read from the relay");
-		}
-		if (n == 0)
-			break;
-		alen += n;
+	/* Print each line once the next one comes: the last is the status. */
+	if ((f = fdopen(s, "r")) == NULL)
+		err(1, "fdopen");
+	while ((len = getline(&line, &size, f)) != -1) {
+		if (lastlen > 0)
+			fwrite(last, 1, lastlen, stdout);
+		p = last, last = line, line = p;
+		t = lastsize, lastsize = size, size = t;
+		lastlen = len;
 	}
-	close(s);
-	if (ans == NULL || alen == 0)
-		errx(1, "the relay did not answer");
-	ans[alen] = '\0';
-
-	/* The last line must be "cdxb: exit N", N a number up to 255. */
-	end = ans + alen;
-	if (end[-1] == '\n')
-		end--;
-	for (last = end; last > ans && last[-1] != '\n'; last--)
+	for (p = NULL, q = last; q != NULL &&
+	    (q = strstr(q, "cdxb: exit ")) != NULL; p = q++)
 		;
-	code = -1;
-	if (end - last > 11 && end - last < 15 &&
-	    strncmp(last, "cdxb: exit ", 11) == 0) {
-		for (code = 0, i = 11; last + i < end; i++) {
-			if (last[i] < '0' || last[i] > '9') {
-				code = -1;
-				break;
-			}
-			code = code * 10 + (last[i] - '0');
-		}
-	}
-	if (code < 0 || code > 255) {
-		fwrite(ans, 1, alen, stdout);
+	if (p == NULL)
 		errx(1, "no exit status from the relay");
-	}
-	if (fwrite(ans, 1, last - ans, stdout) != (size_t)(last - ans) ||
-	    fflush(stdout) == EOF)
+	fwrite(last, 1, p - last, stdout);
+	if (fflush(stdout) == EOF)
 		err(1, "stdout");
-	exit((int)code);
-}
-
-static void
-writepid(const char *pidfile)
-{
-	int fd;
-
-	/* O_NOFOLLOW: never write through a symbolic link planted there. */
-	fd = open(pidfile, O_WRONLY | O_CREAT | O_TRUNC | O_NOFOLLOW, 0600);
-	if (fd == -1)
-		err(1, "%s", pidfile);
-	if (dprintf(fd, "%ld\n", (long)getpid()) < 0)
-		err(1, "%s", pidfile);
-	close(fd);
+	exit(atoi(p + 11));
 }
 
 /* relay: serve doas -n requests on a unix socket, one at a time. */
 static void
 relay(const char *path)
 {
-	struct sockaddr_un sun;
-	int s, c, devnull;
+	struct sockaddr_un sun = sockaddr(path);
+	int s, c, null;
 
-	memset(&sun, 0, sizeof(sun));
-	sun.sun_family = AF_UNIX;
-	if ((size_t)snprintf(sun.sun_path, sizeof(sun.sun_path), "%s",
-	    path) >= sizeof(sun.sun_path))
-		errx(1, "%s: path too long", path);
-
-	/* The relay needs only its socket, doas and /dev/null. */
-	if (unveil(path, "rwc") == -1)
-		err(1, "unveil %s", path);
-	if (unveil(DOAS, "x") == -1)
-		err(1, "unveil %s", DOAS);
-	if (unveil("/dev/null", "rw") == -1)
-		err(1, "unveil /dev/null");
-	if (unveil(NULL, NULL) == -1)
-		err(1, "unveil lock");
-
-	/* CLOEXEC: neither descriptor should leak into doas. */
-	if ((devnull = open("/dev/null", O_RDWR | O_CLOEXEC)) == -1)
+	if (unveil(path, "rwc") == -1 || unveil(DOAS, "x") == -1 ||
+	    unveil("/dev/null", "rw") == -1 || unveil(NULL, NULL) == -1)
+		err(1, "unveil");
+	if ((null = open("/dev/null", O_RDWR | O_CLOEXEC)) == -1)
 		err(1, "/dev/null");
 	if ((s = socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0)) == -1)
 		err(1, "socket");
-	(void)unlink(path);
-	if (bind(s, (struct sockaddr *)&sun, sizeof(sun)) == -1)
-		err(1, "bind %s", path);
-	if (listen(s, 1) == -1)
-		err(1, "listen");
-
-	/*
-	 * No execpromises here, on purpose: doas is setuid, and the kernel
-	 * refuses a setuid program to a process that has them.
-	 */
+	unlink(path);
+	if (bind(s, (struct sockaddr *)&sun, sizeof(sun)) == -1 ||
+	    listen(s, 1) == -1)
+		err(1, "%s", path);
+	/* No execpromises: the kernel refuses setuid doas under them. */
 	if (pledge("stdio unix proc exec", NULL) == -1)
 		err(1, "pledge");
-
-	/* A client that hangs up early must not kill the relay. */
-	signal(SIGPIPE, SIG_IGN);
-
+	signal(SIGPIPE, SIG_IGN);	/* a client may hang up early */
 	for (;;) {
-		if ((c = accept(s, NULL, NULL)) == -1) {
-			if (errno == EINTR || errno == ECONNABORTED)
+		if ((c = accept4(s, NULL, NULL, SOCK_CLOEXEC)) == -1) {
+			if (errno == ECONNABORTED)
 				continue;
 			err(1, "accept");
 		}
-		serve(c, devnull);
+		serve(c, null);
 		close(c);
 	}
 }
 
-/* serve: read one request line from c, run doas -n, report the result. */
+/* serve: read one line of words from c, run doas -n on them, report. */
 static void
-serve(int c, int devnull)
+serve(int c, int null)
 {
-	char buf[1024], *av[MAXARGS + 4], *w;
+	char buf[1024], *av[MAXWORDS + 4], *w;
 	size_t len = 0;
 	ssize_t n;
 	pid_t pid;
-	int ac = 0, status, code;
+	int ac = 0, st;
 
-	/* Read until a newline, end of input or a full buffer. */
-	while (len < sizeof(buf) - 1) {
-		if ((n = read(c, buf + len, sizeof(buf) - 1 - len)) == -1) {
-			if (errno == EINTR)
-				continue;
-			return;
-		}
-		if (n == 0)
-			break;
+	while (len < sizeof(buf) - 1 && memchr(buf, '\n', len) == NULL &&
+	    (n = read(c, buf + len, sizeof(buf) - 1 - len)) > 0)
 		len += n;
-		if (memchr(buf, '\n', len) != NULL)
-			break;
+	if ((w = memchr(buf, '\n', len)) == NULL) {
+		dprintf(c, "cdxb: want one line under %zu bytes\ncdxb: exit 1\n",
+		    sizeof(buf));
+		return;
 	}
-	buf[len] = '\0';
-	buf[strcspn(buf, "\n")] = '\0';
-
-	/* Words split on blanks; no quoting, no globbing, no shell. */
+	*w = '\0';
 	av[ac++] = "doas";
 	av[ac++] = "-n";
 	av[ac++] = "--";
 	for (w = strtok(buf, " \t"); w != NULL; w = strtok(NULL, " \t")) {
-		if (ac == MAXARGS + 3) {
-			dprintf(c, "cdxb: too many words\ncdxb: exit 1\n");
+		if (ac == MAXWORDS + 3) {
+			dprintf(c, "cdxb: more than %d words\ncdxb: exit 1\n",
+			    MAXWORDS);
 			return;
 		}
 		av[ac++] = w;
 	}
 	av[ac] = NULL;
 	if (ac == 3) {
-		dprintf(c, "cdxb: empty request\ncdxb: exit 1\n");
+		dprintf(c, "cdxb: no command\ncdxb: exit 1\n");
 		return;
 	}
-
 	switch (pid = fork()) {
 	case -1:
 		dprintf(c, "cdxb: fork: %s\ncdxb: exit 1\n", strerror(errno));
 		return;
 	case 0:
-		/* Input from /dev/null; output and errors to the client. */
 		signal(SIGPIPE, SIG_DFL);	/* an ignored signal survives exec */
-		if (dup2(devnull, 0) == -1 || dup2(c, 1) == -1 ||
-		    dup2(c, 2) == -1)
+		if (dup2(null, 0) == -1 || dup2(c, 1) == -1 || dup2(c, 2) == -1)
 			_exit(127);
 		execv(DOAS, av);
 		dprintf(2, "cdxb: %s: %s\n", DOAS, strerror(errno));
 		_exit(127);
 	}
-	while (waitpid(pid, &status, 0) == -1)
-		if (errno != EINTR)
-			return;
-	if (WIFEXITED(status))
-		code = WEXITSTATUS(status);
-	else
-		code = 128 + WTERMSIG(status);
-	dprintf(c, "cdxb: exit %d\n", code);
+	if (waitpid(pid, &st, 0) == -1)
+		return;
+	dprintf(c, "cdxb: exit %d\n",
+	    WIFEXITED(st) ? WEXITSTATUS(st) : 128 + WTERMSIG(st));
+}
+
+static struct sockaddr_un
+sockaddr(const char *path)
+{
+	struct sockaddr_un sun = { .sun_family = AF_UNIX };
+
+	if (strlcpy(sun.sun_path, path, sizeof(sun.sun_path)) >=
+	    sizeof(sun.sun_path))
+		errx(1, "%s: path too long", path);
+	return sun;
 }
 
 static void
 usage(void)
 {
-	fprintf(stderr, "usage: codex-box [-p pidfile] [-u perms:path ...] "
-	    "program [arg ...]\n"
+	fprintf(stderr, "usage: codex-box [-u perms:path ...] program [arg ...]\n"
 	    "       codex-box -D socket\n"
 	    "       codex-box -C socket word ...\n");
 	exit(1);
