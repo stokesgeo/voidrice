@@ -11,10 +11,8 @@
     font = IBM Plex Mono 10
     format = "<b>%s</b>\n%b"
 
-# Framed in cwm's border colours. The colours below are the night palette,
-# the start-up default: `theme` writes the current palette's background and
-# text to dunstrc.d/theme.conf at each day/night switch (or pywal's, with
-# PALETTE=wal), and dunst reads that file after this one.
+# Framed in cwm's border colours. `theme` puts the current palette's
+# colours in dunstrc.d/theme.conf, read after this file.
 [urgency_low]
     background = "#24232e"
     foreground = "#c7c0b4"

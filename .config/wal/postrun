@@ -1,14 +1,6 @@
 #!/bin/sh
 
-# pywal runs this after it has written its colours (setbg: wal -o postrun,
-# only with PALETTE=wal). `theme wal` applies them as it applies the day
-# and night palettes: X resources, open terminals, dunst, zathura.
-#
-# voidrice's bash version linked dunstrc and zathurarc to wal's copies and
-# sent colours to /dev/pts/*. OpenBSD has no /dev/pts: its terminals are
-# /dev/ttyp* and so on, which pywal does not write to either (it globs
-# /dev/pts on anything but macOS), so theme sends them. Luke's extra st
-# colours 256, 258 and 259 are left out: theme sets text, background and
-# cursor with OSC 10, 11 and 12, which xterm and st both take.
-
+# Run by wal after it writes its colours (setbg, with PALETTE=wal).
+# pywal recolours terminals through /dev/pts, which OpenBSD lacks; theme
+# does it, and puts wal's dunst and zathura colours in place.
 exec theme wal

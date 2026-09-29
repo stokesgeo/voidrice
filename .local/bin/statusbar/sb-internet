@@ -11,9 +11,7 @@
 
 case $BLOCK_BUTTON in
 	1) detach dmenuwifi ;;
-	2) notify-send "🌐 Network" "$(ifconfig wlan 2>/dev/null | grep -E 'ieee80211|status')" ;;
-	3) notify-send "🌐 Internet module" "\- Click to pick a wifi network (dmenuwifi)
-- Middle click to show the current one
+	3) notify-send "🌐 Internet module" "\- Click to connect
 ❌: wifi disabled
 📡: no wifi connection
 📶: wifi connection with quality

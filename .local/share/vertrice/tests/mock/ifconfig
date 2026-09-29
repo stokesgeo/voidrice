@@ -1,27 +1,24 @@
 #!/bin/sh
 
-# ifconfig(8) mock. Logs "ifconfig ARGS". Its machine is $VT_STATE/ifconfig,
-# else the X220 below: wired em0 unplugged, iwn0 joined at 71%, wg0 up. The
-# layout follows ifconfig(8) output on OpenBSD 7.x (known in outline: the
-# flags line, "media:", "status:", and the "ieee80211: join ... NN% ..."
-# line; the exact order of the words after the signal is from memory).
-#
-# What it answers, as ifconfig.c's main() reads its arguments:
-#	(none), -a, -A		every interface
-#	NAME			the interfaces called NAME or in group NAME
-#	NAME scan		that interface, with the list of networks
-#				$VT_STATE/ifconfig.scan after its ieee80211
-#				line ("none" if absent), as
-#				ieee80211_listnodes() prints it
-#	NAME PARAMETERS...	nothing; exits with $VT_STATE/rc.ifconfig
-# A leading option other than -a -A -C -g -M is a usage error, exit 1.
+# ifconfig(8) mock: prints $VT_STATE/ifconfig, else the X220 below: wired
+# em0 unplugged, iwn0 joined at 71%, wg0 up. The layout follows ifconfig(8)
+# output on OpenBSD 7.x (known in outline: the flags line, "media:",
+# "status:", and the "ieee80211: join ... NN% ..." line; the exact order of
+# the words after the signal is from memory).
+# `ifconfig GROUP` prints the interfaces in that group; `ifconfig IF scan`
+# prints $VT_STATE/ifconfig.scan; other settings are only logged. Options
+# other than ifconfig's -A -a -C -g -M are refused.
 
 echo "ifconfig $*" >>"$VT_STATE/log"
-usage() { echo "usage: ifconfig [-AaC] [-M lladdr] [interface] [address_family]" >&2; exit 1; }
+case $1 in -*[!AaCgM]*) echo "usage: ifconfig [-AaC] [-M lladdr] [interface]" >&2; exit 1 ;; esac
+case $2 in
+scan)	cat "$VT_STATE/ifconfig.scan"; exit 0 ;;
+?*)	exit 0 ;;
+esac
 
 machine() {
-	if [ -f "$VT_STATE/ifconfig" ]; then cat "$VT_STATE/ifconfig"; return; fi
-	cat <<'EOF'
+if [ -f "$VT_STATE/ifconfig" ]; then cat "$VT_STATE/ifconfig"; return; fi
+cat <<'EOF'
 lo0: flags=2008049<UP,LOOPBACK,RUNNING,MULTICAST,LRO> mtu 32768
 	index 3 priority 0 llprio 3
 	groups: lo
@@ -47,45 +44,7 @@ EOF
 }
 
 case $1 in
-'') machine; exit 0 ;;
--a|-A) [ $# -eq 1 ] || usage; machine; exit 0 ;;
--*)
-	o=${1#-}
-	while [ -n "$o" ]; do
-		case $o in [aACgM]*) ;; *) usage ;; esac
-		o=${o#?}
-	done
-	exit 0 ;;
+''|-*)	machine ;;
+*)	machine | awk -v g="$1" '/^[a-z]/ { if (s ~ "groups:[^\n]* " g "[ \n]") printf "%s", s; s = "" }
+		{ s = s $0 "\n" } END { if (s ~ "groups:[^\n]* " g "[ \n]") printf "%s", s }' ;;
 esac
-
-name=$1; shift
-if [ $# -gt 0 ] && [ "$1" != scan ]; then
-	exit "$(cat "$VT_STATE/rc.ifconfig" 2>/dev/null || echo 0)"
-fi
-scan=
-[ "$1" = scan ] && scan=1
-out=$(machine | n=$name s=$scan f=$VT_STATE/ifconfig.scan awk '
-	# Group membership is on the "groups:" line, below the header, so
-	# each stanza is held until the end.
-	/^[a-z]/ { ifc = $0; sub(/:.*/, "", ifc); order[++k] = ifc }
-	{ st[ifc] = st[ifc] $0 "\n" }
-	/^\tgroups:/ { for (i = 2; i <= NF; i++) if ($i == ENVIRON["n"]) grp[ifc] = 1 }
-	END {
-		for (i = 1; i <= k; i++) {
-			c = order[i]
-			if (done[c]++ || (c != ENVIRON["n"] && !grp[c])) continue
-			m = split(st[c], l, "\n")
-			for (j = 1; j < m; j++) {
-				print l[j]
-				if (ENVIRON["s"] && l[j] ~ /^\tieee80211:/) {
-					if ((getline x < ENVIRON["f"]) > 0) {
-						print x
-						while ((getline x < ENVIRON["f"]) > 0) print x
-					} else
-						print "\t\tnone"
-				}
-			}
-		}
-	}')
-[ -n "$out" ] || { echo "ifconfig: $name: no such interface" >&2; exit 1; }
-printf '%s\n' "$out"

@@ -1,15 +1,1 @@
-#!/bin/sh
-
-# dunstctl mock (dunst 1.13.2, the packaged version). Logs "dunstctl ARGS".
-# Takes only dunstctl's commands (the case list in its script); anything
-# else fails, as dunstctl does. A real dunstctl here would reach the dunst
-# of your running session.
-
-echo "dunstctl $*" >>"$VT_STATE/log"
-case $1 in
-action|close|close-all|context|count|history-clear|history-pop|history-rm|\
-is-paused|set-paused|rules|rule|disable|enable|toggle|get-pause-level|\
-set-pause-level|debug|history|reload|help|--help|-h) ;;
-*) echo "dunstctl: unknown command $1" >&2; exit 1 ;;
-esac
-exit "$(cat "$VT_STATE/rc.dunstctl" 2>/dev/null || echo 0)"
+_log

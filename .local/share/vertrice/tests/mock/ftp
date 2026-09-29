@@ -7,11 +7,8 @@
 # after a good answer. Otherwise it writes $VT_STATE/out.ftp (empty if
 # absent) to the -o file, "-" being stdout. Known: -o, -o -, the exit
 # status on error. Assumed: what the site itself sends.
-#
-# Without -o, ftp saves under the last part of the URL's path, query
-# included (fetch.c: savefile = basename(path)). The mock refuses that
-# unless the case writes $VT_STATE/ftp.byname: a script that forgot -o
-# should fail, and only qndl's queued "ftp" means it.
+# Without -o (only if the case writes $VT_STATE/ftp.byname) it saves as ftp
+# does, under the URL's last path part, query included (fetch.c).
 
 echo "ftp $*" >>"$VT_STATE/log"
 out=

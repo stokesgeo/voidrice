@@ -308,21 +308,9 @@ Ladybird is left out. It has no OpenBSD port in the ports tree; the
 OpenBSD build is an out-of-tree patch set kept by one person, and upstream
 does not take outside ports. That is not "well maintained" yet.
 
-voidrice shipped `.config/firefox/larbs.js`, Luke's changes on top of the
-arkenfox user.js. vertrice has no Firefox, so the file is gone and its
-intent is in `.config/qutebrowser/config.py`, where qutebrowser has the
-setting (names checked against its settings reference at v3.7.0, the
-packaged version): no history in `:open`'s completion, words typed there
-start a search, cookies kept until they expire, no site notifications
-(the nearest setting to Firefox's push switch). The rest has no
-qutebrowser counterpart, because qutebrowser lacks the feature: sponsored
-top sites, form prefill, inline address-bar autofill, Pocket, Sync,
-userChrome.css, Firefox's right-click fix; config.py lists each. It loads
-your `autoconfig.yml` (what `:set` saves) last, so your own settings
-still win, as before config.py existed.
-
-`.config/sxiv`, a link to `.config/nsxiv` kept for sxiv, which has no
-port, is gone too.
+voidrice's Firefox tweaks (`larbs.js`) are carried to
+`.config/qutebrowser/config.py` where qutebrowser has the setting; it
+lists the ones it has no counterpart for. Your `:set` changes still win.
 
 ## Files: archives and drives
 
@@ -542,87 +530,16 @@ themselves, and the disk setup.
   but not openrsync, add `--rsync-path=rsync` (not checked: openrsync's
   default remote program).
 
-### The download queue: qndl on nq
-
-voidrice queued downloads with task-spooler (`tsp`), which has no OpenBSD
-port. vertrice queues them with nq(1), from the nq package (pkglist.extra):
-a queue made of plain files, one per job, with no daemon.
-
-- **Same use as voidrice.** `qndl URL [COMMAND]` queues a download; the
-  command defaults to yt-dlp, and the URL is added as its last word. Jobs
-  run one at a time, in order, in the directory qndl was started from.
-  When one ends you get "👍 NAME done.", or "❌ NAME failed.", which
-  voidrice did not send. A plain file loses its `?source=` tail and its
-  `%20`s, as before.
-- **Who queues.** newsboat's `t` (yt-dlp) and `a` (audio) macros,
-  dmenuhandler's three "queue" entries, linkhandler's audio links, and
-  `queueandnotify`, which podentr runs when newsboat's podcast queue
-  changes. Plain files are fetched with base ftp(1).
-- **Where the queue lives.** `~/.cache/qndl`, mode 700, because the job
-  files hold the URLs. Each job is a file `,TIMESTAMP.PID` with the command
-  and its output. `NQDIR=~/.cache/qndl fq` follows the running job. A job
-  that succeeds removes its file; a failed one stays for `fq -a`.
-- **The count.** `sb-tasks` shows 🤖2(1): two jobs not done, one of them
-  waiting. A job file whose PID is alive is not done, and nq sets its
-  execute bit while it runs (read in nq's source, v0.5). sb-tasks is not
-  in sbar's list of blocks; add it there to see the count.
-- **Notices from the queue.** nq starts each job with the environment of
-  the qndl that queued it and adds only NQJOBID, so notify-send finds the
-  session bus and reaches dunst (read in nq.c).
-- **Limits.** Queued jobs do not survive a reboot: nq keeps the order in
-  file locks. A PID reused by another process after a failed job would
-  count that job again until the file is removed.
-
-### WiFi: base does the daily work, dmenuwifi picks new networks
-
-voidrice's network block opened NetworkManager's nmtui on a click.
-NetworkManager is not on OpenBSD, and base covers most of its job:
-ifconfig(8) joins a network (`ifconfig iwn0 join NAME wpakey KEY`), and
-each `join` line in `/etc/hostname.iwn0` adds a network to the join list,
-from which the kernel picks a known one in range (hostname.if(5)).
-
-`dmenuwifi` is the one piece of nmtui kept: pick a new network from a
-menu. It runs the way mounter does:
-
-- It opens a small floating terminal, because scanning and joining need
-  root (ifconfig says "no permission to scan" otherwise), and asks for
-  your doas password once.
-- `ifconfig iwn0 scan` lists the networks; dmenu shows each name once,
-  strongest first, with 🔒 (a key) or 🔓 (open) and the signal. The
-  interface is the first one in the `wlan` group; if it is down,
-  dmenuwifi brings it up and scans again.
-- For a secured network you type the key in the terminal, hidden. The
-  packaged dmenu (5.4) has no password mode: `-P` is a patch the port does
-  not apply (read in the ports tree).
-- `doas ifconfig iwn0 join NAME wpakey KEY` joins it (`nwkey` for WEP).
-  You get an address if `/etc/hostname.iwn0` has `inet autoconf`.
-- dmenu then asks "Add NAME to /etc/hostname.iwn0?". Only a Yes appends
-  the join line (with `doas tee -a`, so the key goes through a pipe).
-
-The key on a command line: ifconfig takes the key only as an argument, so
-it is in the argument list of doas and of ifconfig while they run, where
-`ps` can show it to other users of the machine (from memory: OpenBSD's ps
-shows every user's arguments). dmenuwifi runs `doas true` first, so doas
-does not wait at its password prompt with the key in its arguments; the
-join itself lasts a moment. hostname.iwn0 (mode 640, root:wheel) keeps the
-key in the clear, as every join line there does.
-
-Network names come from the air, so dmenuwifi treats them as untrusted.
-ifconfig prints a name with bytes outside printable ASCII as hex (`0x...`)
-and quotes a name with spaces (print_string in ifconfig.c); dmenuwifi drops
-scan lines with control characters, joins a hex name as hex, takes only a
-line it offered, and passes the name as one argument. netstart(8) runs
-each hostname.if line through `eval`, as root, at boot (read in
-etc/netstart), so dmenuwifi writes a join line only when the name and key
-contain no `"`, `$`, `` ` ``, `\` and no double space. Otherwise it says so,
-and you add the line by hand. A name in UTF-8 (an accent, an emoji) shows
-as hex. Not handled: hidden networks (type the join by hand) and WPA
-Enterprise (802.1X needs wpa_supplicant).
-
-How to start it: sb-internet's click runs it (middle click shows the
-current network), but sbar's blocks take no clicks yet, so for now type
-`dmenuwifi` in the Super+d menu or a terminal. No key: voidrice had none
-for this, and no free key reads naturally as "network".
+- **Download queue.** `qndl URL [COMMAND]` queues downloads with nq(1)
+  (package; tsp has no port): one at a time, a notice when each is done.
+  `NQDIR=~/.cache/qndl fq` follows them; sb-tasks counts them.
+- **WiFi.** Base does the daily work: the `join` lines in
+  `/etc/hostname.iwn0` bring known networks back. For a new one,
+  `dmenuwifi` (sb-internet's click, or type it in Super+d) scans, offers
+  the networks in dmenu, reads the key in a terminal (the packaged dmenu
+  has no -P), joins with `doas ifconfig`, and on a Yes appends the join
+  line to hostname.iwn0. ifconfig takes the key only as an argument, so
+  `ps` can see it while the join runs.
 
 ## The rice: day and night, IBM Plex, fvwm frames
 
@@ -659,58 +576,16 @@ replaces it:
   round, by choice. The frames stay the same in day and night.
 - **Notifications.** dunst in Plex Mono, slate with pastel text, framed in
   the window-border colours.
-- **dunst and zathura follow the palette.** See "Two ways to colour" below.
-
-### Two ways to colour: theme (default) or pywal (opt-in)
-
-voidrice took its colours from the wallpaper with pywal, and pywal's
-templates coloured dunst and zathura. vertrice keeps both ways. The fixed
-palettes are the default; pywal is a switch you turn on.
-
-**theme, the default.** The palette files in `.config/x11/themes` are the
-only source of colour. Each switch (clock, Super+F8, `theme day|night`)
-changes:
-
-- X resources and the open terminals (as above);
-- dunst: `~/.config/dunst/dunstrc.d/theme.conf` gets the background and
-  text colours; low urgency takes the dim grey (color8, 4.7:1 in both
-  palettes). dunst reads that file after dunstrc (drop-ins, read in dunst's
-  settings.c, 1.13.2), and a running dunst reloads with `dunstctl reload`.
-  Frames, size and font stay in dunstrc;
-- zathura: `~/.config/zathura/theme` gets page, bar, search and recolour
-  (`i`) colours. zathurarc ends with `include theme`; a running zathura
-  rereads its config over D-Bus (SourceConfig, read in zathura 0.5.14's
-  source; not yet seen on the machine);
-- the root window, when xwallpaper is not installed: it now follows the
-  switch (before, only setbg set it, so it kept the old colour).
-
-The two generated files are not in the repository. Until the first switch
-dunst uses dunstrc's own colours (the night palette), and zathura logs a
-warning and keeps its defaults.
-
-**pywal, opt-in.** pywal has no OpenBSD package. It installs with pip; the
-system Python refuses `pip install --user` (it is marked
-EXTERNALLY-MANAGED and points to pipx), so use pipx:
-
-	doas pkg_add py3-pipx ImageMagick
-	pipx install pywal	# wal lands in ~/.local/bin (pipx default)
-
-ImageMagick's `convert` is what pywal's default backend calls. Then add
-`export PALETTE=wal` to `~/.config/shell/profile` and log in again. The
-package names and the EXTERNALLY-MANAGED text were read in the ports
-tree; the pipx steps are from memory, not run on the machine.
-
-With `PALETTE=wal` and `wal` on your PATH, `setbg` runs
-`wal -n -i WALLPAPER -o ~/.config/wal/postrun`. wal fills in the templates
-in `~/.config/wal/templates` into `~/.cache/wal`, and postrun (now sh, not
-bash) runs `theme wal`, which applies them the same way as a palette:
-`palette` is a palette file in theme's format; `dunstrc` and `zathurarc`
-are Luke's colour choices, now only the colours, copied to the two files
-above. pywal itself would recolour terminals by writing to `/dev/pts/*`,
-which OpenBSD does not have, so theme does it. With `PALETTE=wal`,
-`theme clock` does nothing, so 07:00 and 19:00 leave the wallpaper's
-colours alone; Super+F8 still switches to day or night by hand, until the
-next setbg. Without the switch, or without wal, setbg does what it did.
+- **dunst, zathura and the root window follow the palette.** Each switch
+  writes `~/.config/dunst/dunstrc.d/theme.conf` (then `dunstctl reload`)
+  and `~/.config/zathura/theme` (zathurarc includes it), and without
+  xwallpaper sets the root window's colour.
+- **pywal instead, if you want it.** Colours from the wallpaper, as in
+  voidrice. pywal has no package, and base Python refuses `pip install`
+  (EXTERNALLY-MANAGED), so: `doas pkg_add py3-pipx ImageMagick; pipx
+  install pywal` (from memory, not run here), then `export PALETTE=wal` in
+  the profile. setbg then runs wal, whose postrun runs `theme wal`; the
+  clock leaves the colours alone.
 
 ## X220 details
 
@@ -727,11 +602,8 @@ src). "From memory" marks what was not read.
   the mux device and no xorg.conf.d file is needed. `check` prints the
   pms/wsmouse boot lines and the X devices, to confirm which is which.
 - **Touchpad off, TrackPoint only.** The system stage puts
-  `mouse.tp.disable=1` in `/etc/wsconsctl.conf`: the kernel drops the
-  touchpad's movement, tapping and scrolling; its buttons still click
-  ([wsmouse(4)](https://man.openbsd.org/wsmouse.4)). Only a touchpad has
-  `tp.*` fields, so the line cannot reach the TrackPoint. `mouse` is
-  wsmouse0, where pms attaches the touchpad.
+  `mouse.tp.disable=1` in `/etc/wsconsctl.conf`; the touchpad's buttons
+  still click ([wsmouse(4)](https://man.openbsd.org/wsmouse.4)).
 - **TrackPoint scrolling.** `remaps` (run at login, again by Super+F12)
   turns on the ws driver's wheel emulation on `/dev/wsmouse`: hold the
   middle button and push the stick, both axes. A middle press shorter than
@@ -1184,11 +1056,9 @@ Extra (`pkglist.extra`): mutt-wizard (mail: neomutt, isync, msmtp and pass
 come with it; Super+e, sb-mailbox), newsboat (Super+Shift+n, sb-news),
 password-store and pass-otp (Super+Shift+d, otp), transmission
 (torrents),
-tremc (the torrent screen on Super+F6 and sb-torrent's click: a curses
-front end to transmission-daemon, in place of voidrice's stig, which has
-no port),
+tremc (Super+F6; stig has no port),
 yt-dlp (web video in mpv),
-nq (qndl's download queue; listed beside yt-dlp, the queue's default command),
+nq (qndl's download queue),
 xwallpaper (setbg; without it the
 root window takes the theme's background colour), unclutter (hides an idle pointer), ntfs_3g
 and simple-mtpfs (mounter: NTFS disks and Android phones), 7zip (ext: 7z,
@@ -1264,13 +1134,11 @@ memory" marks what was not read.
   randomisation, a kernel relinked at every boot, a hardened malloc (from
   memory, as a list).
 - **Recording off.** `kern.audio.record=0`, so a program opening the
-  microphone gets silence; `kern.video.record=0` blanks the webcam's
-  frames (video.c), and `/dev/video0` is root's (mode 600). For a video
-  call, `vertrice-install -r -v system`: -v sets `kern.video.record=1` and
-  adds /dev/video0 to the console user's devices in /etc/fbtab (next
-  login). chromium needs nothing more: its unveil list already has
-  /dev/video0-7 (ports, www/chromium/files/unveil.main). Super+F11 shows
-  the camera with base video(1); dmenurecord's webcam entries record it.
+  microphone gets silence; `kern.video.record=0` blanks the webcam, and
+  `/dev/video0` is root's. For video calls, `vertrice-install -r -v
+  system` turns both on and gives you /dev/video0 through /etc/fbtab;
+  chromium's unveil list already allows it. Super+F11 shows the camera
+  (base video(1)).
 - **Encrypted swap.** Swap pages are encrypted with keys that exist only
   until shutdown (`vm.swapencrypt.enable=1`, from memory).
 - **The network.** The default /etc/pf.conf passes everything in and out

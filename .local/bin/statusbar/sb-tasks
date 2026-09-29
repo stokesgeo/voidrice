@@ -4,33 +4,23 @@
 # Some changes by Luke
 # Rebuild by Tenyun
 
-# Displays the number of running and queued downloads of qndl: 🤖2(1) is
-# two jobs, one of them waiting.
-#
-# qndl's queue is nq(1). nq names each job file ,TIMESTAMP.PID in the
-# queue directory. PID is the job's process, or, before the job starts,
-# the nq process waiting for its turn; nq sets the owner-execute bit on the
-# file while the job runs and clears it when the job ends (nq.1, nq.c). So
-# a file whose PID is alive is a job not yet done: running with the x bit,
-# queued without it. A file whose PID is gone is a finished job (qndl keeps
-# the failed ones), and is not counted.
+# Displays the number of running and queued downloads (qndl's nq queue).
+# nq names each job ,TIME.PID and sets the file's x bit while it runs.
 
-dir=${XDG_CACHE_HOME:-$HOME/.cache}/qndl
+dir="${XDG_CACHE_HOME:-$HOME/.cache}/qndl"
 
 case $BLOCK_BUTTON in
-	1) NQDIR=$dir detach "$TERMINAL" -e fq ;;
-	3) notify-send "Tasks module" "🤖: number of running/queued downloads
-- Left click follows their output (fq)" ;; # Right click
+	1) NQDIR="$dir" detach "$TERMINAL" -e fq ;;
+	3) notify-send "Tasks module" "🤖: number of running/queued background tasks
+- Left click follows them (fq)" ;; # Right click
 	6) detach "$TERMINAL" -e "$EDITOR" "$0" ;;
 esac
 
 numr=0
 numq=0
 for f in "$dir"/,*; do
-	[ -f "$f" ] || continue
-	kill -0 "${f##*.}" 2>/dev/null || continue
-	if [ -x "$f" ]; then numr=$((numr + 1)); else numq=$((numq + 1)); fi
+	kill -0 "${f##*.}" 2>/dev/null || continue	# job done
+	[ -x "$f" ] && numr=$((numr + 1)) || numq=$((numq + 1))
 done
 num="$((numr + numq))($numq)"
 [ "$num" != "0(0)" ] && printf "🤖%s\n" "$num"
-exit 0

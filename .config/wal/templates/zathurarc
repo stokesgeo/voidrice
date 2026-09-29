@@ -1,6 +1,4 @@
-# pywal fills this in as ~/.cache/wal/zathurarc; `theme wal` copies it to
-# ~/.config/zathura/theme, which zathurarc includes. Only the colours: the
-# keys and settings stay in zathurarc.
+# Colours only; `theme wal` makes this ~/.config/zathura/theme.
 set default-bg                     "{background}"
 set default-fg                     "{foreground}"
 set statusbar-bg                   "{background}"

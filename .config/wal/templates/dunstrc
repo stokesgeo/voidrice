@@ -1,6 +1,4 @@
-# pywal fills this in as ~/.cache/wal/dunstrc; `theme wal` copies it to
-# ~/.config/dunst/dunstrc.d/theme.conf, which dunst reads after dunstrc.
-# Only the colours: size, font and frames stay in dunstrc.
+# Colours only; `theme wal` puts this after dunstrc (dunstrc.d/theme.conf).
 [urgency_low]
     background = "{color0}"
     foreground = "{color8}"

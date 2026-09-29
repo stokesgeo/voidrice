@@ -65,42 +65,26 @@ Base tools in place of packages
   background colour (xsetroot); lf's scope without bat shows the start
   of a text file (head).
 
-Download queue
+Packages in place of ones with no port
 
-- qndl queues with nq (package) in place of task-spooler, which has no
-  port: one job at a time, job files in ~/.cache/qndl, a notice when a
-  job is done or fails. queueandnotify, podentr, newsboat's t and a
-  macros and the handlers' queue entries go through it; sb-tasks counts
-  the live nq jobs.
+- qndl queues with nq instead of task-spooler; sb-tasks counts its jobs.
+- torwrap and sb-torrent open tremc instead of stig.
 
 Palette
 
-- theme also colours dunst (a dunstrc.d drop-in, then dunstctl reload)
-  and zathura (an included file, reread over D-Bus), and sets the root
-  window's colour at each switch when xwallpaper is absent.
-- pywal is opt-in (PALETTE=wal, pywal from pipx): setbg runs wal only
-  then; wal/postrun is sh and runs `theme wal`; the wal templates hold
-  only colours. Without the switch, setbg is unchanged.
+- theme also colours dunst and zathura, and the root window without
+  xwallpaper. pywal is opt-in (PALETTE=wal); its postrun is sh.
 
 WiFi
 
-- New `dmenuwifi`: scan with ifconfig, pick a network in dmenu, type the
-  key in a terminal, join with doas ifconfig, and on a Yes add the join
-  line to /etc/hostname.IF. sb-internet's click runs it (in place of
-  nmtui); its middle click shows the current network.
+- New `dmenuwifi` (sb-internet's click, in place of nmtui): pick a
+  network in dmenu, join it with ifconfig, optionally add it to
+  /etc/hostname.IF.
 
-Torrents
+Browser
 
-- torwrap (Super+F6) and sb-torrent's click open tremc (package, in
-  pkglist.extra beside transmission) in place of stig, which has no port.
-  td-toggle and the counts stay on transmission.
-
-Browser and inert files
-
-- .config/firefox/larbs.js is gone; its intent is in
-  .config/qutebrowser/config.py (no history suggestions, search from
-  :open, cookies kept, no site notifications), which loads autoconfig.yml
-  last. The .config/sxiv link is gone.
+- larbs.js's Firefox tweaks moved to qutebrowser's config.py; the
+  .config/sxiv link is gone.
 
 Files and drives
 
