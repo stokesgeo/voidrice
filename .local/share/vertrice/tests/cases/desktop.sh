@@ -359,3 +359,13 @@ t_noisereduce_errors() {
 	noisereduce >/dev/null; eq "no arguments: exit" 1 "$?"
 	noisereduce missing out >/dev/null; eq "no input file: exit" 1 "$?"
 }
+
+# booksplit tags every track with the total, the last one too.
+t_booksplit_total() {
+	ln -s "$VT_MOCKS/_log" "$T/bin/ffmpeg"
+	: >book.mp3
+	printf '00:00:00\tOne\n00:10:00\tTwo\n' >tc
+	printf 'Book\nMe\n2020\n' | booksplit book.mp3 tc >/dev/null
+	logged 'track=1 -metadata total=2 '
+	logged 'track=2 -metadata total=2 '
+}

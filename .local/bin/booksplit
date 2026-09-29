@@ -45,6 +45,6 @@ done < "$2"
 # Last track must be added out of the loop.
 # (It has no next line to give its end time.)
 file="$escbook/$(printf "%.2d" "$track")-$esctitle.$ext"
-cmd="$cmd -metadata artist=\"$author\" -metadata title=\"$title\" -metadata album=\"$booktitle\" -metadata year=\"$year\" -metadata track=\"$track\" -ss \"$start\" -vn -c copy \"$file\""
+cmd="$cmd -metadata artist=\"$author\" -metadata title=\"$title\" -metadata album=\"$booktitle\" -metadata year=\"$year\" -metadata track=\"$track\" -metadata total=\"$total\" -ss \"$start\" -vn -c copy \"$file\""
 
 eval "$cmd"
