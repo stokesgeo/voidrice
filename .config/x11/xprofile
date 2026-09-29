@@ -18,5 +18,12 @@ done >/dev/null 2>&1
 # plugged in (via udevadm); OpenBSD has no udev. Run `remaps` again by hand.
 remaps &
 
+# Lock after 10 idle minutes: xidle(1), from base, runs xlock (mode blank,
+# set in xresources).
+pgrep -x xidle >/dev/null || xidle -timeout 600 &
+
+# USB drives: turn the root-side hotplugd note into a notification.
+hotplug-watch &
+
 # Ensure that xrdb has finished running before moving on to start the WM/DE.
 [ -n "$xrdbpid" ] && wait "$xrdbpid"
