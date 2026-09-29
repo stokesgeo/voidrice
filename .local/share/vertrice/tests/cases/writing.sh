@@ -148,3 +148,45 @@ EOF
 110000
 101100" "$(cat "$T/opts")"
 }
+
+# compiler's Markdown order, the owner's pick: lowdown into groff, then
+# pandoc if installed, else a message. groffdown (no port) is gone.
+cm_mock() { for v; do ln -s "$VT_MOCKS/_log" "$T/bin/$v"; done; }
+cm_nohost() {
+	for v; do
+		PATH=$syspath command -v "$v" >/dev/null 2>&1 && skip "this host has $v"
+	done
+	return 0
+}
+
+t_compiler_markdown_lowdown() {
+	cm_mock lowdown groff pandoc
+	: >"$T/doc.md"
+	compiler "$T/doc.md"
+	logged '^lowdown --parse-no-intraemph .*doc\.md -Tms$'
+	logged '^groff -mpdfmark -ms -kept -T pdf$'
+	notlogged '^pandoc'
+	notlogged 'groffdown'
+}
+
+t_compiler_markdown_pandoc() {
+	cm_nohost lowdown
+	cm_mock groff pandoc
+	: >"$T/doc.md"
+	compiler "$T/doc.md"
+	logged '^pandoc -t ms --highlight-style=kate -s -o .*doc\.pdf .*doc\.md$'
+}
+
+t_compiler_markdown_none() {
+	cm_nohost lowdown pandoc
+	: >"$T/doc.md"
+	out=$(compiler "$T/doc.md" 2>&1) && fail "exit 0 with nothing to build with"
+	has "says what to install" "markdown needs lowdown and groff (pkglist.extra), or pandoc" "$out"
+}
+
+t_compiler_cpp_uses_cxx() {
+	cm_mock c++
+	: >"$T/a.cpp"
+	compiler "$T/a.cpp" >/dev/null 2>&1
+	logged '^c\+\+ .*a\.cpp -o .*/a$'
+}
