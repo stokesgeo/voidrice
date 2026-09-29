@@ -152,7 +152,7 @@ bind-key 4-F8		"theme toggle"		# day / night palette
 bind-key 4-F7		td-toggle
 bind-key 4-F9		"sh -c 'exec $TERMINAL -e mounter'"
 bind-key 4-F10		"sh -c 'exec $TERMINAL -e unmounter'"
-bind-key 4-F11		"touchpad toggle"	# touchpad off/on; the TrackPoint stays
+bind-key 4-F11		video			# webcam view, base video(1)
 bind-key 4-F12		remaps			# key and TrackPoint settings again
 bind-key Print		"sh -c 'maim pic-full-$(date +%y%m%d-%H%M-%S).png'"
 bind-key S-Print	maimpick

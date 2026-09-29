@@ -76,6 +76,27 @@ Base tools in place of packages
   ccat), and passes the pane's width ($2, not the x position $4) to
   lynx.
 
+Packages in place of ones with no port
+
+- qndl queues with nq instead of task-spooler; sb-tasks counts its jobs.
+- torwrap and sb-torrent open tremc instead of stig.
+
+Palette
+
+- theme also colours dunst and zathura, and the root window without
+  xwallpaper. pywal is opt-in (PALETTE=wal); its postrun is sh.
+
+WiFi
+
+- New `dmenuwifi` (sb-internet's click, in place of nmtui): pick a
+  network in dmenu, join it with ifconfig, optionally add it to
+  /etc/hostname.IF.
+
+Browser
+
+- larbs.js's Firefox tweaks moved to qutebrowser's config.py; the
+  .config/sxiv link is gone.
+
 Files and drives
 
 - New `ext` extracts every archive type by name; lf's E key calls it.
@@ -151,8 +172,12 @@ Look
 
 ThinkPad X220
 
-- `touchpad` on/off (Super+F11), TrackPoint wheel scrolling in
-  `remaps`, notes on Fn keys, backlight, lid, battery and console.
+- Touchpad off for good (mouse.tp.disable=1 in /etc/wsconsctl.conf,
+  from the system stage), TrackPoint wheel scrolling in `remaps`, notes
+  on Fn keys, backlight, lid, battery and console.
+- Webcam: `vertrice-install -v` sets kern.video.record=1 and adds
+  /dev/video0 to /etc/fbtab (a call needs -r too); Super+F11 is base
+  video(1), as voidrice's F11 was the webcam.
 
 Install and tests
 

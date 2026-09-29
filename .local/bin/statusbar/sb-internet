@@ -10,8 +10,8 @@
 # carries the signal as a percentage. wg(4) and tun(4) count as VPN.
 
 case $BLOCK_BUTTON in
-	1) notify-send "🌐 Network" "$(ifconfig wlan 2>/dev/null | grep -E 'ieee80211|status')" ;;
-	3) notify-send "🌐 Internet module" "\- Click to show the wifi network
+	1) detach dmenuwifi ;;
+	3) notify-send "🌐 Internet module" "\- Click to connect
 ❌: wifi disabled
 📡: no wifi connection
 📶: wifi connection with quality

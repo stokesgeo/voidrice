@@ -12,7 +12,7 @@ xset -q | grep -q "Caps Lock:[[:space:]]*on" && xdotool key Caps_Lock
 
 # TrackPoint scrolling: hold the middle button and push the stick. X reads
 # the TrackPoint through the wsmouse mux, "/dev/wsmouse" (a touchpad gets
-# its own /dev/wsmouseN device; see `touchpad`). The ws(4) driver emulates
+# its own /dev/wsmouseN device). The ws(4) driver emulates
 # a wheel: while button 2 is held, motion becomes buttons 4/5 (up/down)
 # and 6/7 (left/right); the axes list is x-left x-right y-up y-down.
 # A press shorter than the timeout (200 ms, the driver's default) is still

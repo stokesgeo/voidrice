@@ -7,6 +7,8 @@
 # after a good answer. Otherwise it writes $VT_STATE/out.ftp (empty if
 # absent) to the -o file, "-" being stdout. Known: -o, -o -, the exit
 # status on error. Assumed: what the site itself sends.
+# Without -o (only if the case writes $VT_STATE/ftp.byname) it saves as ftp
+# does, under the URL's last path part, query included (fetch.c).
 
 echo "ftp $*" >>"$VT_STATE/log"
 out=
@@ -22,7 +24,11 @@ shift $((OPTIND - 1))
 case $1 in http://*|https://*) ;; *) echo "ftp mock: not a URL: $1" >&2; exit 1 ;; esac
 rc=$(cat "$VT_STATE/rc.ftp" 2>/dev/null || echo 0)
 [ "$rc" -eq 0 ] || { echo "ftp: Error retrieving $1: 404 Not Found" >&2; exit "$rc"; }
-[ -n "$out" ] || { echo "ftp mock: no -o given (would save by URL name)" >&2; exit 1; }
+if [ -z "$out" ]; then
+	[ -f "$VT_STATE/ftp.byname" ] || { echo "ftp mock: no -o given (would save by URL name)" >&2; exit 1; }
+	out=${1#*://}; out=${out#*/}; out=${out##*/}
+	[ -n "$out" ] || { echo "ftp: No filename after directory (use -o): $1" >&2; exit 1; }
+fi
 if [ "$out" = - ]; then
 	cat "$VT_STATE/out.ftp" 2>/dev/null
 else

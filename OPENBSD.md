@@ -130,7 +130,7 @@ against cwm's source, and `cwm -n` accepts the file.
 | w / Shift+w | browser / nmtui | qutebrowser (`$BROWSER`) / chromium |
 | e, r, n, m, c, Shift+d/e/n/r | mail, lf, wiki, music, chat, passmenu, abook, news, top | same programs (top from base for htop) |
 | F9 / F10 | mounter / unmounter | same, OpenBSD versions, in a terminal for doas |
-| F11 / F12 | webcam / remaps | `touchpad toggle`: touchpad off/on, TrackPoint stays / remaps (keys and TrackPoint scrolling again) |
+| F11 / F12 | webcam / remaps | `video`, base's webcam view / remaps (keys and TrackPoint scrolling again) |
 | F4 | pulsemixer | `nightlight`: warm screen on/off (sct) |
 | F8 | mailsync | `theme toggle`: day / night palette |
 | p, [, ], comma, period | mpc | mpc |
@@ -308,6 +308,10 @@ engine, without that confinement.
 Ladybird is left out. It has no OpenBSD port in the ports tree; the
 OpenBSD build is an out-of-tree patch set kept by one person, and upstream
 does not take outside ports. That is not "well maintained" yet.
+
+voidrice's Firefox tweaks (`larbs.js`) are carried to
+`.config/qutebrowser/config.py` where qutebrowser has the setting; it
+lists the ones it has no counterpart for. Your `:set` changes still win.
 
 ## Files: archives and drives
 
@@ -582,6 +586,17 @@ themselves, and the disk setup.
   yourself); else it says what to install. C++ builds with `c++` (base
   clang; amd64 has no g++).
 
+- **Download queue.** `qndl URL [COMMAND]` queues downloads with nq(1)
+  (package; tsp has no port): one at a time, a notice when each is done.
+  `NQDIR=~/.cache/qndl fq` follows them; sb-tasks counts them.
+- **WiFi.** Base does the daily work: the `join` lines in
+  `/etc/hostname.iwn0` bring known networks back. For a new one,
+  `dmenuwifi` (sb-internet's click, or type it in Super+d) scans, offers
+  the networks in dmenu, reads the key in a terminal (the packaged dmenu
+  has no -P), joins with `doas ifconfig`, and on a Yes appends the join
+  line to hostname.iwn0. ifconfig takes the key only as an argument, so
+  `ps` can see it while the join runs.
+
 ## The rice: day and night, IBM Plex, fvwm frames
 
 voidrice's look is gruvbox brown with no frames to speak of. vertrice
@@ -617,6 +632,16 @@ replaces it:
   round, by choice. The frames stay the same in day and night.
 - **Notifications.** dunst in Plex Mono, slate with pastel text, framed in
   the window-border colours.
+- **dunst, zathura and the root window follow the palette.** Each switch
+  writes `~/.config/dunst/dunstrc.d/theme.conf` (then `dunstctl reload`)
+  and `~/.config/zathura/theme` (zathurarc includes it), and without
+  xwallpaper sets the root window's colour.
+- **pywal instead, if you want it.** Colours from the wallpaper, as in
+  voidrice. pywal has no package, and base Python refuses `pip install`
+  (EXTERNALLY-MANAGED), so: `doas pkg_add py3-pipx ImageMagick; pipx
+  install pywal` (from memory, not run here), then `export PALETTE=wal` in
+  the profile. setbg then runs wal, whose postrun runs `theme wal`; the
+  clock leaves the colours alone.
 
 ## X220 details
 
@@ -632,21 +657,13 @@ src). "From memory" marks what was not read.
   Opening a wsmouse directly takes it out of the mux, so the TrackPoint is
   the mux device and no xorg.conf.d file is needed. `check` prints the
   pms/wsmouse boot lines and the X devices, to confirm which is which.
-- **Touchpad off, TrackPoint on.** `touchpad on|off|toggle` runs
-  `xinput enable/disable` on the numbered device; Super+F11 toggles
-  (F11 was voidrice's webcam key, unbound here). In xprofile,
-  `touchpad_at_login=off` starts every session with it off; the default
-  is on. xinput is in base X.
+- **Touchpad off, TrackPoint only.** The system stage puts
+  `mouse.tp.disable=1` in `/etc/wsconsctl.conf`; the touchpad's buttons
+  still click ([wsmouse(4)](https://man.openbsd.org/wsmouse.4)).
 - **TrackPoint scrolling.** `remaps` (run at login, again by Super+F12)
   turns on the ws driver's wheel emulation on `/dev/wsmouse`: hold the
   middle button and push the stick, both axes. A middle press shorter than
   200 ms is still a click, so paste works.
-- **Touchpad below X.** `wsconsctl mouse.tp.tapping=1` turns on tapping (one,
-  two, three fingers for left, right, middle); it stays off unless set.
-  `mouse.tp.disable=1` stops all touchpad output except clicks in a top
-  button area; it acts in the kernel, so in X too. `mouse` is wsmouse0,
-  `mouse1` wsmouse1; the check shows which is the touchpad. Put the lines in
-  `/etc/wsconsctl.conf` to keep them.
 - **Fn keys.** acpithinkpad handles, below X: brightness up/down, volume
   up/down/mute, mic mute, Fn+F5 (Bluetooth), Fn+F4 (suspend) and Fn+F12
   (hibernate). The ThinkVantage button is not in its list, so it does
@@ -1206,8 +1223,9 @@ Extra (`pkglist.extra`): mutt-wizard (mail: neomutt, isync, msmtp and pass
 come with it; Super+e, sb-mailbox), newsboat (Super+Shift+n, sb-news),
 password-store and pass-otp (Super+Shift+d, otp), pinentry-dmenu (the
 passphrase prompt passmenu needs without a terminal), zbar (otp: reads the
-QR code; it pulls in ImageMagick), transmission
-(torrents), yt-dlp (web video in mpv), xwallpaper (setbg; without it the
+QR code; it pulls in ImageMagick), transmission (torrents), tremc
+(Super+F6; stig has no port), yt-dlp (web video in mpv), nq (qndl's
+download queue), xwallpaper (setbg; without it the
 root window takes the theme's background colour), unclutter (hides an idle pointer), ntfs_3g
 and simple-mtpfs (mounter: NTFS disks and Android phones), 7zip (ext: 7z,
 rar), highlight (coloured text: lf previews and `ccat`), ImageMagick
@@ -1222,9 +1240,8 @@ Left out:
   User-Agent, `-w` for the timeouts, which limits only the connect).
   curl is still installed, because git depends on it.
 - socat: pauseallmpv talks to mpv's sockets with base nc(1) (`nc -NU`).
-- bash as a list entry: rssget and sb-ticker are POSIX sh now. pywal's
-  postrun is still bash, and runs only if pywal is installed, which it is
-  not. passmenu is bash, but password-store already depends on bash.
+- bash as a list entry: rssget, sb-ticker and pywal's postrun are POSIX
+  sh now. passmenu is bash, but password-store already depends on bash.
 - bat: one colourizer is enough (the owner's pick): highlight, in extra.
   Without it, lf shows the start of a file with head(1).
 - pandoc: compiler uses it for Markdown only when lowdown or groff is
@@ -1290,8 +1307,11 @@ memory" marks what was not read.
   randomisation, a kernel relinked at every boot, a hardened malloc (from
   memory, as a list).
 - **Recording off.** `kern.audio.record=0`, so a program opening the
-  microphone gets silence; `kern.video.record=0` does the same for the
-  webcam (the video one from memory).
+  microphone gets silence; `kern.video.record=0` blanks the webcam, and
+  `/dev/video0` is root's. For video calls, `vertrice-install -r -v
+  system` turns both on and gives you /dev/video0 through /etc/fbtab;
+  chromium's unveil list already allows it. Super+F11 shows the camera
+  (base video(1)).
 - **Encrypted swap.** Swap pages are encrypted with keys that exist only
   until shutdown (`vm.swapencrypt.enable=1`, from memory).
 - **The network.** The default /etc/pf.conf passes everything in and out

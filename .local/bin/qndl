@@ -1,12 +1,12 @@
 #!/bin/sh
 
 # $1 is a url; $2 is a command
+# Queued with nq(1), one job at a time; the job files are in ~/.cache/qndl.
 [ -z "$1" ] && exit
 base="$(basename "$1")"
 notify-send "⏳ Queuing $base..."
-cmd="$2"
-[ -z "$cmd" ] && cmd="yt-dlp --embed-metadata -ic"
-idnum="$(tsp $cmd "$1")"
+cmd="${2:-yt-dlp --embed-metadata -ic}"
 realname="$(echo "$base" | sed -E "s/\?(source|dest).*//;s/%20/ /g")"
-tsp -D "$idnum" mv "$base" "$realname"
-tsp -D "$idnum" notify-send "👍 $realname done."
+export NQDIR="${XDG_CACHE_HOME:-$HOME/.cache}/qndl"
+nq -c -q sh -c 'eval "$1 \"\$0\"" || exit; mv "$2" "$3" 2>/dev/null; notify-send "👍 $3 done."' \
+	"$1" "$cmd" "$base" "$realname" </dev/null

@@ -4,7 +4,7 @@
 # stages, and test the result.
 #
 #	vertrice-install [-y] home		as you: fetch the dotfiles into $HOME
-#	doas vertrice-install [-y] [-e] [-r] system	as root: packages, doas, daemons
+#	doas vertrice-install [-y] [-e] [-r] [-v] system	as root: packages, doas, daemons
 #	doas vertrice-install [-y] pf		as root, optional: the laptop pf.conf
 #	vertrice-install check			run ~/.local/share/openbsd/check
 #
@@ -13,7 +13,9 @@
 # current state and is skipped when already done, so running it again
 # changes nothing. -e also installs pkglist.extra (features you can skip);
 # without it only pkglist, the core, is installed. -r also turns on audio
-# recording (kern.audio.record=1), which stays off otherwise.
+# recording (kern.audio.record=1), which stays off otherwise. -v turns on
+# the webcam (kern.video.record=1, /dev/video0 in fbtab); a video call
+# needs -r and -v.
 #
 # There is no `set -e`: one failed step should not stop the others, and
 # set -e is silently ignored inside functions called from `if`, so it
@@ -42,16 +44,17 @@ R=${ROOT:-/}; R=${R%/}	# "" for the real system, so "$R/etc" is /etc
 staffcaps="datasize-cur=4096M datasize-max=infinity openfiles-cur=4096 openfiles-max=8192"
 
 usage() {
-	print -u2 "usage: vertrice-install [-y] home | [-y] [-e] [-r] system | [-y] pf | check"
+	print -u2 "usage: vertrice-install [-y] home | [-y] [-e] [-r] [-v] system | [-y] pf | check"
 	exit 2
 }
 
-apply=0 record=0 extra=0
-while getopts yer o; do
+apply=0 record=0 extra=0 video=0
+while getopts yerv o; do
 	case $o in
 	y)	apply=1 ;;
 	e)	extra=1 ;;
 	r)	record=1 ;;
+	v)	video=1 ;;
 	*)	usage ;;
 	esac
 done
@@ -482,9 +485,10 @@ system() {
 	daemon unwind	# resolvd then points resolv.conf at it
 
 	# Console: Caps Lock is Escape, and X's key repeat (300 ms, then 50
-	# a second). wsconsctl.conf is read at boot.
+	# a second). Touchpad off: only a touchpad has tp.* fields, so the
+	# TrackPoint stays. wsconsctl.conf is read at boot.
 	for p in 'keyboard.map+="keysym Caps_Lock = Escape"' \
-	    keyboard.repeat.del1=300 keyboard.repeat.deln=20; do
+	    keyboard.repeat.del1=300 keyboard.repeat.deln=20 mouse.tp.disable=1; do
 		if grep -qxF "$p" "$R/etc/wsconsctl.conf" 2>/dev/null; then
 			ok "$p in /etc/wsconsctl.conf"
 		else
@@ -507,6 +511,21 @@ system() {
 		sysctlset kern.audio.record 1
 	else
 		note "kern.audio.record=$(sysctl -n kern.audio.record 2>/dev/null) (-r turns recording on)"
+	fi
+
+	# Webcam: off unless asked for with -v. video(4) blanks the frames
+	# while kern.video.record=0, and /dev/video0 is root's (mode 600)
+	# unless fbtab gives it to whoever logs in on the console.
+	if [ $video = 1 ]; then
+		sysctlset kern.video.record 1
+		if grep -q '^/dev/ttyC0.*/dev/video0' "$R/etc/fbtab"; then
+			ok "/dev/video0 in /etc/fbtab"
+		else
+			step "add /dev/video0 to /etc/fbtab (next login)" \
+				rewrite "$R/etc/fbtab" awk '$1 == "/dev/ttyC0" { $0 = $0 ":/dev/video0" } { print }'
+		fi
+	else
+		note "kern.video.record=$(sysctl -n kern.video.record 2>/dev/null) (-v turns the webcam on)"
 	fi
 
 	# sshd: on if "Start sshd(8) by default?" was answered yes at install.
