@@ -362,6 +362,23 @@ EOF
 	logged '^xrandr --output DP-1 --auto --scale 1\.0x1\.0 --output eDP-1 --auto --same-as DP-1 --scale 2\.0+x2\.0+$'
 }
 
+# Two screens take the two-screen questions, with OpenBSD's wc too: it pads
+# its count (" %7lld", usr.bin/wc/wc.c), and "       2" is not the case 2).
+t_displayselect_two_padded_wc() {
+	for v in xrandr setbg; do ln -s "$VT_MOCKS/_log" "$T/bin/$v"; done
+	printf '#!/bin/sh\nprintf " %%7d\\n" "$(grep -c "")"\n' >"$T/bin/wc"; chmod +x "$T/bin/wc"
+	fx out.xrandr <<'EOF'
+eDP-1 connected primary 1920x1080+0+0 (normal left inverted right x axis y axis) 309mm x 174mm
+   1920x1080     60.00*+
+DP-1 connected (normal left inverted right x axis y axis)
+   2560x1440     59.95 +
+EOF
+	answers multi-monitor yes DP-1
+	displayselect >/dev/null 2>&1
+	logged '^dmenu -i -p Mirror displays\?$'
+	logged '^xrandr --output DP-1 --auto --scale 1\.0x1\.0 --output eDP-1 --auto --same-as DP-1 '
+}
+
 # A selected area is grabbed from $DISPLAY, as the whole screen is.
 t_dmenurecord_selected_display() {
 	ln -s "$VT_MOCKS/_log" "$T/bin/ffmpeg"
