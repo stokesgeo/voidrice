@@ -132,6 +132,14 @@ EOF
 	eq "prose in the writing dir only (wrap lbr nu rnu tw spell)" "110000
 110000
 101100" "$(cat "$T/opts")"
+	# K looks a word up with dict(1) in Markdown and text, anywhere.
+	q='call writefile([&keywordprg], "'$T/kp'", "a")'
+	for f in "$HOME/c.md" "$HOME/writing/b.txt" "$HOME/d.sh"; do
+		XDG_CONFIG_HOME=$HOME/.config nvim --headless -c "$q" -c 'qa!' "$f" >/dev/null 2>&1
+	done
+	eq "keywordprg: dict for prose" "dict
+dict
+:Man" "$(cat "$T/kp")"
 }
 
 # compiler's Markdown order, the owner's pick: lowdown into groff, then

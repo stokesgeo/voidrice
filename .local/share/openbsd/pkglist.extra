@@ -15,3 +15,6 @@ highlight
 ImageMagick
 lowdown
 groff
+dictd-client
+dictd-server
+gcide

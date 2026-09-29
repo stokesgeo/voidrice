@@ -8,6 +8,7 @@
 #	git --git-dir=$HOME/.local/share/vertrice.git --work-tree=$HOME checkout -f
 #	git --git-dir=$HOME/.local/share/vertrice.git config status.showUntrackedFiles no
 
+u=$(stat -f %Su "$0")			# you: the checkout's owner, for root's mail and calendar
 cd "$(dirname "$0")/../share/openbsd" || exit
 pkg_add -l pkglist			# the optional rest: pkg_add -l pkglist.extra
 cat doas.conf doas-agent.conf >/etc/doas.new && doas -C /etc/doas.new && mv /etc/doas.new /etc/doas.conf
@@ -17,6 +18,8 @@ pfctl -nf pf.conf && install -m 600 pf.conf /etc/pf.conf && pfctl -f /etc/pf.con
 mkdir -p /etc/apm && install -m 755 apm-suspend /etc/apm/suspend && ln -sf suspend /etc/apm/hibernate
 install -m 755 hotplug-attach /etc/hotplug/attach
 (crontab -l | grep -v /var/db/updates; cat updates.cron) | crontab -
+(crontab -u "$u" -l | grep -v calendar; cat calendar.cron) | crontab -u "$u" -
+grep -q '^root:' /etc/mail/aliases || echo "root: $u" >>/etc/mail/aliases; newaliases
 rcctl enable apmd hotplugd messagebus obsdfreqd unwind
 rcctl set apmd flags -z 7
 rcctl set obsdfreqd flags -m 100,50 -r 50,90 -T 85,65

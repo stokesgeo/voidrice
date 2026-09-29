@@ -9,4 +9,5 @@
 rw ~/src
 rw ~/Documents
 rw ~/notes
+rw ~/.calendar
 r ~/Downloads

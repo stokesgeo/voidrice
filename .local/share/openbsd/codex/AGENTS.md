@@ -34,6 +34,13 @@ read-only for you. To propose a change to one, write the FULL new file to
 Plain ASCII only (tabs and newlines allowed). Then tell the owner why;
 when cdxb next starts or restarts, they see the diff and type y or n.
 
+## Reminders
+
+The owner's reminders are in ~/.calendar/calendar, in calendar(1)'s
+format: a date, a tab, the text (`Oct 3<TAB>Return the library books`).
+When asked for a reminder, add a line there; cron mails the day's lines
+each morning.
+
 ## OpenBSD habits
 
 - Shell: POSIX sh or ksh (`#!/bin/ksh`), not bash; check with `ksh -n`.

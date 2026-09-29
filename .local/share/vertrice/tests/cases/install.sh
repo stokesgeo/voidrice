@@ -1,7 +1,8 @@
 # vertrice-install: the system half, run as root on the machine. Here a copy
 # of the installer sits beside a copy of its data (so doas-agent.conf can
 # hold a rule), with /etc and /root rewritten to $R (see derived in lib.sh).
-# pkg_add, pfctl, doas and crontab are mocks; rcctl logs.
+# pkg_add, pfctl, doas and crontab are mocks; rcctl and newaliases log;
+# stat names the checkout's owner, "puffy".
 
 inst_setup() {
 	R=$T/sys
@@ -11,8 +12,12 @@ inst_setup() {
 		>>"$T/x/share/openbsd/doas-agent.conf"
 	derived .local/bin/vertrice-install x/bin/vertrice-install \
 		"s|/etc/|$R/etc/|g; s|/root/|$R/root/|g" >/dev/null
-	ln -s "$VT_MOCKS/_log" "$T/bin/rcctl"
+	for m in rcctl stat newaliases; do ln -s "$VT_MOCKS/_log" "$T/bin/$m"; done
+	echo puffy >"$VT_STATE/out.stat"	# stat -f %Su: the checkout's owner
 	printf '0\t*\t*\t*\t*\t/usr/bin/newsyslog\n' >"$VT_STATE/crontab.user"
+	printf '0\t9\t*\t*\t1\tlogger monday\n' >"$VT_STATE/crontab.puffy"
+	mkdir -p "$R/etc/mail"
+	printf 'daemon:\troot\n# Well-known aliases -- these should be filled in!\n# root:\n' >"$R/etc/mail/aliases"
 	printf '/dev/ttyC0\t0600\t/dev/console\n' >"$R/etc/fbtab"
 	data=$T/x/share/openbsd
 	joined=$T/joined
@@ -42,6 +47,20 @@ t_install_system() {
 	cmp -s "$data/wsconsctl.conf" "$R/etc/wsconsctl.conf" || fail "wsconsctl.conf"
 	[ -e "$R/etc/sysctl.conf" ] && fail "sysctl.conf written: recording is per call (rec)"
 	eq "fbtab: kept, plus the camera" "$(printf '/dev/ttyC0\t0600\t/dev/console\n'; cat "$data/fbtab")" "$(cat "$R/etc/fbtab")"
+	logged "^stat -f %Su $T/x/bin/vertrice-install\$"
+	eq "the owner's crontab: kept, plus calendar" "$(printf '0\t9\t*\t*\t1\tlogger monday\n'; cat "$data/calendar.cron")" \
+		"$(cat "$VT_STATE/crontab.puffy")"
+	eq "root's mail to the owner" "root: puffy" "$(grep '^root:' "$R/etc/mail/aliases")"
+	logged '^newaliases $'
+}
+
+t_install_mail_kept() {
+	# A root alias already set is left alone.
+	inst_setup
+	echo 'root: someone@example.org' >>"$R/etc/mail/aliases"
+	inst
+	eq "root alias kept" 'root: someone@example.org' "$(grep '^root:' "$R/etc/mail/aliases")"
+	logged '^newaliases $'
 }
 
 t_install_twice() {
@@ -50,6 +69,9 @@ t_install_twice() {
 	cmp -s "$joined" "$R/etc/doas.conf" || fail "agent rules dropped: $(cat "$R/etc/doas.conf")"
 	eq "one update job" 1 "$(grep -c '^~.*/var/db/updates' "$VT_STATE/crontab.user")"
 	eq "one update comment" 1 "$(grep -c '^#.*/var/db/updates' "$VT_STATE/crontab.user")"
+	eq "one calendar job" 1 "$(grep -c 'calendar$' "$VT_STATE/crontab.puffy")"
+	eq "the owner's own job kept" 1 "$(grep -c 'logger monday' "$VT_STATE/crontab.puffy")"
+	eq "one root alias" 1 "$(grep -c '^root:' "$R/etc/mail/aliases")"
 }
 
 t_install_doas_rejected() {
