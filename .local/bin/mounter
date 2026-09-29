@@ -3,9 +3,9 @@
 # mounter: mount a drive picked in dmenu: 💾 disklabel(8) partitions,
 # 🔒 softraid(4) CRYPTO volumes (unlocked with bioctl(8)), 📱 phones
 # (simple-mtpfs). An fstab(5) line for the disk's DUID wins. doas(1) has no
-# askpass, so it asks in a terminal: hence the xterm.
+# askpass, so it asks in a terminal: hence floatterm.
 
-[ -t 0 ] || exec xterm -name floatterm -geometry 64x4 -e "$0"
+[ -t 0 ] || exec floatterm floatterm 64x4 "$0"
 doas true || exit 1
 
 escape() { print -r -- "$*" | tr -cd '[:alnum:] -' | tr '[:upper:] ' '[:lower:]-'; }
@@ -18,7 +18,7 @@ partitions() {
 	typeset label
 	label=$(doas disklabel "$1" 2>/dev/null | sed -n 's/^label: *//p' | tr -cd '[:print:]')
 	doas disklabel -h "$1" 2>/dev/null | l=$label awk -v d="$1" '
-		BEGIN { l = ENVIRON["l"] }
+		BEGIN { l = ENVIRON["l"] }	# -v would expand backslashes
 		$1 ~ /^[a-p]:$/ && $1 != "c:" && $4 !~ /^(unused|swap)$/ {
 			printf "%s%s %s %s %s\n", d, substr($1, 1, 1), $2, $4, l }'
 }
@@ -91,11 +91,10 @@ case $chosen in
 		;;
 	🔒*)
 		set -- ${chosen#🔒}
-		before=$(sysctl -n hw.disknames)
 		print "Passphrase for $1:"
-		doas bioctl -c C -l "/dev/$1" softraid0 || exit 1
-		new=$(sysctl -n hw.disknames | tr ',' '\n' | sed 's/:.*//' |
-			grep -vxF "$(print "$before" | tr ',' '\n' | sed 's/:.*//')" | head -n 1)
+		# bioctl prints "softraid0: CRYPTO volume attached as sd3".
+		new=$(doas bioctl -c C -l "/dev/$1" softraid0) || exit 1
+		new=$(print -r -- "$new" | sed -n 's/.* volume attached as \(sd[0-9]*\)$/\1/p')
 		[ -n "$new" ] || { notify-send "🔒 Unlock failed." "$1"; exit 1; }
 		disknames=$(sysctl -n hw.disknames)
 		inner=$(partitions "$new" | grep -v ' RAID ')

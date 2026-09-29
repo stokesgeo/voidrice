@@ -2,9 +2,8 @@
 
 # hotplug-watch: notify when /etc/hotplug/attach writes a new disk's name.
 
-# entr(1) -p waits for a change before it runs. The file is missing until the
-# first attach after boot; if we waited for it, drop -p so that attach shows.
+# vertrice-install makes the file, and it survives a reboot, so it is there
+# at login. entr(1) -p waits for a change before it runs: no notice for the
+# disk it named before.
 
-f=/var/run/hotplug-disk
-p=-p; while [ ! -e "$f" ]; do p=; sleep 10; done
-echo "$f" | exec entr -n $p sh -c 'notify-send "💾 $(cat /var/run/hotplug-disk) attached" "Super+F9 to mount it."'
+echo /var/db/hotplug-disk | exec entr -np sh -c 'notify-send "💾 $(cat /var/db/hotplug-disk) attached" "Super+F9 to mount it."'

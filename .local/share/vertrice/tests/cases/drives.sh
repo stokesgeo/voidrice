@@ -99,6 +99,27 @@ sd3d 20.8G MSDOS SR CRYPTO" "$(cat "$VT_STATE/menu.2")"
 	logged "^mount_msdos .* /dev/sd3d $T/mnt\$"
 }
 
+# The volume's name is read from bioctl's "attached as" line; no such
+# line means no volume.
+t_mounter_softraid_name_from_bioctl() {
+	add_partition sd2 "  a:            28.9G               64    RAID"
+	echo sd3:5e6f7a8b9c0d1e2f >"$VT_STATE/bioctl.new"
+	fx disklabel.sd3 <<'EOF'
+label: SR CRYPTO
+  a:            28.8G               64  4.2BSD   2048 16384 12960
+  c:            28.8G                0  unused
+EOF
+	mkdir "$T/mnt"
+	answers "🔒sd2a (28.9G SanDisk 3.2Gen1) CRYPTO" "$T/mnt"
+	with_tty mounter
+	logged '^notify-send 🔓 Decrypted\. sd3 unlocked\.$'
+	rm "$VT_STATE/bioctl.new" "$VT_STATE/dmenu.n"; : >"$VT_STATE/log"
+	answers "🔒sd2a (28.9G SanDisk 3.2Gen1) CRYPTO" "$T/mnt"
+	with_tty mounter
+	logged '^notify-send 🔒 Unlock failed\. sd2a$'
+	notlogged 'Decrypted'
+}
+
 t_mounter_wrong_passphrase() {
 	add_partition sd2 "  a:            28.9G               64    RAID"
 	echo 1 >"$VT_STATE/rc.bioctl-unlock"

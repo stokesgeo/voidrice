@@ -1,7 +1,8 @@
 #!/bin/sh
 
 # sleep(1) mock: with VT_SLEEP set, every sleep lasts that long instead
-# (hotplug-watch polls every 10 s; a test need not wait that long).
+# (the status blocks' fetchers retry every 60 s; a test need not wait
+# that long).
 # Otherwise the real sleep.
 
 exec "$VT_REAL_SLEEP" "${VT_SLEEP:-$1}"

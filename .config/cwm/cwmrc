@@ -24,6 +24,8 @@ snapdist 4
 
 autogroup 0 "spterm,XTerm"	# scratchpads (`scratch`) show on every group
 autogroup 0 "spcalc,XTerm"
+autogroup 0 "spterm,St"
+autogroup 0 "spcalc,St"
 
 # The bar: xinitrc's one-line terminal (sbar -t) along the bottom. It shows
 # on every group, has no frame, is skipped by window cycling, and

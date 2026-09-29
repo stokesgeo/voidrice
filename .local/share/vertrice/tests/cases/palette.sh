@@ -10,32 +10,42 @@ t_palette_switch() {
 	DISPLAY=:0 "$VT_KSH" "$theme" toggle
 	has "dunst night" 'background = "#24232e"' "$(cat "$XDG_CONFIG_HOME/dunst/dunstrc.d/theme.conf")"
 	has "zathura night" 'set default-bg "#24232e"' "$(cat "$XDG_CONFIG_HOME/zathura/theme")"
-	# Each palette's colours match its dunst and zathura files.
+	# Written from each palette's background and foreground: every line
+	# of dunst's three urgencies and zathura's eight settings.
 	for p in day night; do
+		"$VT_KSH" "$theme" "$p"
 		bg=$(sed -n 's/^\*\.background: //p' "$REPO/.config/x11/themes/$p")
 		fg=$(sed -n 's/^\*\.foreground: //p' "$REPO/.config/x11/themes/$p")
-		eq "$p dunst" 6 "$(grep -Ec "\"($bg|$fg)\"" "$REPO/.config/x11/themes/$p.dunst")"
-		eq "$p zathura" 8 "$(grep -Ec "\"($bg|$fg)\"" "$REPO/.config/x11/themes/$p.zathura")"
+		d=$XDG_CONFIG_HOME/dunst/dunstrc.d/theme.conf z=$XDG_CONFIG_HOME/zathura/theme
+		eq "$p dunst" "[urgency_low] background = \"$bg\" foreground = \"$fg\" [urgency_normal] background = \"$bg\" foreground = \"$fg\" [urgency_critical] background = \"$bg\" foreground = \"$fg\"" \
+			"$(paste -sd ' ' - <"$d" | tr -s ' ')"
+		eq "$p zathura" 8 "$(grep -Ec "\"($bg|$fg)\"\$" "$z")"
+		eq "$p zathura lines" 8 "$(wc -l <"$z" | tr -d ' ')"
+		has "$p zathura recolor" "set recolor-darkcolor \"$fg\"" "$(cat "$z")"
 	done
 }
 
-# GTK follows day and night; wal leaves it; the other settings are kept.
+# GTK follows day and night: theme writes settings.ini whole, so the
+# dotfiles need not track it. wal leaves it, but writes the day one if
+# there is none.
 t_palette_gtk() {
 	th_setup
-	mkdir -p "$XDG_CONFIG_HOME/gtk-3.0"
 	ini=$XDG_CONFIG_HOME/gtk-3.0/settings.ini
-	cp "$REPO/.config/gtk-3.0/settings.ini" "$ini"
 	"$VT_KSH" "$theme" night || fail "theme night failed"
 	eq "night" "gtk-theme-name=Adwaita-dark" "$(grep '^gtk-theme-name=' "$ini")"
+	eq "the section first" "[Settings]" "$(grep -v '^#' "$ini" | sed -n 1p)"
+	eq "every setting" 15 "$(grep -c '^gtk-[a-z-]*=' "$ini")"
+	has "the font" "gtk-font-name=Sans 10" "$(cat "$ini")"
+	hasnt "no heredoc tabs" "	" "$(cat "$ini")"
 	"$VT_KSH" "$theme" day
 	eq "day" "gtk-theme-name=Adwaita" "$(grep '^gtk-theme-name=' "$ini")"
-	eq "only that line changed" "" "$(diff "$REPO/.config/gtk-3.0/settings.ini" "$ini")"
 	mkdir -p "$XDG_CACHE_HOME/wal"
 	printf '*.background: #101010\n' >"$XDG_CACHE_HOME/wal/colors.Xresources"
 	: >"$XDG_CACHE_HOME/wal/dunstrc"; : >"$XDG_CACHE_HOME/wal/zathurarc"
-	"$VT_KSH" "$theme" wal
-	eq "wal leaves GTK" "gtk-theme-name=Adwaita" "$(grep '^gtk-theme-name=' "$ini")"
-	[ -e "$ini.new" ] && fail "left settings.ini.new"
+	"$VT_KSH" "$theme" night; "$VT_KSH" "$theme" wal
+	eq "wal leaves GTK" "gtk-theme-name=Adwaita-dark" "$(grep '^gtk-theme-name=' "$ini")"
+	rm "$ini"; "$VT_KSH" "$theme" wal
+	eq "wal, no file: the day one" "gtk-theme-name=Adwaita" "$(grep '^gtk-theme-name=' "$ini")"
 	return 0
 }
 

@@ -27,6 +27,9 @@ pfctl -nf pf.conf && install -m 600 pf.conf /etc/pf.conf && pfctl -f /etc/pf.con
 # apmd(8) runs /etc/apm/suspend on suspend; hibernate shares the script.
 mkdir -p /etc/apm && install -m 755 apm-suspend /etc/apm/suspend && ln -sf suspend /etc/apm/hibernate
 install -m 755 hotplug-attach /etc/hotplug/attach
+# It writes each new disk's name here, for hotplug-watch. Made once: a
+# second run must not look like an attach.
+[ -e /var/db/hotplug-disk ] || install -m 644 /dev/null /var/db/hotplug-disk
 # Each crontab is rewritten without our old line, then with the current one,
 # so a second run does not double it. Other entries stay.
 (crontab -l | grep -v /var/db/updates; cat updates.cron) | crontab -
