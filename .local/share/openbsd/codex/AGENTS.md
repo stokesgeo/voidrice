@@ -21,7 +21,7 @@ around the box.
 - diff(1) and patch(1) call unveil themselves and fail here: use
   `git diff --no-index a b`, and your own patch tool.
 - Run git yourself, here in the box; never hand the owner a git command
-  to run outside it. The box holds no push credential: when a push is
+  to run outside it. The box holds no push credential yet: when a push is
   needed, say so.
 
 ## Changing the box's own settings

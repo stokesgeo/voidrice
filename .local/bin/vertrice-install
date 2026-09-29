@@ -39,6 +39,8 @@ rcctl enable apmd hotplugd unwind	# in base
 rcctl enable messagebus obsdfreqd	# from pkglist
 # apmd suspends at 7% battery.
 rcctl set apmd flags -z 7
+# obsdfreqd(1) pairs are on AC, on battery. -T: above this many degrees C,
+# the top speed drops until the CPU cools.
 rcctl set obsdfreqd flags -m 100,50 -r 50,90 -T 85,65
 # These two append. A second run repeats the lines; the last line read wins.
 cat wsconsctl.conf >>/etc/wsconsctl.conf
