@@ -85,7 +85,7 @@ The commits follow the same order.
    dunst and notify-send share one bus; then `$WM`: cwm with
    `.config/cwm/cwmrc` by default, or dwm plus sbar when `WM=dwm` and dwm
    is installed. Under cwm the bar is a one-line xterm (st when
-   `TERMINAL=st`) named vbar along the top, running `sbar -t`; cwmrc's
+   `TERMINAL=st`) named vbar along the bottom, running `sbar -t`; cwmrc's
    `gap`, `ignore` and `autogroup 0` lines keep it clear of maximized and
    tiled windows, frameless, and on every group (cwmrc(5)). It starts ssh-agent only if none is running (xenodm may
    have started one). xprofile now loads xresources, where xterm gets
