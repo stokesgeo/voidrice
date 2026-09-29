@@ -12,6 +12,10 @@ XTerm*faceSize: 10
 XTerm*metaSendsEscape: true
 XTerm*selectToClipboard: true
 
+!! xlock (base), run by sysact's lock and by xidle after idle time: a blank
+!! screen, no animation to spend the battery on.
+XLock.mode: blank
+
 /* name		dark	light */
 /* black	0	8 */
 /* red		1	9 */

@@ -1,0 +1,14 @@
+#!/bin/sh
+
+# nightlight: toggle a warm screen for the evening, with sct(1). sct sets
+# the X color temperature once and exits: no daemon. `sct` with no argument
+# resets to neutral (6500 K). Super+F4 runs this.
+#	nightlight [kelvin]	default warm is 4000 K
+
+state=${XDG_CACHE_HOME:-$HOME/.cache}/nightlight
+
+if [ -f "$state" ] && [ -z "$1" ]; then
+	sct && rm -f "$state" && notify-send "🌞 Night light off"
+else
+	sct "${1:-4000}" && : > "$state" && notify-send "🌙 Night light ${1:-4000} K"
+fi

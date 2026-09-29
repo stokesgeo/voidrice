@@ -24,12 +24,20 @@ alias \
 	cp="cp -i" \
 	mv="mv -i" \
 	bc="bc -l" \
-	rsync="rsync -vrPlu" \
 	mkd="mkdir -p" \
 	yt="yt-dlp --embed-metadata -i" \
 	yta="yt -x -f bestaudio/best" \
 	ytt="yt --skip-download --write-thumbnail" \
 	ffmpeg="ffmpeg -hide_banner"
+
+# rsync: openrsync(1) from base by default. It speaks the rsync protocol but
+# has fewer flags (no -P, no -u), so it gets only the ones it has. Installing
+# the rsync package brings back voidrice's full set.
+if command -v rsync >/dev/null 2>&1; then
+	alias rsync="rsync -vrPlu"
+else
+	alias rsync="openrsync -vrl"
+fi
 
 # OpenBSD's ls, grep and diff have no --color; ls -F marks types instead.
 alias \

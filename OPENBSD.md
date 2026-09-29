@@ -101,6 +101,7 @@ against cwm's source, and `cwm -n` accepts the file.
 | w / Shift+w | browser / nmtui | qutebrowser (`$BROWSER`) / chromium |
 | e, r, n, m, c, Shift+d/e/n/r | mail, lf, wiki, music, chat, passmenu, abook, news, top | same programs (top from base for htop) |
 | F9 / F10 | mounter / unmounter | same, OpenBSD versions, in a terminal for doas |
+| F4 | pulsemixer | `nightlight`: warm screen on/off (sct) |
 | p, [, ], comma, period | mpc | mpc |
 | minus / equal / Shift+m | volume / mute (wpctl) | sndioctl |
 | BackSpace, Shift+q | sysact | sysact |
@@ -120,8 +121,7 @@ What does not carry over, because cwm has no equivalent:
   floating toggle (cwm windows are always floating).
 - The XF86 media and brightness keys. The X220's volume, mute and
   brightness keys are handled below X (acpithinkpad), so they work without
-  a binding (to check on the machine). F4 (pulsemixer), F8 (mailsync) and
-  F11 (webcam) are unbound.
+  a binding (to check on the machine). F8 (mailsync) and  F11 (webcam) are unbound.
 
 ## Editors: vi and nvim, side by side
 
@@ -182,6 +182,26 @@ does not take outside ports. That is not "well maintained" yet.
   a terminal so doas can ask for the password. Tested against mocked
   disklabel and mount output; not yet on the machine.
 
+## Everyday conveniences
+
+- **Idle lock.** xidle(1), in base, starts from xprofile and runs xlock
+  after 10 idle minutes. xresources sets `XLock.mode: blank`, so the lock
+  screen draws nothing (sysact's lock uses the same).
+- **USB notices.** hotplugd(8), in base, runs `/etc/hotplug/attach` as
+  root when a device appears. The installed script
+  (`.local/share/openbsd/hotplug-attach`) writes a new disk's name to
+  /var/run/hotplug-disk and nothing else; `hotplug-watch`, started in your
+  session, watches that file with entr and sends "sd1 attached: Super+F9
+  to mount it". Root never reaches into your session, and nothing mounts
+  by itself. Tested with entr: first attach after boot, later attaches,
+  non-disk devices ignored, no stale notice on login.
+- **Night light.** Super+F4 runs `nightlight`, which toggles a 4000 K
+  screen with sct (a small program from ports; it sets the colour once and
+  exits). `nightlight 3200` picks another temperature.
+- **rsync.** The rsync alias uses openrsync(1) from base, with the flags
+  it has (`-vrl`). Installing the rsync package brings back voidrice's
+  `-vrPlu` (progress, partial, update).
+
 ## Installing on the X220
 
 System side (root, typed by the owner):
@@ -200,6 +220,9 @@ System side (root, typed by the owner):
 - Root's shell: `install -o root -g wheel -m 0644
   ~/.local/share/openbsd/root.kshrc /root/.kshrc`, and add
   `export ENV=/root/.kshrc` to /root/.profile.
+- USB notices: `install -o root -g wheel -m 0755
+  ~/.local/share/openbsd/hotplug-attach /etc/hotplug/attach`, then
+  `rcctl enable hotplugd && rcctl start hotplugd`.
 - Console caps-to-escape: `keyboard.map+="keysym Caps_Lock = Escape"`
   in `/etc/wsconsctl.conf`.
 - Screen recording with sound: `sysctl kern.audio.record=1` (off by
