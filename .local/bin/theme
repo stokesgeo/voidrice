@@ -1,7 +1,7 @@
 #!/bin/ksh
 
-# theme day|night|toggle|auto|clock|wal: the terminals' palette, and dunst's
-# and zathura's colours (x11/themes/NAME.dunst, NAME.zathura; wal's own).
+# theme day|night|toggle|auto|clock|wal: the terminals' palette
+# (x11/themes/NAME), and dunst's and zathura's colours from it (wal's own).
 # Day and night also write gtk-3.0/settings.ini (wal leaves it), which is
 # why the dotfiles do not track it.
 # Super+F8 toggles; xprofile runs `theme clock`: day from 07:00, night from 19:00.
@@ -44,14 +44,14 @@ gtk() {
 auto() { h=$(date +%H); [ "$h" -ge 7 ] && [ "$h" -lt 19 ] && print day || print night; }
 
 apply() {
-	typeset p=$dir/$1 d=$dir/$1.dunst z=$dir/$1.zathura k v seq=
-	[ "$1" = wal ] && p=$wal/colors.Xresources d=$wal/dunstrc z=$wal/zathurarc
+	typeset p=$dir/$1 k v seq= fg bg u
+	[ "$1" = wal ] && p=$wal/colors.Xresources
 	[ -n "$DISPLAY" ] && xrdb -merge "$p"
 	while read -r k v; do
 		case $k in
 		\*.color*:)	k=${k#\*.color}; seq="$seq\033]4;${k%:};$v\007" ;;
-		\*.foreground:)	seq="$seq\033]10;$v\007" ;;
-		\*.background:)	seq="$seq\033]11;$v\007" ;;
+		\*.foreground:)	seq="$seq\033]10;$v\007" fg=$v ;;
+		\*.background:)	seq="$seq\033]11;$v\007" bg=$v ;;
 		\*.cursorColor:) seq="$seq\033]12;$v\007" ;;
 		esac
 	done < "$p"
@@ -59,8 +59,21 @@ apply() {
 	for t in $(ps -U "$(id -u)" -o tty= | sort -u | grep -E '^[pqrs]'); do
 		[ -w "/dev/tty$t" ] && printf "$seq" > "/dev/tty$t" 2>/dev/null
 	done
+	# dunst and zathura: wal's own files, else the palette's colours.
 	mkdir -p "$conf/dunst/dunstrc.d" "$conf/zathura"
-	cp "$d" "$conf/dunst/dunstrc.d/theme.conf"; cp "$z" "$conf/zathura/theme"
+	if [ "$1" = wal ]; then
+		cp "$wal/dunstrc" "$conf/dunst/dunstrc.d/theme.conf"
+		cp "$wal/zathurarc" "$conf/zathura/theme"
+	else
+		for u in low normal critical; do
+			printf '[urgency_%s]\n    background = "%s"\n    foreground = "%s"\n' "$u" "$bg" "$fg"
+		done > "$conf/dunst/dunstrc.d/theme.conf"
+		{ for u in default statusbar inputbar; do
+			printf 'set %s-bg "%s"\nset %s-fg "%s"\n' "$u" "$bg" "$u" "$fg"
+		done
+		printf 'set recolor-lightcolor "%s"\nset recolor-darkcolor "%s"\n' "$bg" "$fg"
+		} > "$conf/zathura/theme"
+	fi
 	dunstctl reload >/dev/null 2>&1
 	case $1 in
 	day)	gtk "$gtkday" ;;

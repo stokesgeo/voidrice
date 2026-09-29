@@ -10,12 +10,18 @@ t_palette_switch() {
 	DISPLAY=:0 "$VT_KSH" "$theme" toggle
 	has "dunst night" 'background = "#24232e"' "$(cat "$XDG_CONFIG_HOME/dunst/dunstrc.d/theme.conf")"
 	has "zathura night" 'set default-bg "#24232e"' "$(cat "$XDG_CONFIG_HOME/zathura/theme")"
-	# Each palette's colours match its dunst and zathura files.
+	# Written from each palette's background and foreground: every line
+	# of dunst's three urgencies and zathura's eight settings.
 	for p in day night; do
+		"$VT_KSH" "$theme" "$p"
 		bg=$(sed -n 's/^\*\.background: //p' "$REPO/.config/x11/themes/$p")
 		fg=$(sed -n 's/^\*\.foreground: //p' "$REPO/.config/x11/themes/$p")
-		eq "$p dunst" 6 "$(grep -Ec "\"($bg|$fg)\"" "$REPO/.config/x11/themes/$p.dunst")"
-		eq "$p zathura" 8 "$(grep -Ec "\"($bg|$fg)\"" "$REPO/.config/x11/themes/$p.zathura")"
+		d=$XDG_CONFIG_HOME/dunst/dunstrc.d/theme.conf z=$XDG_CONFIG_HOME/zathura/theme
+		eq "$p dunst" "[urgency_low] background = \"$bg\" foreground = \"$fg\" [urgency_normal] background = \"$bg\" foreground = \"$fg\" [urgency_critical] background = \"$bg\" foreground = \"$fg\"" \
+			"$(paste -sd ' ' - <"$d" | tr -s ' ')"
+		eq "$p zathura" 8 "$(grep -Ec "\"($bg|$fg)\"\$" "$z")"
+		eq "$p zathura lines" 8 "$(wc -l <"$z" | tr -d ' ')"
+		has "$p zathura recolor" "set recolor-darkcolor \"$fg\"" "$(cat "$z")"
 	done
 }
 
