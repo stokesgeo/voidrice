@@ -42,6 +42,7 @@ alias \
 	ka="pkill -x" \
 	g="git" \
 	trem="transmission-remote" \
+	roget="dict -d roget" \
 	sdn="doas shutdown -p now" \
 	e='$EDITOR' \
 	v='$EDITOR' \
