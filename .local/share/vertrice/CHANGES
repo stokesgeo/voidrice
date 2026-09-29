@@ -49,12 +49,19 @@ Status blocks
 - sb-cpu shows temperature and CPU speed.
 - Network blocks lock with mkdir in /tmp instead of flock(1) in
   XDG_RUNTIME_DIR (OpenBSD has neither); state files moved to ~/.cache.
-- Removed: sb-pacpackages, sb-popupgrade (pacman).
+- sb-pacpackages and cron/checkup (pacman) became sb-updates, fed by
+  root's vertrice-updates (syspatch -c, pkg_add -u -n -v, from cron);
+  sb-popupgrade updates through doas in a terminal.
+- sb-doppler checks the pick against its list (stock dmenu has no -r);
+  sb-help-icon opens `keys` when Luke's dwm guide is absent.
 
 GNU syntax
 
 - sed, grep, stat, file, date, shuf, numfmt, shred and mktemp calls use
-  BSD and POSIX forms. getbib's formatter is one awk pass.
+  BSD and POSIX forms. getbib's formatter is one awk pass; its DOI
+  filter drops GNU sed's T and find's -quit (head -n 1 instead).
+- ImageMagick 6 (the package) has convert and mogrify, not magick:
+  slider, nsxiv's key handler and lf's thumbnails use those.
 
 Base tools in place of packages
 
@@ -62,8 +69,12 @@ Base tools in place of packages
   uses base nc(1) -NU in place of socat. rssget and sb-ticker are POSIX
   sh, not bash.
 - setbg without xwallpaper sets the root window to the theme's
-  background colour (xsetroot); lf's scope without bat shows the start
-  of a text file (head).
+  background colour (xsetroot); lf's scope without highlight shows the
+  start of a text file (head).
+- lf's scope lists archives with ext's tools (tar, unzip, 7z) in place
+  of atool, gives bat's old place to highlight (one colourizer, also
+  ccat), and passes the pane's width ($2, not the x position $4) to
+  lynx.
 
 Files and drives
 
@@ -74,7 +85,32 @@ Files and drives
   the system disk never offered.
 - USB notices: `hotplug-attach` (run by hotplugd as root) and
   `hotplug-watch` (in the session, with entr). Nothing mounts by itself.
-- Removed: dmenumountcifs, dmenupass, remapd, cron/checkup.
+- Removed: dmenumountcifs, dmenupass, remapd.
+- xdg-open defaults: .desktop files name programs, not Linux paths;
+  terminal programs start through xdg-terminal-exec. lf's o uses
+  xdg-open.
+
+Media, passwords, documents
+
+- mpvSockets is a file in the tree (MIT, from wis/mpvSockets), not a
+  submodule a bare clone never fetches; sockets in ~/.cache/mpvSockets.
+- passmenu: a wrapper runs the package's example script with bash;
+  pinentry-dmenu asks for the passphrase without a terminal.
+- otp: the printf typo fixed; zbar reads the QR code.
+- compiler: Markdown through lowdown and groff, then pandoc if
+  installed; C++ with c++ (clang).
+
+Cron
+
+- xinitrc writes the session's bus address and display to
+  ~/.cache/session-env; notifying cron jobs read it (cron/README.md).
+
+Shell and console
+
+- profile: LESSOPEN (OpenBSD's less ignores it), DICS and WGETRC gone,
+  with wget/wgetrc. aliasrc: -v back on cp, mv, rm; YT gone.
+- ttymaps.kmap (Linux loadkeys) gone; OPENBSD.md gives the one
+  keyboard.map line for the other half of the Caps Lock swap.
 
 Editors
 
@@ -104,7 +140,7 @@ Install and tests
 - `vertrice-install`: a home stage (the dotfiles) and a system stage
   (packages, doas, root's shell, hotplugd, login class for browsers,
   apmd, obsdfreqd, unwind, Caps Lock as Escape on the console, battery
-  charge limit). Prints its plan without -y; running it again changes
+  charge limit, the update counter and its root crontab line). Prints its plan without -y; running it again changes
   nothing. -e also installs pkglist.extra.
 - Package lists: `pkglist` (core) and `pkglist.extra` (features you
   can skip), each package argued in OPENBSD.md.
