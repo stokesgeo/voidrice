@@ -172,3 +172,9 @@ t_cwmrc_key_sheet() {
 		"$(awk '$2 == "4-F1"' "$REPO/.config/cwm/cwmrc")"
 	eq "sb-help-icon" "❓" "$(sb-help-icon)"
 }
+
+# sb-help-icon's left click: the manual in a terminal, not the LARBS PDF.
+t_sb_help_icon_manual() {
+	BLOCK_BUTTON=1 sb-help-icon >/dev/null
+	logged '^detach xterm -e man vertrice$'
+}

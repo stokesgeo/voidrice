@@ -1,12 +1,12 @@
 #!/bin/sh
 
 # The clickable help menu. Middle click to restart wm.
-# Left click opens the LARBS guide as a PDF. (Middle click sends SIGHUP to dwm.)
+# Left click opens vertrice(7) in a terminal. (Middle click sends SIGHUP to dwm.)
 
 case $BLOCK_BUTTON in
-	1) groff -mom /usr/local/share/dwm/larbs.mom -Tpdf | zathura - ;;
+	1) detach "$TERMINAL" -e man vertrice ;;
 	2) pkill -HUP dwm ;;
-	3) notify-send "❓ Help module" "\- Left click to open LARBS guide.
+	3) notify-send "❓ Help module" "\- Left click to open the vertrice manual.
 - Middle click to refresh window manager." ;;
 	6) detach "$TERMINAL" -e "$EDITOR" "$0" ;;
 esac
