@@ -59,6 +59,8 @@ try "ntpd is running (otp time)" pgrep -x ntpd
 try "xlock is installed (sysact lock)" command -v xlock
 try "cwm accepts ~/.config/cwm/cwmrc" cwm -n -c "${XDG_CONFIG_HOME:-$HOME/.config}/cwm/cwmrc"
 try "xterm is installed (default TERMINAL)" command -v xterm
+try "NEXINIT points at the vi exrc" eval '[ -r "${NEXINIT#source }" ]'
+try "ext, mounter, unmounter are on PATH" eval 'command -v ext && command -v mounter && command -v unmounter'
 [ -f /etc/doas.conf ] && pass "/etc/doas.conf exists" || fail "/etc/doas.conf exists" "see OPENBSD.md"
 [ "$(sysctl -n kern.audio.record)" = 1 ] && pass "kern.audio.record=1" ||
 	skip "kern.audio.record=0" "dmenurecord audio records silence until it is 1"

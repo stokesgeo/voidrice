@@ -101,8 +101,9 @@ colorscheme vim
 	autocmd BufRead,BufNewFile *.ms,*.me,*.mom,*.man set filetype=groff
 	autocmd BufRead,BufNewFile *.tex set filetype=tex
 
-" Save file as root with doas (needs a doas.conf rule: nvim gives it no terminal)
-	cabbrev w!! execute 'silent! write !doas tee % >/dev/null' <bar> edit!
+" No w!! (write as root): under nvim, doas has no terminal to ask for a
+" password, so it would need a nopass rule, which makes root free for anything
+" running as the user. Edit root's files with `doas vi file` instead.
 
 " Enable Goyo by default for mutt writing
 	autocmd BufRead,BufNewFile /tmp/neomutt* :Goyo 80 | call feedkeys("jk")

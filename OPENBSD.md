@@ -1,6 +1,7 @@
-# voidrice on OpenBSD
+# vertrice: voidrice on OpenBSD
 
-This branch ports Luke Smith's voidrice to OpenBSD, for a ThinkPad X220.
+vertrice is Geo's fork of Luke Smith's voidrice, ported to OpenBSD for a
+ThinkPad X220.
 Upstream is Arch/Void Linux; the port keeps the pattern (suckless tools,
 scripts in `~/.local/bin`, config in `~/.config`, bookmarks compiled to
 shell shortcuts) and swaps each Linux mechanism for the OpenBSD base one.
@@ -97,7 +98,9 @@ against cwm's source, and `cwm -n` accepts the file.
 | Return / Shift+Return / ' | terminal / scratch terminal / scratch calculator | `$TERMINAL` / `scratch term` / `scratch calc` |
 | d | dmenu_run | `menu-exec`, cwm's own run prompt |
 | b | toggle bar | `sb-show`: the status line as a notification |
-| w, e, r, n, m, c, Shift+d/e/n/r | browser, mail, lf, wiki, music, chat, passmenu, abook, news, top | same programs (top from base for htop) |
+| w / Shift+w | browser / nmtui | qutebrowser (`$BROWSER`) / chromium |
+| e, r, n, m, c, Shift+d/e/n/r | mail, lf, wiki, music, chat, passmenu, abook, news, top | same programs (top from base for htop) |
+| F9 / F10 | mounter / unmounter | same, OpenBSD versions, in a terminal for doas |
 | p, [, ], comma, period | mpc | mpc |
 | minus / equal / Shift+m | volume / mute (wpctl) | sndioctl |
 | BackSpace, Shift+q | sysact | sysact |
@@ -117,8 +120,67 @@ What does not carry over, because cwm has no equivalent:
   floating toggle (cwm windows are always floating).
 - The XF86 media and brightness keys. The X220's volume, mute and
   brightness keys are handled below X (acpithinkpad), so they work without
-  a binding (to check on the machine). F4 (pulsemixer), F8-F11 (mailsync,
-  the removed mounters, webcam) are unbound.
+  a binding (to check on the machine). F4 (pulsemixer), F8 (mailsync) and
+  F11 (webcam) are unbound.
+
+## Editors: vi and nvim, side by side
+
+nvim is the daily editor, with voidrice's `.config/nvim/init.vim`. vi, which
+is nvi in OpenBSD base, is the fallback that always works: in single-user
+mode, as root, and with no packages installed. Each has its own config, and
+neither reads the other's:
+
+- vi reads `$NEXINIT`, which the profile points at `.config/vi/exrc`. nvi
+  checks NEXINIT before EXINIT, and nvim reads neither while it has an
+  init.vim. The exrc turns on show-mode, ruler, bracket matching,
+  auto-indent, smart case (`iclower`), incremental and extended search, and
+  Tab for file names on the ex line. Checked: nvi loads it and every option
+  takes effect.
+- `EDITOR` and `VISUAL` are nvim when it is installed, else vi.
+- Root always gets vi: doas clears EDITOR, and root's own kshrc sets
+  `EDITOR=vi`. Edit root-owned files with `doas vi file`. The nvim `:w!!`
+  trick is removed: nvim gives doas no terminal to ask on, so it needed a
+  passwordless rule.
+
+## Root and doas
+
+- `doas` resets the environment for root (HOME, PATH, SHELL, USER and
+  LOGNAME become root's; DISPLAY and TERM pass through). That is the sane
+  default, kept on purpose: a root command runs base tools with root's
+  PATH, never the user's scripts or EDITOR. `.local/share/openbsd/doas.conf`
+  is one rule, `permit persist :wheel`, with no nopass and no keepenv.
+- Root gets its own small `.local/share/openbsd/root.kshrc`: a red `#`
+  prompt, vi mode, history, EDITOR=vi and PAGER=less, and `-i` on cp, mv
+  and rm. Root never sources the user's dotfiles: a root shell should not
+  run code from a directory the user can write.
+
+## Browsers
+
+qutebrowser is `$BROWSER` (Super+w); chromium is Super+Shift+w. Google's
+Chrome does not exist for OpenBSD; chromium from ports is the same engine,
+and on OpenBSD it runs under pledge(2) and unveil(2), with the paths it may
+see listed in /etc/chromium. qutebrowser uses QtWebEngine, also Chromium's
+engine, without that confinement.
+
+Ladybird is left out. It has no OpenBSD port in the ports tree; the
+OpenBSD build is an out-of-tree patch set kept by one person, and upstream
+does not take outside ports. That is not "well maintained" yet.
+
+## Files: archives and drives
+
+- `ext file ...` extracts any archive by its name: tar in all its
+  compressions, gz, bz2, xz, zst, Z, zip (and jar, epub), 7z, rar and
+  iso. Base tar, gzip and compress do most of it; bzip2, xz, zstd, unzip
+  and p7zip are in pkglist. Single compressed files are decompressed next
+  to the original, which is kept, and an existing file is never
+  overwritten. lf's E key calls ext, so the shell and lf share one table.
+- `mounter` (Super+F9) lists unmounted partitions from `disklabel` and
+  mounts the one you pick on `/mnt/<partition>`: FAT with mount_msdos,
+  exFAT with mount.exfat from exfat-fuse, NTFS with ntfs-3g, FFS, ext2 and
+  ISO9660 with base tools. FAT, exFAT and NTFS mount owned by you.
+  `unmounter` (Super+F10) unmounts and removes the mount point. Both run in
+  a terminal so doas can ask for the password. Tested against mocked
+  disklabel and mount output; not yet on the machine.
 
 ## Installing on the X220
 
@@ -133,8 +195,11 @@ System side (root, typed by the owner):
 - `rcctl enable messagebus && rcctl start messagebus` (the system D-Bus
   from the dbus package; see its readme in /usr/local/share/doc/pkg-readmes
   for the machine-id step).
-- `/etc/doas.conf`: at least `permit persist :wheel`. nvim's `:w!!`
-  runs doas with no terminal, so it works only under a `nopass` rule.
+- doas: `install -o root -g wheel -m 0640 ~/.local/share/openbsd/doas.conf
+  /etc/doas.conf`, then `doas -C /etc/doas.conf` to check it.
+- Root's shell: `install -o root -g wheel -m 0644
+  ~/.local/share/openbsd/root.kshrc /root/.kshrc`, and add
+  `export ENV=/root/.kshrc` to /root/.profile.
 - Console caps-to-escape: `keyboard.map+="keysym Caps_Lock = Escape"`
   in `/etc/wsconsctl.conf`.
 - Screen recording with sound: `sysctl kern.audio.record=1` (off by
@@ -156,9 +221,10 @@ packages.
   `/proc/PID/cwd`. OpenBSD exposes a process's cwd only through
   sysctl(3) `KERN_PROC_CWD`. A C helper of a few dozen lines would
   close it. Until then `sd` opens a plain terminal.
-- Removed: mounter, unmounter (lsblk, udisks, cryptsetup, MTP),
-  dmenumountcifs (avahi, CIFS), dmenupass (sudo askpass), remapd (udev),
-  the pacman update blocks and cron job.
+- Removed: dmenumountcifs (avahi, CIFS), dmenupass (sudo askpass), remapd
+  (udev), the pacman update blocks and cron job. mounter and unmounter
+  were rewritten for OpenBSD; the Linux versions' LUKS and Android (MTP)
+  support did not come over.
 - Untouched and untested: pywal's postrun (GNU `echo -e`, `grep` lazy
   match), pinentry/preexec (Linux library paths), ueberzug previews
   (not packaged; lfub falls back to plain lf), cron jobs that notify
