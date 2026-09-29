@@ -160,6 +160,25 @@ EOF
 	return 0
 }
 
+# /etc is read-only in the box, but /etc/hostname.* hold wireless keys
+# (dmenuwifi writes them; mode 640, group wheel, which the user is in).
+# Here /etc/hostname.* is $T/etc/hostname.* (see derived in lib.sh).
+t_cdxb_hostname_hidden() {
+	cdxb_setup
+	mkdir -p "$T/etc"
+	echo 'join home wpakey secret' >"$T/etc/hostname.iwn0"
+	: >"$T/etc/hostname.em0"
+	cb=$(derived .local/bin/cdxb cdxb "s|/etc/hostname\\.|$T/etc/hostname.|g")
+	cd "$HOME/src/proj" || fail "no project"
+	out=$("$VT_KSH" "$cb" 2>&1 </dev/null) || fail "cdxb failed: $out"
+	wall "wireless keys hidden" ":$T/etc/hostname.iwn0"
+	wall "every hostname file hidden" ":$T/etc/hostname.em0"
+	rm "$T/etc/hostname.iwn0" "$T/etc/hostname.em0"
+	out=$("$VT_KSH" "$cb" 2>&1 </dev/null) || fail "cdxb failed: $out"
+	hasnt "no wall for an unmatched pattern" "hostname.*" "$(cat "$VT_STATE/walls")"
+	return 0
+}
+
 # What the box inherits: its own TMPDIR, no display, the outbox; cdxb
 # keeps its own TMPDIR. -a marks the project untrusted.
 t_cdxb_box_env() {

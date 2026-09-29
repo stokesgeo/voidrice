@@ -15,7 +15,7 @@
 # unveils the walls cdxb lists, locks them and sets execpromises, so Codex
 # and all it runs see only the system (read and run), ~/.codex, dir, the
 # paths in ~/.config/cdxb/grants and those from -r, -w and add. The deny
-# list hides its paths even then; the protected paths (Codex's and cdxb's
+# list hides its paths even then, and /etc/hostname.* (wireless keys); the protected paths (Codex's and cdxb's
 # settings, your dotfiles) stay read-only. A session's walls are in
 # ~/.cache/cdxb/PID/walls. Codex proposes a settings file by writing it
 # whole to $CDXB_OUTBOX; you see the diff and apply it with y.
@@ -131,6 +131,7 @@ walls() {
 	[ -n "$Hflag" ] && homewalls
 	for p in /bin /sbin /usr; do wall rx $p; done
 	for p in /etc /var/run/ld.so.hints /dev/random /dev/urandom; do wall r $p; done
+	for p in /etc/hostname.*; do [ -e "$p" ] && wall - "$p"; done	# wpakey lines
 	for p in null tty ptm; do wall rw /dev/$p; done	# ptm: Codex's terminals
 	wall rwc "$HOME/.codex"
 	for p in "$HOME/.gitconfig" "$conf/git"; do wall r "$p"; done
