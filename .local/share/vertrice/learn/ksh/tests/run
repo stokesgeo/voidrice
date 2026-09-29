@@ -1,0 +1,57 @@
+#!/bin/ksh
+
+# run: the tests for @NAME@. It reads the cases in tests/cases, runs each
+# one, and prints PASS or FAIL per case, then a total. The exit status is
+# 1 if any case failed, so `tests/run && echo ready` works.
+#
+# The same idea as the vertrice suite (~/.local/share/vertrice/tests/run),
+# at a size you can read in one sitting. You write cases; this file you
+# should not need to change.
+
+set -u
+
+# Where things are, found from this file's own path, so the tests work
+# from any directory. cd and pwd turn a relative path into a full one.
+here=$(cd "$(dirname "$0")" && pwd)
+# shellcheck disable=SC2034	# prog is used by the cases
+prog=$(cd "$here/.." && pwd)/@NAME@
+
+# A scratch directory for the cases' files, removed on exit. mktemp makes
+# a new, unique name, so two runs cannot collide; trap runs rm on EXIT.
+T=$(mktemp -d "${TMPDIR:-/tmp}/@NAME@-tests.XXXXXX") || exit 2
+trap 'rm -rf "$T"' EXIT
+
+# The helpers a case can call. Each prints why it failed and returns 1;
+# a case ends with the first failure: `eq ... || return 1`.
+#	eq DESC WANT GOT	GOT must be exactly WANT
+#	fail MSG		fails, always: `[ -s out ] || fail "no output"`
+fail() { print "	FAIL: $*"; return 1; }
+eq() {
+	[ "$3" = "$2" ] && return 0
+	print "	FAIL: $1"
+	print "	  want: [$2]"
+	print "	  got:  [$3]"
+	return 1
+}
+
+# The . command reads a file into this shell, as if typed here: the cases
+# become functions of this script, and see $prog and the helpers.
+# shellcheck source=/dev/null
+. "$here/cases"
+
+# Every function whose name starts with t_ is a case. typeset +f lists the
+# names of the functions ksh knows, in alphabetical order.
+cases=$(typeset +f | grep '^t_')
+
+pass=0 failed=0
+for c in $cases; do
+	# A subshell ( ) gives each case its own variables and directory:
+	# nothing one case does can leak into the next.
+	if ( cd "$T" && "$c" ); then
+		print "PASS $c"; pass=$((pass + 1))
+	else
+		print "FAIL $c"; failed=$((failed + 1))
+	fi
+done
+print "== $((pass + failed)) cases: $pass passed, $failed failed"
+[ "$failed" -eq 0 ]

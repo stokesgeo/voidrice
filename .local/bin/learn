@@ -1,0 +1,63 @@
+#!/bin/sh
+
+# learn: start a small practice program in ~/src/learn/NAME, from the
+# templates in ~/.local/share/vertrice/learn.
+#
+#	learn new NAME [ksh|c]	ksh is the default
+#
+# NAME is the program's name: a letter, then letters, digits, "-" or "_".
+# The ksh kind is a script, tests/run and tests/cases; the C kind is a
+# Makefile for bsd.prog.mk, main.c and a manual page. Every line of the
+# templates says in a comment what it is for. An existing directory is
+# never touched. The reading list is ~/.local/share/vertrice/learn/reading.
+
+# The templates sit next to this script in the same tree: bin/../share.
+# $0 is the path the script was started by, so this works in $HOME and in
+# a checkout of the repository alike.
+tpl=$(cd "$(dirname "$0")/../share/vertrice/learn" 2>/dev/null && pwd) ||
+	{ echo "learn: no templates beside $0" >&2; exit 1; }
+
+usage() { echo "usage: learn new NAME [ksh|c]" >&2; exit 1; }
+
+[ "${1-}" = new ] || usage
+[ $# -eq 2 ] || [ $# -eq 3 ] || usage
+name=$2 kind=${3:-ksh}
+
+# The name goes into file names and into sed below, so only plain
+# characters: then it needs no quoting anywhere.
+case $name in
+[a-zA-Z]*) ;;
+*) echo "learn: a name starts with a letter: $name" >&2; exit 1 ;;
+esac
+case $name in *[!a-zA-Z0-9_-]*)
+	echo "learn: letters, digits, - and _ only: $name" >&2; exit 1 ;;
+esac
+case $kind in ksh|c) ;; *) usage ;; esac
+
+# mkdir without -p fails if the directory exists: the check and the
+# creation are one step, so nothing can appear between them.
+dest=$HOME/src/learn/$name
+mkdir -p "$HOME/src/learn" || exit 1
+if ! mkdir "$dest" 2>/dev/null; then
+	echo "learn: $dest exists, or cannot be made; nothing changed" >&2
+	exit 1
+fi
+
+# Fill in the placeholders: @NAME@, @UPNAME@ (the manual's title is in
+# capitals) and @DATE@ ("September 29 2026", the form mdoc dates take).
+up=$(echo "$name" | tr '[:lower:]' '[:upper:]')
+day=$(date '+%B %d %Y' | sed 's/ 0/ /')
+cd "$tpl/$kind" || exit 1
+find . -type f | while read -r f; do
+	out=$dest/$(echo "${f#./}" | sed "s/@NAME@/$name/g")
+	mkdir -p "$(dirname "$out")" &&
+	sed -e "s/@NAME@/$name/g" -e "s/@UPNAME@/$up/g" -e "s/@DATE@/$day/g" \
+	    "$f" >"$out" || exit 1
+	if [ -x "$f" ]; then chmod +x "$out"; fi
+done || { echo "learn: copying into $dest failed" >&2; exit 1; }
+
+echo "made $dest"
+case $kind in
+ksh)	echo "next: cd $dest; ./$name -Z; tests/run" ;;
+c)	echo "next: cd $dest; make && ./$name; make manlint" ;;
+esac
