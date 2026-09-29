@@ -1,6 +1,6 @@
 # File bookmarks: key, path, description, separated by tabs. The shortcuts
 # script turns each into a shell alias, an lf key and a vim command.
-# Keep backticks and $( ) out of comments: shortcuts passes this file to eval.
+# Paths pass through eval, so $VAR expands; comments are cut first.
 
 # These files automatically update when edited/saved in vim:
 

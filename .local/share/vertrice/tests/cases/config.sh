@@ -37,6 +37,20 @@ t_shortcuts_leaves_dev_null() {
 	notlogged '^rm-devnull'
 }
 
+# Only the paths go through eval: a backtick in a comment is not run, and a
+# lone quote in a comment does not end the file early.
+t_shortcuts_comments_not_evaluated() {
+	mkdir -p "$XDG_CONFIG_HOME/shell" "$XDG_CONFIG_HOME/lf" "$XDG_CONFIG_HOME/nvim"
+	printf '# `touch %s/ran`\nh  $HOME\n' "$T" >"$XDG_CONFIG_HOME/shell/bm-dirs"
+	printf 'bf\t~/f\t# a 12" note\n' >"$XDG_CONFIG_HOME/shell/bm-files"
+	shortcuts 2>"$T/err" || fail "shortcuts failed"
+	[ ! -e "$T/ran" ] || fail "a comment ran as a command"
+	eq "no errors" "" "$(cat "$T/err")"
+	out=$("$VT_KSH" -c ". '$XDG_CONFIG_HOME/shell/shortcutrc' && alias h && alias bf" 2>&1)
+	eq "both aliases" "h='cd $HOME && ls -A'
+bf='vi ~/f'" "$out"
+}
+
 t_cwmrc_accepted() {
 	[ -x "$CWM" ] || skip "no cwm binary (set CWM)"
 	out=$("$CWM" -n -c "$REPO/.config/cwm/cwmrc" 2>&1) || fail "cwm -n: $out"

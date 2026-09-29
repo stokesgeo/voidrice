@@ -1,7 +1,7 @@
 # You can add comments to these files with #
 # Directory bookmarks: key, then path. The shortcuts script turns each into
 # a shell alias, an lf key and a vim command; the ref alias reloads them.
-# Keep backticks and $( ) out of comments: shortcuts passes this file to eval.
+# Paths pass through eval, so $VAR expands; comments are cut first.
 cac ${XDG_CACHE_HOME:-$HOME/.cache}
 cf  ${XDG_CONFIG_HOME:-$HOME/.config}
 D   ${XDG_DOWNLOAD_DIR:-$HOME/Downloads}
