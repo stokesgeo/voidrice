@@ -73,6 +73,15 @@ Download queue
   macros and the handlers' queue entries go through it; sb-tasks counts
   the live nq jobs.
 
+Palette
+
+- theme also colours dunst (a dunstrc.d drop-in, then dunstctl reload)
+  and zathura (an included file, reread over D-Bus), and sets the root
+  window's colour at each switch when xwallpaper is absent.
+- pywal is opt-in (PALETTE=wal, pywal from pipx): setbg runs wal only
+  then; wal/postrun is sh and runs `theme wal`; the wal templates hold
+  only colours. Without the switch, setbg is unchanged.
+
 Files and drives
 
 - New `ext` extracts every archive type by name; lf's E key calls it.

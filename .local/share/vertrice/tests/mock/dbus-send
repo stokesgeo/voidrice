@@ -1,0 +1,22 @@
+#!/bin/sh
+
+# dbus-send(1) mock (package dbus). Logs "dbus-send ARGS". Takes only
+# dbus-send's options (--system, --session, --bus=, --peer=, --sender=,
+# --dest=, --print-reply[=literal], --reply-timeout=, --type=), then an
+# object path and INTERFACE.MEMBER; anything else fails. A real dbus-send
+# here would reach the programs of your running session.
+
+echo "dbus-send $*" >>"$VT_STATE/log"
+while [ $# -gt 0 ]; do
+	case $1 in
+	--system|--session|--print-reply|--print-reply=literal) ;;
+	--bus=*|--peer=*|--sender=*|--dest=*|--reply-timeout=*) ;;
+	--type=method_call|--type=signal) ;;
+	-*) echo "dbus-send: unknown option $1" >&2; exit 1 ;;
+	*) break ;;
+	esac
+	shift
+done
+case $1 in /*) ;; *) echo "dbus-send: need an object path" >&2; exit 1 ;; esac
+case $2 in *.*) ;; *) echo "dbus-send: need INTERFACE.MEMBER" >&2; exit 1 ;; esac
+exit "$(cat "$VT_STATE/rc.dbus-send" 2>/dev/null || echo 0)"

@@ -23,3 +23,7 @@ map [fullscreen] J zoom out
 map [fullscreen] i recolor
 map [fullscreen] p print
 map [fullscreen] g goto top
+# Colours: written by `theme` at each day/night switch (or from pywal, with
+# PALETTE=wal). Before the first switch the file is missing; zathura logs
+# a warning and keeps its own colours.
+include theme

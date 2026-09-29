@@ -4,14 +4,11 @@
 #	Run by itself, set the wallpaper (at X start).
 #	If given a file, set that as the new wallpaper.
 #	If given a directory, choose random file in it.
-#	If wal is installed, also generates a colorscheme.
+#	With PALETTE=wal and pywal installed, also takes the colours
+#	from the wallpaper.
 
 # Location of link to wallpaper link.
 bgloc="${XDG_DATA_HOME:-$HOME/.local/share}/bg"
-
-# Configuration files of applications that have their themes changed by pywal.
-dunstconf="${XDG_CONFIG_HOME:-$HOME/.config}/dunst/dunstrc"
-zathuraconf="${XDG_CONFIG_HOME:-$HOME/.config}/zathura/zathurarc"
 
 # Give -s as parameter to make notifications silent.
 while getopts "s" o; do case "${o}" in
@@ -32,26 +29,22 @@ else
 	esac
 fi
 
-# If pywal is installed, use it.
-if command -v wal >/dev/null 2>&1 ; then
-	wal -n -i "$(readlink -f $bgloc)" -o "${XDG_CONFIG_HOME:-$HOME/.config}/wal/postrun" >/dev/null 2>&1
-# If pywal is removed, return config files to normal.
-else
-	[ -f "$dunstconf.bak" ] && unlink "$dunstconf" && mv "$dunstconf.bak" "$dunstconf"
-	[ -f "$zathuraconf.bak" ] && unlink "$zathuraconf" && mv "$zathuraconf.bak" "$zathuraconf"
+# pywal is opt-in: the fixed day and night palettes of `theme` are the
+# default. Set PALETTE=wal in the profile and install pywal (pip, see
+# OPENBSD.md) to colour everything from the wallpaper instead. wal writes
+# its colours to ~/.cache/wal, then runs postrun, which applies them with
+# `theme wal`. Without the switch, or without wal, nothing changes here.
+if [ "$PALETTE" = wal ] && command -v wal >/dev/null 2>&1 ; then
+	wal -n -i "$(readlink -f "$bgloc")" -o "${XDG_CONFIG_HOME:-$HOME/.config}/wal/postrun" >/dev/null 2>&1
 fi
 
 # xwallpaper is optional (pkglist.extra). Without it the root window gets
-# the current theme's background colour, from the palette file that
-# `theme` last applied (before any, day from 07:00 to 19:00, as theme's
-# own rule). It changes again only when setbg next runs.
+# the current palette's background colour (`theme root`); theme sets it
+# again at each day/night switch.
 if command -v xwallpaper >/dev/null 2>&1; then
 	xwallpaper --zoom "$bgloc"
 else
-	t=$(cat "${XDG_CACHE_HOME:-$HOME/.cache}/theme" 2>/dev/null)
-	[ -n "$t" ] || { h=$(date +%H); [ "$h" -ge 7 ] && [ "$h" -lt 19 ] && t=day || t=night; }
-	bg=$(sed -n 's/^\*\.background:[[:space:]]*//p' "${XDG_CONFIG_HOME:-$HOME/.config}/x11/themes/$t" 2>/dev/null)
-	[ -n "$bg" ] && xsetroot -solid "$bg"
+	theme root
 fi
 # If running, dwm hit the key to refresh the color scheme.
 pgrep -x dwm >/dev/null && xdotool key super+F5

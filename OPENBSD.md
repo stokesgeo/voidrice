@@ -592,6 +592,58 @@ replaces it:
   round, by choice. The frames stay the same in day and night.
 - **Notifications.** dunst in Plex Mono, slate with pastel text, framed in
   the window-border colours.
+- **dunst and zathura follow the palette.** See "Two ways to colour" below.
+
+### Two ways to colour: theme (default) or pywal (opt-in)
+
+voidrice took its colours from the wallpaper with pywal, and pywal's
+templates coloured dunst and zathura. vertrice keeps both ways. The fixed
+palettes are the default; pywal is a switch you turn on.
+
+**theme, the default.** The palette files in `.config/x11/themes` are the
+only source of colour. Each switch (clock, Super+F8, `theme day|night`)
+changes:
+
+- X resources and the open terminals (as above);
+- dunst: `~/.config/dunst/dunstrc.d/theme.conf` gets the background and
+  text colours; low urgency takes the dim grey (color8, 4.7:1 in both
+  palettes). dunst reads that file after dunstrc (drop-ins, read in dunst's
+  settings.c, 1.13.2), and a running dunst reloads with `dunstctl reload`.
+  Frames, size and font stay in dunstrc;
+- zathura: `~/.config/zathura/theme` gets page, bar, search and recolour
+  (`i`) colours. zathurarc ends with `include theme`; a running zathura
+  rereads its config over D-Bus (SourceConfig, read in zathura 0.5.14's
+  source; not yet seen on the machine);
+- the root window, when xwallpaper is not installed: it now follows the
+  switch (before, only setbg set it, so it kept the old colour).
+
+The two generated files are not in the repository. Until the first switch
+dunst uses dunstrc's own colours (the night palette), and zathura logs a
+warning and keeps its defaults.
+
+**pywal, opt-in.** pywal has no OpenBSD package. It installs with pip; the
+system Python refuses `pip install --user` (it is marked
+EXTERNALLY-MANAGED and points to pipx), so use pipx:
+
+	doas pkg_add py3-pipx ImageMagick
+	pipx install pywal	# wal lands in ~/.local/bin (pipx default)
+
+ImageMagick's `convert` is what pywal's default backend calls. Then add
+`export PALETTE=wal` to `~/.config/shell/profile` and log in again. The
+package names and the EXTERNALLY-MANAGED text were read in the ports
+tree; the pipx steps are from memory, not run on the machine.
+
+With `PALETTE=wal` and `wal` on your PATH, `setbg` runs
+`wal -n -i WALLPAPER -o ~/.config/wal/postrun`. wal fills in the templates
+in `~/.config/wal/templates` into `~/.cache/wal`, and postrun (now sh, not
+bash) runs `theme wal`, which applies them the same way as a palette:
+`palette` is a palette file in theme's format; `dunstrc` and `zathurarc`
+are Luke's colour choices, now only the colours, copied to the two files
+above. pywal itself would recolour terminals by writing to `/dev/pts/*`,
+which OpenBSD does not have, so theme does it. With `PALETTE=wal`,
+`theme clock` does nothing, so 07:00 and 19:00 leave the wallpaper's
+colours alone; Super+F8 still switches to day or night by hand, until the
+next setbg. Without the switch, or without wal, setbg does what it did.
 
 ## X220 details
 
@@ -1083,8 +1135,7 @@ Left out:
   User-Agent, `-w` for the timeouts, which limits only the connect).
   curl is still installed, because git depends on it.
 - socat: pauseallmpv talks to mpv's sockets with base nc(1) (`nc -NU`).
-- bash: rssget and sb-ticker are POSIX sh now. pywal's postrun is still
-  bash, and runs only if pywal is installed, which it is not.
+- bash: rssget, sb-ticker and pywal's postrun are POSIX sh now.
 - highlight, bat: nothing runs highlight; lf's previewer uses bat when it
   is installed and otherwise shows the start of the file with head(1).
 - xwallpaper is extra: without it, setbg sets the root window to the
@@ -1313,8 +1364,7 @@ from it (from memory).
   (udev), the pacman update blocks and cron job. mounter and unmounter
   were rewritten for OpenBSD; the Linux versions' LUKS and Android (MTP)
   support did not come over.
-- Untouched and untested: pywal's postrun (GNU `echo -e`, `grep` lazy
-  match), pinentry/preexec (Linux library paths), ueberzug previews
+- Untouched and untested: pinentry/preexec (Linux library paths), ueberzug previews
   (not packaged; lfub falls back to plain lf), cron jobs that notify
   (no fixed D-Bus address to point cron at).
 - lf's opener trusts OpenBSD file(1)'s MIME database, which differs from

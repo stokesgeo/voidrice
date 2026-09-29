@@ -1,12 +1,15 @@
 #!/bin/ksh
 
-# theme: switch the terminal palette between day and night.
+# theme: switch the palette between day and night.
 #	theme day | night	set one now
 #	theme toggle		flip it (Super+F8)
 #	theme auto		day from 07:00, night from 19:00
 #	theme clock		apply auto now and at each 07:00 / 19:00 (xprofile)
+#	theme wal		apply pywal's colours (run by wal/postrun)
+#	theme root		set the root window to the current background
 #
-# Two things change:
+# The palette files in ~/.config/x11/themes are the single source. What a
+# switch changes:
 # - The X resource database gets the palette (xrdb -merge), so new xterm
 #   and st windows open in it.
 # - Terminals already open are recoloured in place: their colours are set
@@ -15,17 +18,125 @@
 #   most terminals. Programs that read the background once at start (Codex
 #   asks the terminal for it, so do nvim and others) see the change in
 #   their next session.
+# - dunst: ~/.config/dunst/dunstrc.d/theme.conf gets the notification
+#   colours (dunst reads *.conf there after dunstrc, the later file
+#   winning), and a running dunst reloads (dunstctl reload).
+# - zathura: ~/.config/zathura/theme gets its colours (zathurarc includes
+#   it), and each running zathura rereads its config over D-Bus.
+# - Without xwallpaper, the root window takes the background colour
+#   (with it, the wallpaper covers the root window).
 # cwm's window borders are fixed colours and do not change.
 #
 # A manual toggle holds until the next 07:00 or 19:00.
+#
+# pywal (optional; PALETTE=wal in the profile, see setbg): wal writes a
+# palette in the same format to ~/.cache/wal/palette, and its dunst and
+# zathura colours from ~/.config/wal/templates. `theme wal` applies those
+# in the same way. With PALETTE=wal, `theme clock` does nothing, so the
+# clock does not replace the wallpaper's colours.
 
-dir=${XDG_CONFIG_HOME:-$HOME/.config}/x11/themes
+conf=${XDG_CONFIG_HOME:-$HOME/.config}
+dir=$conf/x11/themes
 state=${XDG_CACHE_HOME:-$HOME/.cache}/theme
+wal=${XDG_CACHE_HOME:-$HOME/.cache}/wal
+dunstd=$conf/dunst/dunstrc.d
+zathurad=$conf/zathura
 
 auto() { h=$(date +%H); [ "$h" -ge 7 ] && [ "$h" -lt 19 ] && print day || print night; }
 
+# palette NAME: the file of palette NAME.
+palette() { [ "$1" = wal ] && print "$wal/palette" || print "$dir/$1"; }
+
+# background FILE: the palette's background colour.
+background() { sed -n 's/^\*\.background:[[:space:]]*//p' "$1" 2>/dev/null; }
+
+# root: the root window in the current background, unless xwallpaper
+# draws a wallpaper there. Before any theme is applied, auto's pick.
+root() {
+	typeset t bg
+	command -v xwallpaper >/dev/null 2>&1 && return 0
+	t=$(cat "$state" 2>/dev/null)
+	[ -n "$t" ] || t=$(auto)
+	bg=$(background "$(palette "$t")")
+	[ -n "$bg" ] && xsetroot -solid "$bg"
+}
+
+# overlays NAME FILE: dunst and zathura colours, then reload both.
+overlays() {
+	typeset k v fg bg dim
+	mkdir -p "$dunstd" "$zathurad"
+	if [ "$1" = wal ]; then
+		# Luke's wal templates, as wal filled them in.
+		[ -r "$wal/dunstrc" ] && cat "$wal/dunstrc" > "$dunstd/theme.conf"
+		[ -r "$wal/zathurarc" ] && cat "$wal/zathurarc" > "$zathurad/theme"
+	else
+		while read -r k v; do
+			case $k in
+			\*.foreground:)	fg=$v ;;
+			\*.background:)	bg=$v ;;
+			\*.color8:)	dim=$v ;;
+			esac
+		done < "$2"
+		# Low urgency in the dim grey (color8, 4.5:1 or more in both
+		# palettes); the frames stay dunstrc's, cwm's border colours.
+		cat > "$dunstd/theme.conf" <<-EOF
+		# Written by theme from the $1 palette at each switch.
+		[urgency_low]
+		    background = "$bg"
+		    foreground = "$dim"
+		[urgency_normal]
+		    background = "$bg"
+		    foreground = "$fg"
+		[urgency_critical]
+		    background = "$bg"
+		    foreground = "$fg"
+		EOF
+		zathura_colours "$1" "$2" > "$zathurad/theme"
+	fi
+	pgrep -U "$(id -u)" -x dunst >/dev/null && dunstctl reload >/dev/null 2>&1
+	# zathura's D-Bus name is org.pwmt.zathura.PID-<pid>; SourceConfig
+	# rereads zathurarc and so this include (zathura's dbus-interface.c).
+	for p in $(pgrep -U "$(id -u)" -x zathura); do
+		dbus-send --session --type=method_call \
+			--dest="org.pwmt.zathura.PID-$p" /org/pwmt/zathura \
+			org.pwmt.zathura.SourceConfig >/dev/null 2>&1
+	done
+}
+
+# zathura_colours NAME FILE: zathura's colour settings from a palette.
+# Page and bars in the palette; search hits in yellow (3) and blue (4);
+# recolour mode (i) draws the page in the palette.
+zathura_colours() {
+	typeset k v fg bg red yellow blue
+	while read -r k v; do
+		case $k in
+		\*.foreground:)	fg=$v ;;
+		\*.background:)	bg=$v ;;
+		\*.color1:)	red=$v ;;
+		\*.color3:)	yellow=$v ;;
+		\*.color4:)	blue=$v ;;
+		esac
+	done < "$2"
+	print "# Written by theme from the $1 palette at each switch."
+	for k in default statusbar inputbar notification completion; do
+		print "set $k-bg \"$bg\""
+		print "set $k-fg \"$fg\""
+	done
+	print "set notification-error-bg \"$bg\""
+	print "set notification-error-fg \"$red\""
+	print "set notification-warning-bg \"$bg\""
+	print "set notification-warning-fg \"$yellow\""
+	print "set completion-highlight-bg \"$blue\""
+	print "set completion-highlight-fg \"$bg\""
+	print "set highlight-color \"$yellow\""
+	print "set highlight-active-color \"$blue\""
+	print "set recolor-lightcolor \"$bg\""
+	print "set recolor-darkcolor \"$fg\""
+}
+
 apply() {
-	typeset f=$dir/$1 k v n seq=
+	typeset f k v n seq=
+	f=$(palette "$1")
 	[ -r "$f" ] || { print -u2 "theme: no palette $f"; return 1; }
 	[ -n "$DISPLAY" ] && xrdb -merge "$f"
 	# Build one escape string from the palette file.
@@ -42,13 +153,18 @@ apply() {
 		[ -w "/dev/tty$t" ] && printf "$seq" > "/dev/tty$t" 2>/dev/null
 	done
 	mkdir -p "${state%/*}"; print "$1" > "$state"
+	overlays "$1" "$f"
+	[ -n "$DISPLAY" ] && root
+	return 0
 }
 
 case $1 in
-day|night)	apply "$1" ;;
+day|night|wal)	apply "$1" ;;
 toggle)		[ "$(cat "$state" 2>/dev/null)" = day ] && apply night || apply day ;;
 auto)		apply "$(auto)" ;;
+root)		root ;;
 clock)
+	[ "$PALETTE" = wal ] && exit 0	# the wallpaper sets the colours
 	# One loop per user. It checks every 5 minutes rather than sleeping
 	# until 07:00, so a suspended laptop catches up soon after waking.
 	pgrep -U "$(id -u)" -f 'theme clock' | grep -vx "$$" | grep -q . && exit 0
@@ -60,5 +176,5 @@ clock)
 		sleep 300
 	done
 	;;
-*)	print -u2 "usage: theme day|night|toggle|auto|clock"; exit 1 ;;
+*)	print -u2 "usage: theme day|night|toggle|auto|clock|wal|root"; exit 1 ;;
 esac
