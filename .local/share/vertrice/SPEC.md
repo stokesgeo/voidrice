@@ -301,6 +301,10 @@ cannot beat wear levelling); `hotplug-watch` with a real attach.
   keyboard driven workflow working, as a highly portable eink laptop and
   Mac mini agentic os thin client has massive potential as a
   travel/coffeeshop/bookbag device."
+- Every device a thin client, the X220 included: "everything is a thin
+  client, with a gradient of local capabilities." What runs on the X220
+  and what on the hub is open; so is cdxb's place, if agents live on
+  the hub.
 - Held by the owner, in his words: a console writing session
   ("interesting, but too much for now, note as a future feature idea");
   word-level diffs for prose ("it might be great, but id want to
