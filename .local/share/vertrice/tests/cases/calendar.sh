@@ -1,6 +1,6 @@
-# calendar(1) reminders: the starter file, the nomail switch and the agent
-# wiring (a cdxb grant and the AGENTS.md lines). vertrice-install's crontab
-# line is in install.sh.
+# calendar(1) reminders: the starter file and the agent wiring (a cdxb grant
+# and the AGENTS.md lines). The nightly daily(8) run mails the reminders;
+# vertrice installs nothing for it.
 
 t_calendar_starter() {
 	# calendar runs cpp on the file first (usr.bin/calendar/io.c: cpp
@@ -13,9 +13,8 @@ t_calendar_starter() {
 	hasnt "the comment is gone" "/*" "$out"
 	eq "every line: a date, a tab, the text" "" \
 		"$(printf '%s\n' "$out" | grep -v '^[^	]*[0-9A-Za-z*][^	]*	[^	]')"
-	# calendar -a (daily(8)) mails nothing while ~/.calendar/nomail exists;
-	# the morning crontab job mails instead.
-	[ -f "$REPO/.calendar/nomail" ] || fail "no ~/.calendar/nomail"
+	# daily(8) mails through calendar -a: a nomail file would stop it.
+	[ ! -e "$REPO/.calendar/nomail" ] || fail "~/.calendar/nomail stops the mail"
 }
 
 t_calendar_agent_grant() {

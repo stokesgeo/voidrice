@@ -49,7 +49,7 @@ t_install_system() {
 	[ -e "$R/etc/sysctl.conf" ] && fail "sysctl.conf written: recording is per call (rec)"
 	eq "fbtab: kept, plus the camera" "$(printf '/dev/ttyC0\t0600\t/dev/console\n'; cat "$data/fbtab")" "$(cat "$R/etc/fbtab")"
 	logged "^stat -f %Su $T/x/bin/vertrice-install\$"
-	eq "the owner's crontab: kept, plus calendar" "$(printf '0\t9\t*\t*\t1\tlogger monday\n'; cat "$data/calendar.cron")" \
+	eq "the owner's crontab: left alone, no calendar job" "$(printf '0\t9\t*\t*\t1\tlogger monday\n')" \
 		"$(cat "$VT_STATE/crontab.puffy")"
 	eq "root's mail to the owner" "root: puffy" "$(grep '^root:' "$R/etc/mail/aliases")"
 	logged '^newaliases $'
@@ -70,8 +70,7 @@ t_install_twice() {
 	cmp -s "$joined" "$R/etc/doas.conf" || fail "agent rules dropped: $(cat "$R/etc/doas.conf")"
 	eq "one update job" 1 "$(grep -c '^~.*/var/db/updates' "$VT_STATE/crontab.user")"
 	eq "one update comment" 1 "$(grep -c '^#.*/var/db/updates' "$VT_STATE/crontab.user")"
-	eq "one calendar job" 1 "$(grep -c 'calendar$' "$VT_STATE/crontab.puffy")"
-	eq "one calendar comment" 1 "$(grep -c 'calendar(1)' "$VT_STATE/crontab.puffy")"
+	eq "no calendar job" 0 "$(grep -c calendar "$VT_STATE/crontab.puffy")"
 	eq "the owner's own job kept" 1 "$(grep -c 'logger monday' "$VT_STATE/crontab.puffy")"
 	eq "one root alias" 1 "$(grep -c '^root:' "$R/etc/mail/aliases")"
 }

@@ -13,7 +13,7 @@
 #	git --git-dir=$HOME/.local/share/vertrice.git config status.showUntrackedFiles no
 
 # Root runs this, so "you" is found as the owner of the script. Root's mail
-# goes to you, and your crontab gets the calendar job.
+# goes to you.
 u=$(stat -f %Su "$0")
 cd "$(dirname "$0")/../share/openbsd" || exit
 pkg_add -l pkglist			# the optional rest: pkg_add -l pkglist.extra
@@ -30,7 +30,6 @@ install -m 755 hotplug-attach /etc/hotplug/attach
 # Each crontab is rewritten without our old line, then with the current one,
 # so a second run does not double it. Other entries stay.
 (crontab -l | grep -v /var/db/updates; cat updates.cron) | crontab -
-(crontab -u "$u" -l | grep -Ev 'calendar\(1\)|[[:space:]]calendar$'; cat calendar.cron) | crontab -u "$u" -
 # Mail for root, from cron and daily(8), reaches you unless an alias exists.
 grep -q '^root:' /etc/mail/aliases || echo "root: $u" >>/etc/mail/aliases; newaliases
 # rcctl fails on a service that is not installed, so base and packages are

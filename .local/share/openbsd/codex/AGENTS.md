@@ -40,8 +40,8 @@ when cdxb next starts or restarts, they see the diff and type y or n.
 
 The owner's reminders are in ~/.calendar/calendar, in calendar(1)'s
 format: a date, a tab, the text (`Oct 3<TAB>Return the library books`).
-When asked for a reminder, add a line there; cron mails the day's lines
-each morning.
+When asked for a reminder, add a line there; daily(8) mails the day's lines
+at 01:30 each night.
 
 ## OpenBSD habits
 

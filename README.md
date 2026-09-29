@@ -63,7 +63,7 @@ once, inside X. `~/.local/share/vertrice/tests/run` is the regression suite.
 | Camera and microphone | on | off; `rectoggle`, Super+Ctrl+F11 |
 | Touchpad | on | off; the TrackPoint scrolls |
 | Backups | none | `bk`: dump(8) to a USB disk |
-| Reminders | none | calendar(1), mailed at 08:00 |
+| Reminders | none | calendar(1), mailed by the nightly daily(8) run |
 | Dictionary | none | `dict` and `roget`, from dictd on localhost |
 | Codex | none | `cdxb`: Codex in an unveil(2) box |
 | Key list, Super+F1 | the LARBS guide | the cwmrc in dmenu |
