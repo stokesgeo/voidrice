@@ -125,10 +125,29 @@ t_kshrc_loads() {
 	with_tty "$VT_KSH" -i -c 'type lfcd; alias cp; [[ -o vi ]] && echo vi-mode'
 	out=$(tr -d '\r' <"$T/tty.out")
 	has "lfcd defined" "lfcd is a function" "$out"
-	has "aliasrc loaded" "cp='cp -i'" "$out"
+	has "aliasrc loaded" "cp='cp -iv'" "$out"
 	has "vi mode" "vi-mode" "$out"
 	hasnt "no errors" "not found" "$out"
 	hasnt "no syntax errors" "syntax error" "$out"
+}
+
+# cp, mv, rm, mkdir aliases use only flags OpenBSD's tools take: the getopt
+# strings of bin/cp/cp.c, bin/mv/mv.c, bin/rm/rm.c, bin/mkdir/mkdir.c
+# (OpenBSD src, 2026).
+t_aliasrc_flags() {
+	bad=
+	for pair in cp:HLPRafiprv mv:ifv rm:dfiPRrv mkdir:pm; do
+		c=${pair%%:*} ok=${pair#*:}
+		a=$(sed -n "s/^[[:space:]]*$c=\"$c \(-[A-Za-z]*\)\".*/\1/p" "$REPO/.config/shell/aliasrc")
+		a=${a#-}
+		[ -n "$a" ] || continue
+		rest=$(printf '%s' "$a" | tr -d "$ok")
+		[ -z "$rest" ] || bad="$bad $c:-$rest"
+	done
+	eq "flags OpenBSD lacks" "" "${bad# }"
+	grep -q '^[[:space:]]*rm="rm -v"' "$REPO/.config/shell/aliasrc" || fail "rm -v alias missing"
+	grep -q 'YT=' "$REPO/.config/shell/aliasrc" && fail "YT (youtube-viewer, no port) is back"
+	return 0
 }
 
 # xinitrc's session-env block, run alone (the rest starts X programs):

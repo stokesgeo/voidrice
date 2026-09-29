@@ -18,11 +18,14 @@ se() {
 	[ -f "$HOME/.local/bin/$choice" ] && $EDITOR "$HOME/.local/bin/$choice"
 	}
 
-# Safety and settings. Only POSIX flags here: an unknown flag in an alias
-# breaks the command it shadows.
+# Safety and settings. Only flags OpenBSD's tools have: an unknown flag in
+# an alias breaks the command it shadows. cp, mv and rm take -v (getopt in
+# bin/cp, bin/mv, bin/rm); rm has no -I, so voidrice's rm -vI is rm -v;
+# mkdir has no -v.
 alias \
-	cp="cp -i" \
-	mv="mv -i" \
+	cp="cp -iv" \
+	mv="mv -iv" \
+	rm="rm -v" \
 	bc="bc -l" \
 	mkd="mkdir -p" \
 	yt="yt-dlp --embed-metadata -i" \
@@ -49,7 +52,6 @@ alias \
 	ka="pkill -x" \
 	g="git" \
 	trem="transmission-remote" \
-	YT="youtube-viewer" \
 	sdn="doas shutdown -p now" \
 	e='$EDITOR' \
 	v='$EDITOR' \
