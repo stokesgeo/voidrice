@@ -20,3 +20,12 @@ t_system_touchpad_off() {
 	echo mouse.tp.disable=1 >"$ROOT/etc/wsconsctl.conf"
 	has "done already" "ok      mouse.tp.disable=1 in /etc/wsconsctl.conf" "$(vertrice-install system)"
 }
+
+t_system_webcam() {
+	sys_setup
+	printf '/dev/ttyC0\t0600\t/dev/console:/dev/wsmouse0\n' >"$ROOT/etc/fbtab"
+	has "off by default" "kern.video.record=0 (-v turns the webcam on)" "$(vertrice-install system)"
+	out=$(vertrice-install -v system)
+	has "sysctl" "would   set kern.video.record=1 now and in /etc/sysctl.conf" "$out"
+	has "fbtab" "would   add /dev/video0 to /etc/fbtab" "$out"
+}

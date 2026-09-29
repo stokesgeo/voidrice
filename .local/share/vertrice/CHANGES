@@ -136,6 +136,9 @@ ThinkPad X220
 - Touchpad off for good (mouse.tp.disable=1 in /etc/wsconsctl.conf,
   from the system stage), TrackPoint wheel scrolling in `remaps`, notes
   on Fn keys, backlight, lid, battery and console.
+- Webcam: `vertrice-install -v` sets kern.video.record=1 and adds
+  /dev/video0 to /etc/fbtab (a call needs -r too); Super+F11 is base
+  video(1), as voidrice's F11 was the webcam.
 
 Install and tests
 

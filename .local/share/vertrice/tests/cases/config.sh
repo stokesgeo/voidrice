@@ -51,7 +51,7 @@ t_cwmrc_function_names() {
 	# conf.c's table, or a program: in this repository or listed here.
 	funcs=$(sed -n 's/.*FUNC_[CS]C(\([a-z0-9-]*\),.*/\1/p' "$c")
 	[ -n "$funcs" ] || fail "no functions found in $c"
-	external="passmenu chromium"
+	external="passmenu chromium video"
 	bad=
 	for w in $(awk '$1 == "bind-key" || $1 == "bind-mouse" { if ($3 !~ /^"/) print $3 }' \
 	    "$REPO/.config/cwm/cwmrc"); do

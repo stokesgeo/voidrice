@@ -129,7 +129,7 @@ against cwm's source, and `cwm -n` accepts the file.
 | w / Shift+w | browser / nmtui | qutebrowser (`$BROWSER`) / chromium |
 | e, r, n, m, c, Shift+d/e/n/r | mail, lf, wiki, music, chat, passmenu, abook, news, top | same programs (top from base for htop) |
 | F9 / F10 | mounter / unmounter | same, OpenBSD versions, in a terminal for doas |
-| F11 / F12 | webcam / remaps | unbound / remaps (keys and TrackPoint scrolling again) |
+| F11 / F12 | webcam / remaps | `video`, base's webcam view / remaps (keys and TrackPoint scrolling again) |
 | F4 | pulsemixer | `nightlight`: warm screen on/off (sct) |
 | F8 | mailsync | `theme toggle`: day / night palette |
 | p, [, ], comma, period | mpc | mpc |
@@ -1264,8 +1264,13 @@ memory" marks what was not read.
   randomisation, a kernel relinked at every boot, a hardened malloc (from
   memory, as a list).
 - **Recording off.** `kern.audio.record=0`, so a program opening the
-  microphone gets silence; `kern.video.record=0` does the same for the
-  webcam (the video one from memory).
+  microphone gets silence; `kern.video.record=0` blanks the webcam's
+  frames (video.c), and `/dev/video0` is root's (mode 600). For a video
+  call, `vertrice-install -r -v system`: -v sets `kern.video.record=1` and
+  adds /dev/video0 to the console user's devices in /etc/fbtab (next
+  login). chromium needs nothing more: its unveil list already has
+  /dev/video0-7 (ports, www/chromium/files/unveil.main). Super+F11 shows
+  the camera with base video(1); dmenurecord's webcam entries record it.
 - **Encrypted swap.** Swap pages are encrypted with keys that exist only
   until shutdown (`vm.swapencrypt.enable=1`, from memory).
 - **The network.** The default /etc/pf.conf passes everything in and out

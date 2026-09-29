@@ -30,6 +30,7 @@ kern.cp_time2.2=3000,0,1000,0,200,5000
 kern.cp_time2.3=5,0,5,0,0,90
 hw.disknames=sd0:4f2a19c07d3e8b61,sd1:9c1e5f7a3b2d4c68,cd0:,sd2:7b3d0e9f1a2c5b84
 kern.audio.record=0
+kern.video.record=0
 EOF
 }
 

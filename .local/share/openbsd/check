@@ -75,6 +75,8 @@ try "ext, mounter, unmounter are on PATH" eval 'command -v ext && command -v mou
 [ -f /etc/doas.conf ] && pass "/etc/doas.conf exists" || fail "/etc/doas.conf exists" "see OPENBSD.md"
 [ "$(sysctl -n kern.audio.record)" = 1 ] && pass "kern.audio.record=1" ||
 	skip "kern.audio.record=0" "dmenurecord audio records silence until it is 1"
+[ "$(sysctl -n kern.video.record)" = 1 ] && [ -r /dev/video0 ] && pass "webcam on (kern.video.record=1, /dev/video0 readable)" ||
+	skip "webcam off" "kern.video.record=$(sysctl -n kern.video.record); /dev/video0 readable: $([ -r /dev/video0 ] && echo yes || echo no) (vertrice-install -v)"
 
 print "== X220"
 # The boot messages name the pointers: on a Synaptics touchpad pms(4) attaches
