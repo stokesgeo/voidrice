@@ -1,0 +1,29 @@
+#!/bin/sh
+
+# touchpad on|off|toggle: switch the touchpad in X, leave the TrackPoint.
+#
+# How X sees the X220's pointers (xenocara xserver/config/wscons.c): at
+# start it opens each touchpad as its own device, named after its node
+# ("/dev/wsmouse0"), and everything else through the mux, "/dev/wsmouse".
+# Opening a wsmouse directly takes it out of the mux (wsmouse.c), so the
+# TrackPoint, which pms(4) attaches as a second wsmouse behind the
+# touchpad, is the mux device and the touchpad is the numbered one.
+# xinput disable stops X reading it; nothing changes below X.
+
+tp=$(xinput list --name-only 2>/dev/null | awk '/^\/dev\/wsmouse[0-9]+$/ { print; exit }')
+[ -n "$tp" ] || { echo "touchpad: no /dev/wsmouseN device in X" >&2; exit 1; }
+
+state=$(xinput list-props "$tp" | awk -F '\t' '/Device Enabled/ { print $NF; exit }')
+
+case $1 in
+	on)	want=1 ;;
+	off)	want=0 ;;
+	toggle|'') [ "$state" = 1 ] && want=0 || want=1 ;;
+	*)	echo "usage: touchpad on|off|toggle" >&2; exit 1 ;;
+esac
+
+if [ "$want" = 1 ]; then xinput enable "$tp"; else xinput disable "$tp"; fi || exit 1
+# Say so only when a person pressed the key, not at session start.
+[ -z "$1" ] || [ "$1" = toggle ] &&
+	notify-send -t 1500 "Touchpad $( [ "$want" = 1 ] && echo on || echo off)"
+exit 0

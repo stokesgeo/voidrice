@@ -80,7 +80,7 @@ The commits follow the same order.
 
 cwm is a floating window manager with tiling on request. The mapping keeps
 Luke's key for each job and uses cwm's own function where one exists
-(`.config/cwm/cwmrc`; Super+F1 opens it). Every function name was checked
+(`.config/cwm/cwmrc`; Super+F1 lists its keys). Every function name was checked
 against cwm's source, and `cwm -n` accepts the file.
 
 | Key (Super+) | dwm | cwm |
@@ -101,12 +101,13 @@ against cwm's source, and `cwm -n` accepts the file.
 | w / Shift+w | browser / nmtui | qutebrowser (`$BROWSER`) / chromium |
 | e, r, n, m, c, Shift+d/e/n/r | mail, lf, wiki, music, chat, passmenu, abook, news, top | same programs (top from base for htop) |
 | F9 / F10 | mounter / unmounter | same, OpenBSD versions, in a terminal for doas |
+| F11 / F12 | webcam / remaps | `touchpad toggle`: touchpad off/on, TrackPoint stays / remaps (keys and TrackPoint scrolling again) |
 | F4 | pulsemixer | `nightlight`: warm screen on/off (sct) |
 | F8 | mailsync | `theme toggle`: day / night palette |
 | p, [, ], comma, period | mpc | mpc |
 | minus / equal / Shift+m | volume / mute (wpctl) | sndioctl |
 | BackSpace, Shift+q | sysact | sysact |
-| F1 / F5 | LARBS guide / reload xresources | cwmrc in less / `restart` (rereads cwmrc) |
+| F1 / F5 | LARBS guide / reload xresources | `keys`: this key list in dmenu, read from cwmrc / `restart` (rereads cwmrc) |
 | Print, Shift+Print, Super+Print, Delete | screenshots, recording | same |
 
 Mouse: Super+drag moves, Super+right-drag resizes. cwm's Alt mouse
@@ -123,7 +124,7 @@ What does not carry over, because cwm has no equivalent:
   floating toggle (cwm windows are always floating).
 - The XF86 media and brightness keys. The X220's volume, mute and
   brightness keys are handled below X (acpithinkpad), so they work without
-  a binding (to check on the machine). F8 (mailsync) and F11 (webcam) are unbound.
+  a binding (see "X220 details").
 
 ## Editors: vi and nvim, side by side
 
@@ -266,6 +267,66 @@ replaces it:
 - **Notifications.** dunst in Plex Mono, slate with pastel text, framed in
   the window-border colours.
 
+## X220 details
+
+Sources read for this section: xenocara's xserver `config/wscons.c` and
+xf86-input-ws, and OpenBSD's pms.c, wsmouse.c, wstpad.c, acpithinkpad.c,
+acpibtn.c, amd64 machdep.c, apmd.c, wsconsctl and wsfont (GitHub mirror of
+src). "From memory" marks what was not read.
+
+- **Two pointers, two X devices.** pms(4) attaches the Synaptics touchpad
+  as one wsmouse and the TrackPoint behind it (its pass-through port) as a
+  second. At start X opens each touchpad by its own node, as a device named
+  `/dev/wsmouse0`, and all other mice through the mux, `/dev/wsmouse`.
+  Opening a wsmouse directly takes it out of the mux, so the TrackPoint is
+  the mux device and no xorg.conf.d file is needed. `check` prints the
+  pms/wsmouse boot lines and the X devices, to confirm which is which.
+- **Touchpad off, TrackPoint on.** `touchpad on|off|toggle` runs
+  `xinput enable/disable` on the numbered device; Super+F11 toggles
+  (F11 was voidrice's webcam key, unbound here). In xprofile,
+  `touchpad_at_login=off` starts every session with it off; the default
+  is on. xinput is in base X.
+- **TrackPoint scrolling.** `remaps` (run at login, again by Super+F12)
+  turns on the ws driver's wheel emulation on `/dev/wsmouse`: hold the
+  middle button and push the stick, both axes. A middle press shorter than
+  200 ms is still a click, so paste works.
+- **Touchpad below X.** `wsconsctl mouse.tp.tapping=1` turns on tapping (one,
+  two, three fingers for left, right, middle); it stays off unless set.
+  `mouse.tp.disable=1` stops all touchpad output except clicks in a top
+  button area; it acts in the kernel, so in X too. `mouse` is wsmouse0,
+  `mouse1` wsmouse1; the check shows which is the touchpad. Put the lines in
+  `/etc/wsconsctl.conf` to keep them.
+- **Fn keys.** acpithinkpad handles, below X: brightness up/down, volume
+  up/down/mute, mic mute, Fn+F5 (Bluetooth), Fn+F4 (suspend) and Fn+F12
+  (hibernate). The ThinkVantage button is not in its list, so it does
+  nothing; `xev` would show whether it reaches X at all. The ThinkLight is
+  hardware.
+- **Backlight.** `wsconsctl display.brightness` is the main path (the
+  battery block uses it). xbacklight is in base X as a fallback; whether
+  the X220's inteldrm gives X a backlight property is not checked.
+- **Lid.** `machdep.lidaction`: 1 suspends (the default), 2 hibernates,
+  0 does nothing. The X220 needs no setting. Closing the lid does not lock
+  the screen; `/etc/apm/suspend`, which apmd runs before sleeping, is the
+  place for that (not done; from memory).
+- **Battery, for the installer.** apmd `-z percent` suspends when on
+  battery and the charge falls below that percentage; `-Z percent`
+  hibernates instead (needs swap at least the size of RAM; from memory).
+  apmd checks at each power-change event and waits a short grace period
+  after a resume. Suggested: `rcctl set apmd flags -z 5`, with no `-A`,
+  `-L` or `-H`.
+- **CPU block.** `sb-cpu` shows temperature and `hw.cpuspeed` together,
+  "52°C 1.2GHz", and either one alone when the other is missing.
+- **Console.** Key repeat: `wsconsctl keyboard.repeat.del1=300` (delay
+  before the first repeat, ms) and `keyboard.repeat.deln=20` (between
+  repeats, ms; about X's rate of 50). Blanking: `display.screen_off` is the
+  delay in ms before an idle console goes dark (default 10 minutes, from
+  memory). Font: Spleen is the kernel's own console font, 8x16 to 32x64 all
+  built in on amd64; on the X220's 1366 px screen the kernel picks the
+  12 px wide one. `wsconsctl display.font="Spleen 8x16"` gives a denser
+  console (from memory that it takes the font's full name). wsfontload(8) is
+  only needed for a font file not in the kernel. All of these go in
+  `/etc/wsconsctl.conf`.
+
 ## Installing on the X220
 
 System side (root, typed by the owner):
@@ -274,9 +335,10 @@ System side (root, typed by the owner):
   from memory, not checked against the current ports tree; `check`
   reports any that did not install.
 - `rcctl enable apmd && rcctl start apmd` for zzz/ZZZ and battery data,
-  with no flags: `-A`, `-L` and `-H` set the CPU speed policy, which is
-  obsdfreqd's job here, and the two would fight. Whether a normal user
-  may run `zzz` depends on apmd's socket permissions: not checked.
+  with no speed flags: `-A`, `-L` and `-H` set the CPU speed policy, which
+  is obsdfreqd's job here, and the two would fight. The low-battery flag
+  `-z` is wanted (see "X220 details"). apmd makes its socket 0660
+  root:wheel (apmd.c), so a user in wheel may run `zzz`.
 - CPU speed, obsdfreqd (package), throttled hard on battery:
 
       rcctl enable obsdfreqd

@@ -1,0 +1,75 @@
+#!/bin/sh
+
+# keys: a cheat sheet of the cwm key and mouse bindings, in dmenu.
+# It reads the bind-key and bind-mouse lines of the cwmrc, so the sheet
+# is always the file itself, with each line's trailing comment:
+#	Super+t          window-vtile            (dwm tile)
+#
+# Picking a line runs it when it is a command (a program or a quoted
+# string), exactly as cwm would: this is also a menu for keys you forgot.
+# A cwm function (window-*, group-*, menu-*, restart ...) runs nothing,
+# because cwm takes no orders from outside; press its key instead.
+#
+# keys -l prints the sheet instead of opening dmenu (e.g. keys -l | less).
+# keys [-l] FILE reads another cwmrc.
+
+list=
+[ "$1" = -l ] && { list=1; shift; }
+rc=${1:-${XDG_CONFIG_HOME:-$HOME/.config}/cwm/cwmrc}
+[ -r "$rc" ] || { echo "keys: cannot read $rc" >&2; exit 1; }
+
+# One line per binding: the shown text, a tab, the action. Key specs are
+# modifiers, a dash, then the key: C Ctrl, M Alt, 4 Super, 5 AltGr, S Shift.
+# A quoted action is kept whole; a comment is what follows it after "#".
+sheet=$(awk '
+$1 != "bind-key" && $1 != "bind-mouse" { next }
+{
+	line = $0
+	sub(/^[ \t]*bind-(key|mouse)[ \t]+/, "", line)
+	spec = line; sub(/[ \t].*/, "", spec)
+	sub(/^[^ \t]+[ \t]+/, "", line)
+	if (substr(line, 1, 1) == "\"") {
+		n = index(substr(line, 2), "\"")
+		act = substr(line, 2, n - 1); rest = substr(line, n + 2)
+	} else {
+		act = line; sub(/[ \t].*/, "", act)
+		rest = substr(line, length(act) + 1)
+	}
+	note = ""
+	if ((n = index(rest, "#")) > 0) {
+		note = substr(rest, n + 1)
+		sub(/^[ \t]+/, "", note); sub(/[ \t]+$/, "", note)
+	}
+	mods = ""; key = spec
+	if ((n = index(spec, "-")) > 0) {
+		mods = substr(spec, 1, n - 1); key = substr(spec, n + 1)
+	}
+	if ($1 == "bind-mouse") key = "Button" key
+	name = ""
+	if (mods ~ /4/) name = name "Super+"
+	if (mods ~ /C/) name = name "Ctrl+"
+	if (mods ~ /M/) name = name "Alt+"
+	if (mods ~ /5/) name = name "AltGr+"
+	if (mods ~ /S/) name = name "Shift+"
+	shown = sprintf("%-18s %-24s", name key, act)
+	if (note != "") shown = shown " (" note ")"
+	sub(/[ \t]+$/, "", shown)
+	printf "%s\t%s\n", shown, act
+}' "$rc")
+
+[ -n "$list" ] && { printf '%s\n' "$sheet" | cut -f1; exit 0; }
+
+pick=$(printf '%s\n' "$sheet" | cut -f1 | dmenu -i -l 20 -p "Keys:") || exit 0
+
+# Only a line from the sheet counts: text typed into dmenu matches nothing.
+# The pick goes in through the environment, where awk reads it verbatim
+# (awk -v would turn backslashes into escapes).
+act=$(printf '%s\n' "$sheet" | P=$pick awk -F '\t' '$1 == ENVIRON["P"] { print $2; exit }')
+case $act in
+	'') exit 0 ;;
+	window-*|group-*|menu-*|pointer-move-*|restart|quit|terminal|lock)
+		notify-send "cwm function" "$act: press its key; it cannot run from here." ;;
+	*)	# cwm splits the string into words and execs it; sh -c does the same
+		# for these lines, and keeps their own sh -c '...' quoting intact.
+		detach sh -c "$act" ;;
+esac
