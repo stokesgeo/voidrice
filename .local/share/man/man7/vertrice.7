@@ -432,8 +432,13 @@ The paths in
 .Pa ~/.config/cdxb/deny
 and the wireless keys in
 .Pa /etc/hostname.*
-stay hidden, and the box's own settings and your dotfiles stay
-read-only.
+stay hidden.
+The box's own settings,
+.Pa ~/.config ,
+.Pa ~/.cache ,
+.Pa ~/.local/bin ,
+the shell's start files and the dotfiles repository are never writable:
+a write grant in one, or of a folder that holds one, is refused.
 Codex proposes a change to a settings file by writing it whole;
 .Ic cdxb review
 shows the diff and applies it on y.

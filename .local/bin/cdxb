@@ -15,8 +15,9 @@
 # unveils the walls cdxb lists, locks them and sets execpromises, so Codex
 # and all it runs see only the system (read and run), ~/.codex, dir, the
 # paths in ~/.config/cdxb/grants and those from -r, -w and add. The deny
-# list hides its paths even then, and /etc/hostname.* (wireless keys); the protected paths (Codex's and cdxb's
-# settings, your dotfiles) stay read-only. A session's walls are in
+# list hides its paths even then, as it does /etc/hostname.* (wireless
+# keys). The protected paths (Codex's and cdxb's settings, your dotfiles,
+# ~/.config, ~/.cache) are never writable. A session's walls are in
 # ~/.cache/cdxb/PID/walls. Codex proposes a settings file by writing it
 # whole to $CDXB_OUTBOX; you see the diff and apply it with y.
 # Setuid programs cannot run in the box: `cdxb doas` asks a relay outside
@@ -69,9 +70,7 @@ holds() { print -r -- "$2" | while read -r q; do anc "$q"; done | grep -qxF -- "
 deep() { print -r -- "$2" | while read -r q; do anc "${q%/*/*}"; done | grep -qxF -- "$1"; }
 
 # protected: read-only in every box ("-" hides). Codex 0.157 reads the
-# ~/.codex files as settings, instructions or commands to run. With -H
-# also ~/.config, ~/.cache and the dotfiles repository, which run outside
-# the box: cron reads ~/.cache/session-env; mpv's socket runs commands.
+# ~/.codex files as settings, instructions or commands to run.
 protected() {
 	typeset f
 	print -r -- "- $state"
@@ -81,7 +80,14 @@ protected() {
 	for f in config.toml AGENTS.md AGENTS.override.md .env hooks.json rules skills plugins; do
 		print -r -- "r $HOME/.codex/$f"
 	done
-	[ -z "$Hflag" ] || print -r -- "r $conf
+}
+
+# dotfiles: ~/.config, ~/.cache and the dotfiles repository, which run
+# outside the box: cron reads ~/.cache/session-env; mpv's socket runs
+# commands. Protected in every box too, but walled read-only only with -H:
+# without it the box sees no more of them than is granted.
+dotfiles() {
+	print -r -- "r $conf
 r $HOME/.cache
 r $HOME/.local/share/vertrice.git"
 }
@@ -90,7 +96,7 @@ r $HOME/.local/share/vertrice.git"
 lists() {
 	[ -r "$cfg/deny" ] || die "no deny list at $cfg/deny: restore it from the dotfiles"
 	deny=$(list "$cfg/deny" | while read -r p; do path deny "$p"; done) || exit
-	prot=$(protected | while read -r perms p; do path protected "$p"; done) || exit
+	prot=$({ protected; dotfiles; } | while read -r perms p; do path protected "$p"; done) || exit
 }
 
 # ok PERMS PATH: PATH may be granted. Never a denied path; for rw, neither a
@@ -99,7 +105,7 @@ lists() {
 ok() {
 	if under "$2" "$deny"; then say "$2 is on the deny list"
 	elif [ "$1" != rw ]; then return 0
-	elif under "$2" "$prot"; then say "$2 is protected: propose a change (cdxb review)"
+	elif under "$2" "$prot"; then say "$2 is protected: -r, or propose a change (cdxb review)"
 	elif holds "$2" "$prot"; then say "$2 holds protected files: grant a folder in it, or -r"
 	else return 0; fi
 	return 1
@@ -142,7 +148,7 @@ walls() {
 	[ "$dir" = "$H" ] || mine rw "$dir"
 	while read -r perms p; do mine "$perms" "$p"; done <"$S/added"
 	print -r -- "$deny" | while read -r p; do wall - "$p"; done
-	protected | while read -r perms p; do wall "$perms" "$p"; done
+	{ protected; [ -z "$Hflag" ] || dotfiles; } | while read -r perms p; do wall "$perms" "$p"; done
 	print -r -- "rwc:$S/tmp"
 	print -r -- "rwc:$outbox"
 	[ -z "$dflag" ] || print -r -- "rw:$S/doas.sock

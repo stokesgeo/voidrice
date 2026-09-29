@@ -160,6 +160,28 @@ EOF
 	return 0
 }
 
+# ~/.config, ~/.cache and the dotfiles repository run outside the box:
+# never writable, with or without -H. Without -H they are not walled
+# read-only either, so the box sees only what is granted in them.
+t_cdxb_dotfiles_protected() {
+	cdxb_setup
+	mkdir -p "$HOME/.config/nvim" "$HOME/.cache/foo" "$HOME/.local/share/vertrice.git"
+	cd "$HOME/src/proj" || fail "no project"
+	for p in "$HOME/.config/nvim" "$HOME/.cache" "$HOME/.local/share/vertrice.git"; do
+		out=$(cdxb -w "$p" 2>&1 </dev/null) && fail "-w $p was accepted"
+		has "-w $p: says why" "is protected" "$out"
+	done
+	out=$(cdxb "$HOME/.cache/foo" 2>&1 </dev/null) && fail "a dir in ~/.cache was accepted"
+	notlogged '^codex-box -u'
+	printf 'rw ~/.config/nvim\n' >>"$HOME/.config/cdxb/grants"
+	out=$(cdxb -r "$HOME/.config/nvim" 2>&1 </dev/null) || fail "-r ~/.config/nvim refused: $out"
+	wall "read grant kept" "r:$HOME/.config/nvim"
+	nowall "rw grant skipped" "rwxc:$HOME/.config/nvim"
+	nowall "~/.config not widened without -H" "r:$HOME/.config"
+	nowall "~/.cache not widened without -H" "r:$HOME/.cache"
+	return 0
+}
+
 # /etc is read-only in the box, but /etc/hostname.* hold wireless keys
 # (dmenuwifi writes them; mode 640, group wheel, which the user is in).
 # Here /etc/hostname.* is $T/etc/hostname.* (see derived in lib.sh).
