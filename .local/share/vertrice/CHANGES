@@ -82,6 +82,13 @@ Palette
   then; wal/postrun is sh and runs `theme wal`; the wal templates hold
   only colours. Without the switch, setbg is unchanged.
 
+WiFi
+
+- New `dmenuwifi`: scan with ifconfig, pick a network in dmenu, type the
+  key in a terminal, join with doas ifconfig, and on a Yes add the join
+  line to /etc/hostname.IF. sb-internet's click runs it (in place of
+  nmtui); its middle click shows the current network.
+
 Files and drives
 
 - New `ext` extracts every archive type by name; lf's E key calls it.

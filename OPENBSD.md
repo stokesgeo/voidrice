@@ -557,6 +557,57 @@ a queue made of plain files, one per job, with no daemon.
   file locks. A PID reused by another process after a failed job would
   count that job again until the file is removed.
 
+### WiFi: base does the daily work, dmenuwifi picks new networks
+
+voidrice's network block opened NetworkManager's nmtui on a click.
+NetworkManager is not on OpenBSD, and base covers most of its job:
+ifconfig(8) joins a network (`ifconfig iwn0 join NAME wpakey KEY`), and
+each `join` line in `/etc/hostname.iwn0` adds a network to the join list,
+from which the kernel picks a known one in range (hostname.if(5)).
+
+`dmenuwifi` is the one piece of nmtui kept: pick a new network from a
+menu. It runs the way mounter does:
+
+- It opens a small floating terminal, because scanning and joining need
+  root (ifconfig says "no permission to scan" otherwise), and asks for
+  your doas password once.
+- `ifconfig iwn0 scan` lists the networks; dmenu shows each name once,
+  strongest first, with 🔒 (a key) or 🔓 (open) and the signal. The
+  interface is the first one in the `wlan` group; if it is down,
+  dmenuwifi brings it up and scans again.
+- For a secured network you type the key in the terminal, hidden. The
+  packaged dmenu (5.4) has no password mode: `-P` is a patch the port does
+  not apply (read in the ports tree).
+- `doas ifconfig iwn0 join NAME wpakey KEY` joins it (`nwkey` for WEP).
+  You get an address if `/etc/hostname.iwn0` has `inet autoconf`.
+- dmenu then asks "Add NAME to /etc/hostname.iwn0?". Only a Yes appends
+  the join line (with `doas tee -a`, so the key goes through a pipe).
+
+The key on a command line: ifconfig takes the key only as an argument, so
+it is in the argument list of doas and of ifconfig while they run, where
+`ps` can show it to other users of the machine (from memory: OpenBSD's ps
+shows every user's arguments). dmenuwifi runs `doas true` first, so doas
+does not wait at its password prompt with the key in its arguments; the
+join itself lasts a moment. hostname.iwn0 (mode 640, root:wheel) keeps the
+key in the clear, as every join line there does.
+
+Network names come from the air, so dmenuwifi treats them as untrusted.
+ifconfig prints a name with bytes outside printable ASCII as hex (`0x...`)
+and quotes a name with spaces (print_string in ifconfig.c); dmenuwifi drops
+scan lines with control characters, joins a hex name as hex, takes only a
+line it offered, and passes the name as one argument. netstart(8) runs
+each hostname.if line through `eval`, as root, at boot (read in
+etc/netstart), so dmenuwifi writes a join line only when the name and key
+contain no `"`, `$`, `` ` ``, `\` and no double space. Otherwise it says so,
+and you add the line by hand. A name in UTF-8 (an accent, an emoji) shows
+as hex. Not handled: hidden networks (type the join by hand) and WPA
+Enterprise (802.1X needs wpa_supplicant).
+
+How to start it: sb-internet's click runs it (middle click shows the
+current network), but sbar's blocks take no clicks yet, so for now type
+`dmenuwifi` in the Super+d menu or a terminal. No key: voidrice had none
+for this, and no free key reads naturally as "network".
+
 ## The rice: day and night, IBM Plex, fvwm frames
 
 voidrice's look is gruvbox brown with no frames to speak of. vertrice

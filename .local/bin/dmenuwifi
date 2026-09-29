@@ -1,0 +1,127 @@
+#!/bin/ksh
+
+# dmenuwifi: join a wireless network picked with dmenu. voidrice clicked
+# the network block for NetworkManager's nmtui; on OpenBSD, ifconfig(8)
+# joins networks itself, and the join lines in /etc/hostname.iwn0 bring
+# known ones back at boot. This is the missing piece: pick a new network
+# (a café's) from a menu.
+#
+# Flow, as mounter's:
+# - Scanning and joining need root, so, started without a terminal (from
+#   sb-internet's click or a key), dmenuwifi reopens itself in a small
+#   floating terminal and asks for your doas password once.
+# - `ifconfig IF scan` lists the networks, strongest first; dmenu offers
+#   each name once, with its signal and 🔒 (key) or 🔓 (open).
+# - The key is typed in the terminal, not shown. The packaged dmenu (5.4,
+#   no patches for it) has no password mode (-P is a patch).
+# - `doas ifconfig IF join NAME wpakey KEY` joins it (nwkey for WEP).
+# - dmenu asks whether to add the join line to /etc/hostname.IF, so the
+#   network is joined again at boot. Nothing is written without a Yes.
+#
+# The key on a command line: ifconfig takes the key only as an argument,
+# so it is in the argument list of doas and ifconfig while they run, and
+# `ps` shows other users' command lines. dmenuwifi runs `doas true` first,
+# so doas does not sit at its password prompt with the key in its
+# arguments; the join itself takes a moment. hostname.IF (mode 640,
+# root:wheel) holds the key in the clear, as it does for any join line.
+#
+# Names come from the air, so they are untrusted. ifconfig prints a name
+# that has a byte outside printable ASCII as hex (0x...), quotes one with
+# spaces, and prints any other name as it is (print_string in ifconfig.c).
+# dmenuwifi drops scan lines with control characters, joins a hex name as
+# hex (ifconfig reads 0x... back as bytes), takes only a line it offered,
+# and passes the name as one argument. netstart(8) runs hostname.IF lines
+# through eval, as root, at boot, so a join line is written only when the
+# name and key have none of " $ ` \ and no double space.
+#
+# Not handled: hidden networks (no name in the scan: type the join by
+# hand) and WPA Enterprise (802.1X needs wpa_supplicant).
+
+if [ ! -t 0 ]; then
+	case $TERMINAL in
+		st) exec "$TERMINAL" -n floatterm -g 64x6 -e "$0" ;;
+		*) exec "$TERMINAL" -name floatterm -geometry 64x6 -e "$0" ;;
+	esac
+fi
+
+# The first interface in the wlan group: every wireless driver joins it.
+if=$(ifconfig wlan 2>/dev/null | sed -n 's/^\([a-z][a-z]*[0-9][0-9]*\): .*/\1/p' | sed 1q)
+[ -n "$if" ] || { notify-send "📶 dmenuwifi" "No wireless interface."; exit 1; }
+
+doas true || exit 1	# one password; persist covers the rest of this run
+
+scan=$(doas ifconfig "$if" scan)
+case $scan in
+*"interface is down"*)
+	doas ifconfig "$if" up || exit 1
+	scan=$(doas ifconfig "$if" scan) ;;
+esac
+
+# One line per network: "MENU<TAB>NAME<TAB>SECURITY", strongest first. The
+# name is what comes before the last " chan N bssid ADDR ", so a name that
+# itself holds such text cannot shift the fields after it.
+nets=$(print -r -- "$scan" | awk '
+	/[^\t -~]/ { next }
+	/^\t\tnwid / {
+		s = substr($0, 8); rest = s; off = 0; name = ""; tail = ""
+		while (match(rest, / chan [0-9]+ bssid [0-9a-fA-F:]+ /)) {
+			name = substr(s, 1, off + RSTART - 1)
+			tail = substr(rest, RSTART + RLENGTH)
+			off += RSTART + RLENGTH - 1
+			rest = tail
+		}
+		if (name ~ /^".* .*"$/ || name == "\"\"")
+			name = substr(name, 2, length(name) - 2)
+		if (name == "" || seen[name]++) next
+		split(tail, w, " ")
+		if (tail ~ /802\.1x/) sec = "8021x"
+		else if (tail ~ /wpa[123]/) sec = "wpa"
+		else if (tail ~ /privacy/) sec = "wep"
+		else sec = "open"
+		printf "%s  %s %s\t%s\t%s\n", name, (sec == "open" ? "🔓" : "🔒"), w[1], name, sec
+	}')
+[ -n "$nets" ] || { notify-send "📶 dmenuwifi" "No networks found by $if."; exit 1; }
+
+set -f	# dmenu text below must never glob
+chosen=$(print -r -- "$nets" | cut -f1 | dmenu -i -l 10 -p "Join which network?") || exit 1
+line=$(print -r -- "$nets" | c=$chosen awk -F '\t' '$1 == ENVIRON["c"]' | sed 1q)
+[ -n "$line" ] || exit 1	# only what was offered
+name=$(print -r -- "$line" | cut -f2)
+sec=$(print -r -- "$line" | cut -f3)
+
+key=
+case $sec in
+8021x)
+	notify-send "📶 $name" "WPA Enterprise (802.1X) needs wpa_supplicant; dmenuwifi does not handle it."
+	exit 1 ;;
+wpa|wep)
+	trap 'stty echo' EXIT INT TERM
+	print -rn -- "Key for $name: "
+	stty -echo; IFS= read -r key; stty echo; print	# spaces kept
+	trap - EXIT INT TERM
+	[ -n "$key" ] || exit 1 ;;
+esac
+
+case $sec in
+wpa)	set -- wpakey "$key" ;;
+wep)	set -- nwkey "$key" ;;
+*)	set -- ;;
+esac
+doas ifconfig "$if" join "$name" "$@" || {
+	notify-send "📶 Join failed." "$name"; exit 1; }
+notify-send "📶 Joining $name" "$if gets an address if hostname.$if has \"inet autoconf\"."
+
+# Remember it at boot? Only on a Yes, and only a line netstart can run as
+# written (see above).
+hn=/etc/hostname.$if
+[ -e "$hn" ] || { notify-send "📶 Not remembered" "There is no $hn."; exit 0; }
+[ "$(printf 'No\nYes' | dmenu -i -p "Add $name to $hn?")" = Yes ] || exit 0
+unsafe() { case $1 in *[\"\$\`\\]*|*"  "*) return 0 ;; esac; return 1; }
+if unsafe "$name" || unsafe "$key"; then
+	notify-send "📶 Not remembered" "The name or key has \" \$ \` \\ or a double space, which netstart would misread. Add the line to $hn by hand."
+	exit 0
+fi
+entry="join \"$name\""
+[ -n "$key" ] && entry="$entry $1 \"$key\""
+print -r -- "$entry" | doas tee -a "$hn" >/dev/null &&
+	notify-send "📶 Remembered" "$name is in $hn."
