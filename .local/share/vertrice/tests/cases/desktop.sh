@@ -144,6 +144,22 @@ t_nightlight() {
 	notlogged '^notify-send'
 }
 
+# rectoggle: the microphone and camera together, through doas sysctl.
+t_rectoggle() {
+	has "Super+Ctrl+F11" "-e rectoggle" "$(awk '$2 == "4C-F11"' "$REPO/.config/cwm/cwmrc")"
+	rectoggle
+	logged '^doas sysctl kern.audio.record=1 kern.video.record=1$'
+	logged '^notify-send 🎙️ Microphone and camera on$'
+	eq "camera on" 1 "$(sysctl -n kern.video.record)"
+	rectoggle
+	logged '^doas sysctl kern.audio.record=0 kern.video.record=0$'
+	logged '^notify-send 🎙️ Microphone and camera off$'
+	echo 1 >"$VT_STATE/rc.doas"; : >"$VT_STATE/log"
+	rectoggle 2>/dev/null
+	notlogged '^notify-send'
+	eq "a failed doas changes nothing" 0 "$(sysctl -n kern.audio.record)"
+}
+
 t_scratch() {
 	scratch term
 	logged '^xterm -name spterm -geometry 120x34$'

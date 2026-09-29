@@ -174,22 +174,11 @@ t_fetch_pauseallmpv() {
 	return 0
 }
 
-t_fetch_setbg_no_xwallpaper() {
-	command -v xwallpaper >/dev/null 2>&1 && skip "this host has xwallpaper"
-	mkdir -p "$XDG_CONFIG_HOME/x11"
-	ln -s "$REPO/.config/x11/themes" "$XDG_CONFIG_HOME/x11/themes"
-	echo night >"$XDG_CACHE_HOME/theme"
-	setbg -s
-	logged '^xsetroot -solid #24232e$'
-	: >"$VT_STATE/log"; "$VT_REAL_RM" "$XDG_CACHE_HOME/theme"
-	VT_EPOCH=1790665200 setbg -s	# 07:00 UTC, no theme applied yet: day
-	logged '^xsetroot -solid #f5f1e8$'
-	: >"$VT_STATE/log"
+t_fetch_setbg() {
 	printf '#!/bin/sh\necho "xwallpaper $*" >>"$VT_STATE/log"\n' >"$T/bin/xwallpaper"
 	chmod +x "$T/bin/xwallpaper"
 	setbg -s
 	logged '^xwallpaper --zoom '
-	notlogged '^xsetroot'
 }
 
 t_fetch_scope_no_highlight() {

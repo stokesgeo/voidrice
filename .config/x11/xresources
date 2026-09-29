@@ -4,23 +4,14 @@
 !! Set a default font and font size as below:
 *.font: IBM Plex Mono:size=10
 
-!! xterm (OpenBSD base, the default terminal). Like st, it reads the
-!! *.colorN lines of whichever scheme below is uncommented. These lines give
-!! it the same font and let Alt act as Meta, which vi-mode ksh and nvim use.
+!! xterm, the base terminal: the same font, and Alt as Meta for vi-mode ksh and nvim.
 XTerm*faceName: IBM Plex Mono
 XTerm*faceSize: 10
 XTerm*metaSendsEscape: true
 XTerm*selectToClipboard: true
-!! Let programs SET the clipboard with the OSC 52 escape sequence, so the
-!! /copy command of Codex reaches it from inside the cdxb box (the box has
-!! no X access, so Codex falls back to OSC 52). Reading the clipboard
-!! (GetSelection) stays off: any program printing to the terminal, or any
-!! file you cat, could otherwise read what you last copied, passwords
-!! included. The list is the xterm default without SetSelection.
+!! xterm's default minus SetSelection: programs may set the clipboard (OSC 52,
+!! Codex's /copy from the cdxb box) but never read it.
 XTerm*disallowedWindowOps: GetChecksum,GetIconTitle,GetSelection,GetWinTitle,SetXprop
-
-!! xlock (base), run by sysact's lock and by xidle after idle time: a blank
-!! screen, no animation to spend the battery on.
 XLock.mode: blank
 
 /* name		dark	light */

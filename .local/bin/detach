@@ -1,10 +1,3 @@
 #!/bin/sh
-
-# detach: start a program so it outlives the script or terminal that launched it.
-# Linux voidrice used `setsid -f` for this. OpenBSD has the setsid(2) system
-# call but no setsid(1) command, so: nohup(1) makes the child ignore SIGHUP
-# (sent when its terminal closes), & returns control at once, and the output
-# goes to /dev/null so nohup writes no nohup.out file.
-
-[ $# -eq 0 ] && { echo "usage: detach command [arg ...]" >&2; exit 1; }
+# detach: voidrice's setsid -f. OpenBSD has no setsid(1); nohup outlives the terminal.
 nohup "$@" >/dev/null 2>&1 &
