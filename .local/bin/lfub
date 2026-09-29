@@ -1,8 +1,7 @@
 #!/bin/sh
 
-# This is a wrapper script for lf that allows it to create image previews with
-# ueberzug. This works in concert with the lf configuration file and the
-# lf-cleaner script.
+# lfub [LF-ARG...]: run lf with image previews drawn by ueberzug. The lf
+# config and lf-cleaner do the rest: lf writes preview commands to the FIFO.
 
 set -e
 
@@ -11,7 +10,8 @@ cleanup() {
 	rm "$FIFO_UEBERZUG"
 }
 
-# ueberzug has no OpenBSD package: without it, plain lf.
+# Previews need ueberzug (not packaged for OpenBSD) and a local screen.
+# Over ssh, or without it, run plain lf.
 if [ -n "$SSH_CLIENT" ] || [ -n "$SSH_TTY" ] || ! command -v ueberzug >/dev/null 2>&1; then
 	lf "$@"
 else

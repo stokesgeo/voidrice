@@ -3,7 +3,7 @@
 # ext FILE...: extract archives here with bsdtar (libarchive); a lone .gz,
 # .bz2, .xz, .zst or .Z is decompressed beside it. Existing files are kept.
 
-set -C
+set -C	# noclobber: the > below keeps an existing file, as bsdtar -k does
 for f; do case $f in
 	*.tar*|*.t[abgx]z|*.tbz2|*.tzst|*.zip|*.jar|*.epub|*.7z|*.rar|*.iso) bsdtar -xkf "$f" ;;
 	*.gz|*.bz2|*.xz|*.zst|*.Z) bsdcat -- "$f" >"${f%.*}" ;;

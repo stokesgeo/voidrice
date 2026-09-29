@@ -1,17 +1,17 @@
 #!/bin/sh
 
+# dmenuunicode [ANY]: pick an emoji or symbol in dmenu. It goes to the
+# clipboard; with an argument, it is typed into the focused window instead.
 # The famous "get a menu of emojis to copy" script.
 
-# Get user selection via dmenu from emoji files.
+# Each line of the char files is a character and its name. dmenu shows the
+# line (text from ";" on is cut); the first word is the character.
 chosen="$(cat "${XDG_DATA_HOME:-$HOME/.local/share}"/larbs/chars/* |
 	{ while read -r line; do echo "${line%%;*}"; done | dmenu -i -l 30 ;})"
 chosen="${chosen%% *}"
 
-# Exit if none chosen.
 [ -z "$chosen" ] && exit
 
-# If you run this command with an argument, it will automatically insert the
-# character. Otherwise, show a message that the emoji has been copied.
 [ -n "$1" ] && { xdotool type "$chosen"; exit ;}
 
 printf %s "$chosen" | xclip -selection clipboard

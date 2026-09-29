@@ -1,8 +1,10 @@
 #!/bin/ksh
 
-# dmenuwifi: join a wireless network picked in dmenu (voidrice used nmtui).
+# dmenuwifi: join a wireless network picked in dmenu. A key is asked for in
+# the terminal, not in dmenu, so it does not show.
 
 [ -t 0 ] || exec xterm -name floatterm -geometry 64x4 -e "$0"
+# The first wireless interface.
 if=$(ifconfig wlan | sed -n '1s/:.*//p')
 [ -n "$if" ] || { notify-send "📶 No wireless interface."; exit 1; }
 doas ifconfig "$if" up
@@ -19,7 +21,8 @@ doas ifconfig "$if" join "$name" ${key:+wpakey "$key"} || { notify-send "📶 Jo
 doas ifconfig "$if" inet autoconf	# dhcpleased(8) asks for an address
 notify-send "📶 Joining $name"
 
-# netstart(8) evals hostname.if as root: never write " $ ` or \ into it.
+# Offer to save the network in hostname.if, so it joins at boot. netstart(8)
+# evals that file as root: never write " $ ` or \ into it.
 hn=/etc/hostname.$if
 case $name$key in *[\"\$\`\\]*) exit ;; esac
 [ -e "$hn" ] && [ "$(printf 'No\nYes' | dmenu -i -p "Add $name to $hn?")" = Yes ] &&

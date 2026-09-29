@@ -1,14 +1,12 @@
 #!/bin/sh
 
-# Feed script a url or file location.
-# If an image, it will view in nsxiv,
-# if a video or gif, it will view in mpv
-# if a music file or pdf, it will download,
-# otherwise it opens link in browser.
+# linkhandler [URL|FILE]: open a link by its type; with no argument, use the
+# clipboard. Video: mpv. Image: nsxiv. PDF or comic: zathura. Music: queued for
+# download (qndl). Anything else: a local file in $EDITOR, a URL in $BROWSER.
 
 url="${1:-$(xclip -o)}"
 
-fetch() { d=$(mktemp -d) && tmpfile=$d/${url##*/} && ftp -MV -o "$tmpfile" "$url"; }	# a private dir, not /tmp/NAME
+fetch() { d=$(mktemp -d) && tmpfile=$d/${url##*/} && ftp -MV -o "$tmpfile" "$url"; }	# mktemp -d: a private dir, so no one can plant a file at a guessable /tmp name
 
 case "$url" in
 	*mkv|*webm|*mp4|*youtube.com/watch*|*youtube.com/playlist*|*youtube.com/shorts*|*youtu.be*|*hooktube.com*|*bitchute.com*|*videos.lukesmith.xyz*|*odysee.com*)

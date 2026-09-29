@@ -1,10 +1,9 @@
 #!/bin/sh
 
-# This script will compile or run another finishing operation on a document. I
-# have this script run via vim.
-
-# Compiles .tex. groff (.mom, .ms), .rmd, .md, .org.  Opens .sent files as sent
-# presentations. Runs scripts based on extension or shebang.
+# compiler FILE: build or run FILE, chosen by its extension. Documents (groff,
+# md, org, rmd, tex) become a PDF beside FILE; programs are built and run;
+# .sent opens as a presentation. Any other file runs itself through its #! line.
+# I have this script run via vim.
 
 file="${1}"
 ext="${file##*.}"
@@ -18,7 +17,7 @@ case "${ext}" in
     mom|ms) preconv "${file}" | refer -PS -e | groff -T pdf -m"${ext}" > "${base}.pdf" ;;
     c) cc "${file}" -o "${base}" && "./${base}" ;;
     cob) cobc -x -o "$base" "$file" && "$base" ;;
-    cpp) c++ "${file}" -o "${base}" && "./${base}" ;;	# base clang; no g++
+    cpp) c++ "${file}" -o "${base}" && "./${base}" ;;	# c++ is clang in base; there is no g++
     cs) mcs "${file}" && mono "${base}.exe" ;;
     go) go run "${file}" ;;
     h) doas make install ;;
