@@ -6,6 +6,7 @@
  *
  *	codex-box [-p pidfile] [-u perms:path ...] program [arg ...]
  *	codex-box -D socket
+ *	codex-box -C socket word ...
  *
  * How the box works, in the order the kernel sees it:
  *
@@ -45,6 +46,14 @@
  * persist ticket is live, so the owner's doas.conf nopass rules are the
  * whole list of what the relay can do.  It sends back the output and a
  * last line "cdxb: exit N".
+ *
+ * The client (-C) runs INSIDE the box: `cdxb doas` calls it.  It sends
+ * its words as one request line, copies the relay's answer to standard
+ * output without that last line, and exits with the status it gives.
+ * It exists because nc(1) cannot do this in the box: nc -U calls
+ * unveil(2) for its socket (usr.bin/nc/netcat.c), which fails once the
+ * box has locked the list.  The client calls no unveil of its own; the
+ * box already lets it reach the socket (cdxb unveils it "rw").
  */
 
 #include <sys/types.h>
@@ -88,8 +97,10 @@ unveil(const char *path, const char *permissions)
 	"stdio rpath wpath cpath dpath fattr chown flock unix dns inet " \
 	"tty proc exec getpw ps vminfo sendfd recvfd prot_exec error"
 
-#define MAXGRANTS	100	/* the kernel keeps at most 128 per process */
+#define MAXGRANTS	120	/* the kernel keeps at most 128 per process */
 #define MAXARGS		32	/* words in one relay request */
+#define MAXREQ		1024	/* bytes in one request, newline included */
+#define MAXANSWER	(16 * 1024 * 1024)	/* bytes of answer the client keeps */
 #ifndef DOAS
 #define DOAS		"/usr/bin/doas"	/* cc -DDOAS='"..."' for a test */
 #endif
@@ -103,6 +114,7 @@ static struct grant	grants[MAXGRANTS];
 static int		ngrants;
 
 static void	addgrant(char *);
+static void	client(const char *, int, char **);
 static void	writepid(const char *);
 static void	relay(const char *);
 static void	serve(int, int);
@@ -111,15 +123,22 @@ static void	usage(void);
 int
 main(int argc, char *argv[])
 {
-	const char *pidfile = NULL, *sock = NULL;
+	const char *pidfile = NULL, *sock = NULL, *csock = NULL;
 	int ch, i;
 
-	/* Before anything else: only what either mode needs. */
+	/*
+	 * Before anything else: only what any mode needs.  In the box (the
+	 * client) the kernel keeps only what the box's execpromises hold;
+	 * "error" there makes asking for more succeed without granting it.
+	 */
 	if (pledge("stdio rpath wpath cpath unix proc exec unveil", NULL) == -1)
 		err(1, "pledge");
 
-	while ((ch = getopt(argc, argv, "D:p:u:")) != -1) {
+	while ((ch = getopt(argc, argv, "C:D:p:u:")) != -1) {
 		switch (ch) {
+		case 'C':
+			csock = optarg;
+			break;
 		case 'D':
 			sock = optarg;
 			break;
@@ -136,6 +155,12 @@ main(int argc, char *argv[])
 	argc -= optind;
 	argv += optind;
 
+	if (csock != NULL) {
+		if (argc == 0 || sock != NULL || ngrants != 0 || pidfile != NULL)
+			usage();
+		client(csock, argc, argv);
+		/* NOTREACHED */
+	}
 	if (sock != NULL) {
 		if (argc != 0 || ngrants != 0 || pidfile != NULL)
 			usage();
@@ -184,6 +209,113 @@ addgrant(char *arg)
 	grants[ngrants].perms = arg;
 	grants[ngrants].path = path;
 	ngrants++;
+}
+
+/*
+ * client: send "word word ...\n" to the relay at path, copy its answer
+ * to standard output without the last line "cdxb: exit N", and exit N.
+ * Words the relay would split or cut (blanks, a newline, or an empty
+ * word) are refused, so the request is exactly the words given.
+ */
+static void
+client(const char *path, int argc, char **argv)
+{
+	struct sockaddr_un sun;
+	char req[MAXREQ], *ans, *last, *end;
+	size_t len = 0, alen = 0, asize = 0;
+	ssize_t n;
+	long code;
+	int s, i;
+
+	if (pledge("stdio unix", NULL) == -1)
+		err(1, "pledge");
+	if (argc > MAXARGS)
+		errx(1, "more than %d words", MAXARGS);
+	for (i = 0; i < argc; i++) {
+		if (argv[i][0] == '\0' || strpbrk(argv[i], " \t\n") != NULL)
+			errx(1, "\"%s\": a word may not be empty or hold a blank "
+			    "or a newline", argv[i]);
+		n = snprintf(req + len, sizeof(req) - len, "%s%s",
+		    i ? " " : "", argv[i]);
+		if (n < 0 || (size_t)n >= sizeof(req) - len - 1)
+			errx(1, "request longer than %d bytes", MAXREQ - 1);
+		len += n;
+	}
+	req[len++] = '\n';
+
+	memset(&sun, 0, sizeof(sun));
+	sun.sun_family = AF_UNIX;
+	if ((size_t)snprintf(sun.sun_path, sizeof(sun.sun_path), "%s",
+	    path) >= sizeof(sun.sun_path))
+		errx(1, "%s: path too long", path);
+	if ((s = socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0)) == -1)
+		err(1, "socket");
+	if (connect(s, (struct sockaddr *)&sun, sizeof(sun)) == -1)
+		err(1, "the relay did not answer: %s", path);
+	if (pledge("stdio", NULL) == -1)
+		err(1, "pledge");
+
+	for (i = 0; (size_t)i < len; i += n)
+		if ((n = write(s, req + i, len - i)) == -1) {
+			if (errno == EINTR) {
+				n = 0;
+				continue;
+			}
+			err(1, "write to the relay");
+		}
+	shutdown(s, SHUT_WR);
+
+	/* Keep the whole answer: the status is its last line. */
+	ans = NULL;
+	for (;;) {
+		if (alen == asize) {
+			if (asize == MAXANSWER)
+				errx(1, "answer longer than %d bytes", MAXANSWER);
+			asize = asize ? asize * 2 : 8192;
+			if (asize > MAXANSWER)
+				asize = MAXANSWER;
+			if ((ans = realloc(ans, asize + 1)) == NULL)
+				err(1, NULL);
+		}
+		if ((n = read(s, ans + alen, asize - alen)) == -1) {
+			if (errno == EINTR)
+				continue;
+			err(1, "read from the relay");
+		}
+		if (n == 0)
+			break;
+		alen += n;
+	}
+	close(s);
+	if (ans == NULL || alen == 0)
+		errx(1, "the relay did not answer");
+	ans[alen] = '\0';
+
+	/* The last line must be "cdxb: exit N", N a number up to 255. */
+	end = ans + alen;
+	if (end[-1] == '\n')
+		end--;
+	for (last = end; last > ans && last[-1] != '\n'; last--)
+		;
+	code = -1;
+	if (end - last > 11 && end - last < 15 &&
+	    strncmp(last, "cdxb: exit ", 11) == 0) {
+		for (code = 0, i = 11; last + i < end; i++) {
+			if (last[i] < '0' || last[i] > '9') {
+				code = -1;
+				break;
+			}
+			code = code * 10 + (last[i] - '0');
+		}
+	}
+	if (code < 0 || code > 255) {
+		fwrite(ans, 1, alen, stdout);
+		errx(1, "no exit status from the relay");
+	}
+	if (fwrite(ans, 1, last - ans, stdout) != (size_t)(last - ans) ||
+	    fflush(stdout) == EOF)
+		err(1, "stdout");
+	exit((int)code);
 }
 
 static void
@@ -327,6 +459,7 @@ usage(void)
 {
 	fprintf(stderr, "usage: codex-box [-p pidfile] [-u perms:path ...] "
 	    "program [arg ...]\n"
-	    "       codex-box -D socket\n");
+	    "       codex-box -D socket\n"
+	    "       codex-box -C socket word ...\n");
 	exit(1);
 }
