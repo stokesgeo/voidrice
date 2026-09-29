@@ -2,7 +2,8 @@
 
 # theme day|night|toggle|auto|clock|wal: the terminals' palette, and dunst's
 # and zathura's colours (x11/themes/NAME.dunst, NAME.zathura; wal's own).
-# Day and night also set gtk-theme-name in gtk-3.0/settings.ini (wal leaves it).
+# Day and night also write gtk-3.0/settings.ini (wal leaves it), which is
+# why the dotfiles do not track it.
 # Super+F8 toggles; xprofile runs `theme clock`: day from 07:00, night from 19:00.
 # Open terminals are recoloured with OSC sequences; zathura and GTK
 # programs on their next start.
@@ -14,6 +15,31 @@ state=${XDG_CACHE_HOME:-$HOME/.cache}/theme
 # The GTK themes for day and night. Placeholders, pending the owner's pick;
 # both ship with gtk+3.
 gtkday=Adwaita gtknight=Adwaita-dark
+
+# gtk THEME: settings.ini, whole. The profile's QT_QPA_PLATFORMTHEME makes
+# Qt programs follow it.
+gtk() {
+	mkdir -p "$conf/gtk-3.0"
+	cat > "$conf/gtk-3.0/settings.ini" <<-EOF
+	# Written by ~/.local/bin/theme: change it there.
+	[Settings]
+	gtk-theme-name=$1
+	gtk-icon-theme-name=Adwaita
+	gtk-font-name=Sans 10
+	gtk-cursor-theme-size=0
+	gtk-toolbar-style=GTK_TOOLBAR_TEXT
+	gtk-toolbar-icon-size=GTK_ICON_SIZE_LARGE_TOOLBAR
+	gtk-button-images=0
+	gtk-menu-images=1
+	gtk-enable-event-sounds=1
+	gtk-enable-input-feedback-sounds=1
+	gtk-xft-antialias=1
+	gtk-xft-hinting=1
+	gtk-xft-hintstyle=hintfull
+	gtk-xft-rgba=rgb
+	gtk-cursor-theme-name=Adwaita
+	EOF
+}
 
 auto() { h=$(date +%H); [ "$h" -ge 7 ] && [ "$h" -lt 19 ] && print day || print night; }
 
@@ -36,10 +62,11 @@ apply() {
 	mkdir -p "$conf/dunst/dunstrc.d" "$conf/zathura"
 	cp "$d" "$conf/dunst/dunstrc.d/theme.conf"; cp "$z" "$conf/zathura/theme"
 	dunstctl reload >/dev/null 2>&1
-	typeset g=$conf/gtk-3.0/settings.ini gt=
-	case $1 in day) gt=$gtkday ;; night) gt=$gtknight ;; esac
-	[ -n "$gt" ] && [ -f "$g" ] &&
-		sed "s/^gtk-theme-name=.*/gtk-theme-name=$gt/" "$g" > "$g.new" && mv "$g.new" "$g"
+	case $1 in
+	day)	gtk "$gtkday" ;;
+	night)	gtk "$gtknight" ;;
+	*)	[ -f "$conf/gtk-3.0/settings.ini" ] || gtk "$gtkday" ;;
+	esac
 	print "$1" > "$state"
 }
 
