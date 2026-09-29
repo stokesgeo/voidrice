@@ -123,7 +123,7 @@ means in the tree; untested means not yet run on the X220.
   live outside of vertrice, or die once a better handling of codex is
   developed/released... I don't want cdxb long term, it's a hack." Kept
   with `-a`, `-d` and `-H`; `-n`, `-s` and `-X` were cut (a2df77a).
-  Rules out growing it. Held.
+  Reading, not yet confirmed: this rules out growing it. Held.
 - **Recording off by default, on per call.** Standing ruling. OpenBSD's
   `kern.audio.record` and `kern.video.record` stay 0; `rectoggle`
   (Super+Ctrl+F11) flips both; fbtab gives the camera to the console
@@ -167,13 +167,14 @@ means in the tree; untested means not yet run on the X220.
   after and win. Done.
 - **No compositor.** Agents' (9ee25f2): xterm has no alpha, so xcompmgr
   only cost work; run it by hand for st. Done.
-- **sd through proc-cwd.** Agents' (7f5231a): no /proc, so a 49-line C
+- **sd through proc-cwd.** The owner picked "Write the C helper" (7f5231a): no /proc, so a 49-line C
   helper reads a process's directory with `sysctl kern.proc_cwd`, built
   on first use; without it `sd` opens a plain terminal. Super+Return.
   Done; untested.
 - **Palette: day and night.** Agents': two themes, `theme clock` from
   xprofile (day 07:00, night 19:00), Super+F8 toggles; pywal is opt-in
-  with `PALETTE=wal`. The GTK themes for day and night are placeholders
+  with `PALETTE=wal`. GTK follows it: "Either way I'd want to follow day
+  night." The GTK themes for day and night are placeholders
   "pending the owner's pick" (`theme`). Done; the pick is open.
 - **Spelling and dictionary.** Agents': base spell(1) with a
   contractions list, nvim's own list for spelling while typing, no
