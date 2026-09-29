@@ -55,6 +55,11 @@ ifconfig wlan >/dev/null 2>&1 && pass "a wireless interface exists (wlan group)"
 print "== daemons and tools"
 try "sndiod is running" pgrep -x sndiod
 try "apmd is running (zzz/ZZZ need it)" pgrep -x apmd
+try "apmd runs without -A/-L/-H (obsdfreqd owns CPU speed)" eval '! pgrep -lf "apmd.* -[ALH]"'
+try "obsdfreqd is running" pgrep -x obsdfreqd
+try "obsdfreqd has AC,battery flags" eval 'rcctl get obsdfreqd flags | grep -q ,'
+try "IBM Plex Mono is the monospace font" eval 'fc-match monospace | grep -q "IBM Plex Mono"'
+try "theme palettes present" eval '[ -r "${XDG_CONFIG_HOME:-$HOME/.config}/x11/themes/day" ] && [ -r "${XDG_CONFIG_HOME:-$HOME/.config}/x11/themes/night" ]'
 try "ntpd is running (otp time)" pgrep -x ntpd
 try "hotplugd is running (USB notices)" pgrep -x hotplugd
 try "/etc/hotplug/attach is installed" test -x /etc/hotplug/attach

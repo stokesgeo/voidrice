@@ -22,6 +22,7 @@ unpack() {
 rc=0
 for f; do
 	[ -f "$f" ] || { echo "ext: $f: no such file" >&2; rc=1; continue; }
+	case $f in -*) f=./$f ;; esac	# never read as an option
 	case $f in
 		*.tar.gz|*.tgz)		tar xzf "$f" ;;
 		*.tar.Z|*.taz)		tar xZf "$f" ;;
@@ -35,7 +36,7 @@ for f; do
 		*.xz)			unpack xz "$f" .xz ;;
 		*.zst)			unpack zstd "$f" .zst ;;
 		*.zip|*.jar|*.epub)	unzip -q "$f" ;;
-		*.7z|*.rar|*.iso)	7z x "$f" >/dev/null ;;
+		*.7z|*.rar|*.iso)	7z x -aos "$f" >/dev/null ;;	# -aos: skip existing files
 		*) echo "ext: $f: unknown archive type" >&2; false ;;
 	esac || rc=1
 done

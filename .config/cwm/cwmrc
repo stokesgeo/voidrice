@@ -15,15 +15,30 @@
 sticky yes
 vtile 55			# dwm mfact 0.55
 htile 55
-borderwidth 3
-color activeborder "#770000"
-color inactiveborder "#444444"
-fontname "monospace:size=10"
+# fvwm's look, as OpenBSD ships it (xenocara system.fvwmrc): thick 7-pixel
+# frames, dark red and blue, grey menus. Here the focused window is red and
+# the rest blue (fvwm itself has it the other way round). The blue is fvwm's
+# pure X11 blue, softened. Borders are fixed: they read in day and night.
+borderwidth 7
+color activeborder "#8b0000"
+color inactiveborder "#4a64b0"
+color groupborder "#e3c98d"
+color ungroupborder "#908b9f"
+color urgencyborder "#e89c9c"
+color menubg "#bebebe"
+color menufg "#8b0000"
+color font "#1c1c1c"
+color selfont "#f5f1e8"
+fontname "IBM Plex Mono:size=10"
 snapdist 4
 
 # Scratchpads belong to no group, so they show on every group.
-autogroup 0 "spterm"
-autogroup 0 "spcalc"
+# autogroup matches the class, or "instance,class": xterm's class is XTerm,
+# st's is St.
+autogroup 0 "spterm,XTerm"
+autogroup 0 "spcalc,XTerm"
+autogroup 0 "spterm,St"
+autogroup 0 "spcalc,St"
 
 unbind-key all
 
@@ -131,6 +146,7 @@ bind-key 4-F3		displayselect
 bind-key 4-F4		nightlight		# warm screen on/off (sct)
 bind-key 4-F5		restart			# reread this file
 bind-key 4-F6		torwrap
+bind-key 4-F8		"theme toggle"		# day / night palette
 bind-key 4-F7		td-toggle
 bind-key 4-F9		"sh -c 'exec $TERMINAL -e mounter'"
 bind-key 4-F10		"sh -c 'exec $TERMINAL -e unmounter'"
@@ -141,8 +157,12 @@ bind-key 4-Print	dmenurecord
 bind-key 4S-Print	"dmenurecord kill"
 bind-key 4-Delete	"dmenurecord kill"
 
-# Mouse: Super-drag moves, Super-right-drag resizes (as in dwm). cwm's own
-# root-window menus stay: left click lists windows, middle groups, right
-# the `command` entries above.
+# Mouse: Super-drag moves, Super-right-drag resizes (as in dwm). cwm's Alt
+# mouse defaults are dropped, like its Alt keys. On the empty desktop: left
+# click lists windows, middle lists groups, right runs cwm's command menu.
+unbind-mouse all
+bind-mouse 1		menu-window
+bind-mouse 2		menu-group
+bind-mouse 3		menu-cmd
 bind-mouse 4-1		window-move
 bind-mouse 4-3		window-resize

@@ -13,7 +13,6 @@ dunst
 libnotify
 dbus
 xwallpaper
-xcompmgr
 unclutter
 xclip
 xdotool
@@ -43,8 +42,11 @@ chromium
 exfat-fuse
 ntfs_3g
 unzip
-p7zip
 bzip2
 xz
 zstd
 sct
+7zip
+ibm-plex
+obsdfreqd
+simple-mtpfs

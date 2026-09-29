@@ -102,14 +102,16 @@ against cwm's source, and `cwm -n` accepts the file.
 | e, r, n, m, c, Shift+d/e/n/r | mail, lf, wiki, music, chat, passmenu, abook, news, top | same programs (top from base for htop) |
 | F9 / F10 | mounter / unmounter | same, OpenBSD versions, in a terminal for doas |
 | F4 | pulsemixer | `nightlight`: warm screen on/off (sct) |
+| F8 | mailsync | `theme toggle`: day / night palette |
 | p, [, ], comma, period | mpc | mpc |
 | minus / equal / Shift+m | volume / mute (wpctl) | sndioctl |
 | BackSpace, Shift+q | sysact | sysact |
 | F1 / F5 | LARBS guide / reload xresources | cwmrc in less / `restart` (rereads cwmrc) |
 | Print, Shift+Print, Super+Print, Delete | screenshots, recording | same |
 
-Mouse: Super+drag moves, Super+right-drag resizes. Clicking the empty
-desktop gives cwm's window, group and command menus.
+Mouse: Super+drag moves, Super+right-drag resizes. cwm's Alt mouse
+bindings are removed with its Alt keys. Clicking the empty desktop gives
+cwm's window, group and command menus.
 
 What does not carry over, because cwm has no equivalent:
 
@@ -144,15 +146,19 @@ neither reads the other's:
 
 ## Root and doas
 
-- `doas` resets the environment for root (HOME, PATH, SHELL, USER and
-  LOGNAME become root's; DISPLAY and TERM pass through). That is the sane
-  default, kept on purpose: a root command runs base tools with root's
-  PATH, never the user's scripts or EDITOR. `.local/share/openbsd/doas.conf`
-  is one rule, `permit persist :wheel`, with no nopass and no keepenv.
+- `doas` gives the command a fresh environment for root (HOME, PATH,
+  SHELL, USER and LOGNAME become root's; DISPLAY and TERM pass through), so
+  your EDITOR and variables do not follow you. It does find the command in
+  *your* PATH: a script in `~/.local/bin` with the name you type would run
+  as root. The profile puts `~/.local/bin` last, so base names win; for
+  anything sensitive, type the full path. `.local/share/openbsd/doas.conf`
+  is one rule: `permit persist setenv { ENV=/root/.kshrc } :wheel`, with no
+  nopass and no keepenv.
 - Root gets its own small `.local/share/openbsd/root.kshrc`: a red `#`
   prompt, vi mode, history, EDITOR=vi and PAGER=less, and `-i` on cp, mv
-  and rm. Root never sources the user's dotfiles: a root shell should not
-  run code from a directory the user can write.
+  and rm. The doas rule points ENV at it, so `doas -s` gives a root shell
+  with it. Use `doas -s`, not `su`: su keeps your ENV and would run your
+  own kshrc, from a directory you can write, as root.
 
 ## Browsers
 
@@ -171,16 +177,36 @@ does not take outside ports. That is not "well maintained" yet.
 - `ext file ...` extracts any archive by its name: tar in all its
   compressions, gz, bz2, xz, zst, Z, zip (and jar, epub), 7z, rar and
   iso. Base tar, gzip and compress do most of it; bzip2, xz, zstd, unzip
-  and p7zip are in pkglist. Single compressed files are decompressed next
+  and 7zip are in pkglist. Single compressed files are decompressed next
   to the original, which is kept, and an existing file is never
-  overwritten. lf's E key calls ext, so the shell and lf share one table.
-- `mounter` (Super+F9) lists unmounted partitions from `disklabel` and
-  mounts the one you pick on `/mnt/<partition>`: FAT with mount_msdos,
-  exFAT with mount.exfat from exfat-fuse, NTFS with ntfs-3g, FFS, ext2 and
-  ISO9660 with base tools. FAT, exFAT and NTFS mount owned by you.
-  `unmounter` (Super+F10) unmounts and removes the mount point. Both run in
-  a terminal so doas can ask for the password. Tested against mocked
-  disklabel and mount output; not yet on the machine.
+  overwritten (7z skips files that exist). lf's E key calls ext, so the
+  shell and lf share one table.
+
+### Drives: voidrice's mounter, on OpenBSD
+
+`mounter` (Super+F9) and `unmounter` (Super+F10) keep Luke's workflow:
+one dmenu list of everything mountable, fstab first, then "Mount this drive
+where?", notifications at the end. What each voidrice step became:
+
+| voidrice (Linux) | vertrice (OpenBSD) |
+|---|---|
+| 💾 partitions from lsblk | 💾 partitions from disklabel(8), with size and the disk's label |
+| 🔒 LUKS, `cryptsetup open` in a small floating terminal | 🔒 softraid CRYPTO, `bioctl -c C` in the same small floating terminal |
+| 📱 Android via simple-mtpfs | the same (simple-mtpfs is in ports) |
+| `mount "$drive"` first, for fstab entries | `mount DUID.part` first: an fstab line keyed on the disk's DUID (from `sysctl hw.disknames`) gives a stick a fixed home |
+| "Mount this drive where?" from /mnt /media /mount /home, offer to create | the same, with `/mnt/<partition>` offered first |
+| vfat `umask=0000`, others `uid=,gid=` | FAT via mount_msdos, exFAT via mount.exfat, NTFS via ntfs-3g, owned by you; FFS, ext2, ISO9660 via base |
+| unmounter: `umount`, then `cryptsetup close` | `umount`, then `bioctl -d` once nothing on the volume is mounted: the drive is locked again |
+| `sudo -A` with a dmenu password prompt | doas has no askpass: the scripts reopen themselves in a small floating terminal (like voidrice's decrypt step), where doas asks once |
+
+OpenBSD specifics handled: MBR type 7 and GPT data partitions can be FAT,
+exFAT or NTFS, so mounter tries them in turn. Every mount is
+`nosuid,nodev`, so a setuid program on a found stick cannot become root.
+The system disk (the one holding `/`), swap, and softraid chunks already
+in use (your encrypted internal disk) are never offered. Only entries dmenu
+offered are accepted. Tested end to end against mocked disklabel, mount,
+bioctl and doas: plain FAT, encrypted unlock-and-mount, unmount-and-lock,
+and refusing typed input. Not yet on the machine.
 
 ## Everyday conveniences
 
@@ -200,7 +226,45 @@ does not take outside ports. That is not "well maintained" yet.
   exits). `nightlight 3200` picks another temperature.
 - **rsync.** The rsync alias uses openrsync(1) from base, with the flags
   it has (`-vrl`). Installing the rsync package brings back voidrice's
-  `-vrPlu` (progress, partial, update).
+  `-vrPlu` (progress, partial, update). To a Linux host, which has rsync
+  but not openrsync, add `--rsync-path=rsync` (not checked: openrsync's
+  default remote program).
+
+## The rice: day and night, IBM Plex, fvwm frames
+
+voidrice's look is gruvbox brown with no frames to speak of. vertrice
+replaces it:
+
+- **Two palettes, eye-gentle and legible.** `.config/x11/themes/day` is
+  pastel paper (#f5f1e8) with soft dark inks; `night` is deep slate
+  (#24232e) with pastel inks. Contrast was computed, not eyeballed: every
+  text colour clears 4.5:1 against its background (WCAG AA), the body text
+  10.5:1 by day and 10.7:1 by night, and the night inks 7:1 or more. On
+  light paper, pastel inks would be illegible, so by day the pastel is the
+  page.
+- **Switching.** `theme clock`, started by xprofile, applies day from 07:00
+  and night from 19:00, checking every 5 minutes so a suspended laptop
+  catches up after waking. Super+F8 (`theme toggle`) flips it by hand until
+  the next boundary. New terminals take the palette from X resources; open
+  ones are recoloured in place with OSC escape sequences sent to your
+  ttys. Tested: the palette merges, each of your pseudo-terminals gets the
+  sequences once, the console none.
+- **Codex and nvim.** Both draw with the terminal's 16 colours (nvim runs
+  `notermguicolors` with the plain `vim` scheme), so they follow the
+  palette. Codex asks the terminal for its background when it starts; a
+  session already running keeps the old guess until you restart it.
+- **Font.** IBM Plex Mono everywhere (the ibm-plex package): terminals,
+  cwm menus, dmenu and dunst through fontconfig; Plex Sans and Serif for
+  the rest. IBM's own family, drawn for legibility (slashed zero, distinct
+  l 1 I). Noto Color Emoji fills in the emoji.
+- **Frames: fvwm's.** OpenBSD's fvwm (xenocara system.fvwmrc) draws 7-pixel
+  frames in dark red and blue with grey menus. cwm does the same: 7 pixels,
+  the focused window dark red (#8b0000), the others a softened fvwm blue
+  (#4a64b0), menus grey (#bebebe) with dark red selection. fvwm itself
+  colours the focused window blue and the rest red; this is the other way
+  round, by choice. The frames stay the same in day and night.
+- **Notifications.** dunst in Plex Mono, slate with pastel text, framed in
+  the window-border colours.
 
 ## Installing on the X220
 
@@ -209,9 +273,24 @@ System side (root, typed by the owner):
 - Packages: `doas pkg_add -l ~/.local/share/openbsd/pkglist`. Names are
   from memory, not checked against the current ports tree; `check`
   reports any that did not install.
-- `rcctl enable apmd && rcctl start apmd` for zzz/ZZZ and battery data.
-  `rcctl set apmd flags -A` adds automatic CPU speed. Whether a normal
-  user may run `zzz` depends on apmd's socket permissions: not checked.
+- `rcctl enable apmd && rcctl start apmd` for zzz/ZZZ and battery data,
+  with no flags: `-A`, `-L` and `-H` set the CPU speed policy, which is
+  obsdfreqd's job here, and the two would fight. Whether a normal user
+  may run `zzz` depends on apmd's socket permissions: not checked.
+- CPU speed, obsdfreqd (package), throttled hard on battery:
+
+      rcctl enable obsdfreqd
+      rcctl set obsdfreqd flags -m 100,50 -r 50,90 -T 85,65
+      rcctl start obsdfreqd
+
+  Each flag takes `on AC,on battery`. `-m` caps the speed in percent (full
+  on AC, half on battery). `-r` is the CPU use that makes it step up: 50%
+  on AC for a quick response, 90% on battery so only sustained load raises
+  the clock. `-T` is a temperature ceiling in °C: past it, the cap drops
+  each cycle until the CPU cools (85 on AC, 65 on battery, which also keeps
+  the X220's fan quiet). Flag letters are from obsdfreqd's documentation
+  as quoted in search results; `man obsdfreqd` on the machine is the
+  authority.
 - `rcctl enable messagebus && rcctl start messagebus` (the system D-Bus
   from the dbus package; see its readme in /usr/local/share/doc/pkg-readmes
   for the machine-id step).
@@ -219,7 +298,8 @@ System side (root, typed by the owner):
   /etc/doas.conf`, then `doas -C /etc/doas.conf` to check it.
 - Root's shell: `install -o root -g wheel -m 0644
   ~/.local/share/openbsd/root.kshrc /root/.kshrc`, and add
-  `export ENV=/root/.kshrc` to /root/.profile.
+  `export ENV=/root/.kshrc` to /root/.profile (for console logins as root;
+  `doas -s` gets it from the doas rule).
 - USB notices: `install -o root -g wheel -m 0755
   ~/.local/share/openbsd/hotplug-attach /etc/hotplug/attach`, then
   `rcctl enable hotplugd && rcctl start hotplugd`.
@@ -259,6 +339,8 @@ packages.
 - otp writes the scanned QR image to /tmp, which is on disk on OpenBSD
   (Linux used a RAM-backed runtime directory). `rm -P` overwrites the
   file, but on an SSD wear levelling can keep the old blocks.
+- xidle may also lock when the pointer rests in a screen corner (from memory
+  of its defaults). If that happens, its corner flags in xidle(1) turn it off.
 
 ## Open
 
