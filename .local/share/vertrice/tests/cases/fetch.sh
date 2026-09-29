@@ -181,20 +181,21 @@ t_fetch_setbg() {
 	logged '^xwallpaper --zoom '
 }
 
-t_fetch_scope_no_highlight() {
-	command -v highlight >/dev/null 2>&1 && skip "this host has highlight"
-	printf 'one\ntwo\nthree\nfour\n' >"$T/notes.txt"
-	eq "first screenful" "one
-two
-three" "$("$VT_SH" "$REPO/.config/lf/scope" "$T/notes.txt" 80 3 0 0)"
-}
-
 # scope runs under set -C; ksh then refuses ">/dev/null" when /dev/null is
-# a regular file (seen on a broken Linux host), so "command -v highlight
-# >/dev/null" would fail. There, point the redirections at a scratch file.
+# a regular file (seen on a broken Linux host). There, point the
+# redirections at a scratch file.
 scope_path() {
 	if [ -c /dev/null ]; then printf '%s\n' "$REPO/.config/lf/scope"
 	else derived .config/lf/scope scope "s|/dev/null|$T/null|g"; fi
+}
+
+t_fetch_scope_no_highlight() {
+	command -v highlight >/dev/null 2>&1 && skip "this host has highlight"
+	scope=$(scope_path)
+	printf 'one\ntwo\nthree\nfour\n' >"$T/notes.txt"
+	eq "first screenful" "one
+two
+three" "$("$VT_SH" "$scope" "$T/notes.txt" 80 3 0 0)"
 }
 
 # With highlight: coloured (ANSI), plain for an unknown syntax, cut to
@@ -222,23 +223,15 @@ t_fetch_scope_html_width() {
 	logged '^lynx -width=80 -display_charset=utf-8 -dump .*/page\.html$'
 }
 
-# Archives list through the tool ext would use for the same name.
+# Archives list through bsdtar, by the names ext takes.
 t_fetch_scope_archives() {
-	for c in tar unzip bzip2 7z; do
-		printf '#!/bin/sh\necho "%s $*" >>"$VT_STATE/log"\n' "$c" >"$T/bin/$c"
-		chmod +x "$T/bin/$c"
-	done
-	for f in a.tar.gz b.tgz c.tar d.zip e.tar.bz2 f.7z; do : >"$T/$f"; done
-	for f in a.tar.gz b.tgz c.tar d.zip e.tar.bz2 f.7z; do
+	printf '#!/bin/sh\necho "bsdtar $*" >>"$VT_STATE/log"\n' >"$T/bin/bsdtar"
+	chmod +x "$T/bin/bsdtar"
+	for f in a.tar.gz b.tgz c.tar d.zip e.tar.bz2 f.7z g.iso h.rar; do
+		: >"$T/$f"
 		"$VT_SH" "$REPO/.config/lf/scope" "$T/$f" 80 20 41 1 >/dev/null
+		logged "^bsdtar -tf $T/$f\$"
 	done
-	logged "^tar tzf $T/a\.tar\.gz$"
-	logged "^tar tzf $T/b\.tgz$"
-	logged "^tar tf $T/c\.tar$"
-	logged "^unzip -l $T/d\.zip$"
-	logged "^bzip2 -dc -- $T/e\.tar\.bz2$"
-	logged "^tar tf -$"
-	logged "^7z l $T/f\.7z$"
 	notlogged 'atool'
 }
 

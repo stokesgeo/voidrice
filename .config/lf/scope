@@ -5,33 +5,16 @@
 set -C -f
 IFS="$(printf '%b_' '\n')"; IFS="${IFS%_}"
 
-# lf calls the previewer with: file, width, height, x, y (in cells).
 image() {
 	if [ -f "$1" ] && [ -n "$DISPLAY" ] && [ -z "$WAYLAND_DISPLAY" ] && command -V ueberzug >/dev/null 2>&1; then
 		printf '{"action": "add", "identifier": "PREVIEW", "x": "%s", "y": "%s", "width": "%s", "height": "%s", "scaler": "contain", "path": "%s"}\n' "$4" "$5" "$(($2-1))" "$(($3-1))" "$1" > "$FIFO_UEBERZUG"
-	elif command -v mediainfo >/dev/null 2>&1; then
-		mediainfo "$6"
 	else
-		# ueberzug is not packaged for OpenBSD and mediainfo is in no
-		# list: say so rather than leave the pane blank.
-		printf '%s\n\n%s\n' "${6##*/}" "(no image preview installed)"
+		mediainfo "$6" 2>/dev/null || printf '%s\n\n(no image preview installed)\n' "${6##*/}"
 	fi
 }
 
-# Archives: listed with the tool ext uses for the same name, so previews
-# and extraction agree. tar, gzip and compress are base; bzip2, xz, zstd
-# and unzip are in pkglist, 7z in pkglist.extra. (atool, upstream's lister,
-# has no OpenBSD port.)
-case $1 in
-	*.tar.gz|*.tgz)		tar tzf "$1"; exit 1 ;;
-	*.tar.Z|*.taz)		tar tZf "$1"; exit 1 ;;
-	*.tar.bz2|*.tbz2|*.tbz)	bzip2 -dc -- "$1" | tar tf -; exit 1 ;;
-	*.tar.xz|*.txz)		xz -dc -- "$1" | tar tf -; exit 1 ;;
-	*.tar.zst|*.tzst)	zstd -dcq -- "$1" | tar tf -; exit 1 ;;
-	*.tar)			tar tf "$1"; exit 1 ;;
-	*.zip|*.jar)		unzip -l "$1"; exit 1 ;;	# lf gives full paths:
-	*.7z|*.rar|*.iso)	7z l "$1"; exit 1 ;;	# never a leading "-"
-esac
+# Archives by name, as ext takes them: bsdtar lists them all (atool has no port).
+case $1 in *.tar*|*.t[abgx]z|*.tbz2|*.tzst|*.zip|*.jar|*.7z|*.rar|*.iso) bsdtar -tf "$1"; exit 1 ;; esac
 
 # Note that the cache file name is a function of file information, meaning if
 # an image appears in multiple places across the machine, it will not have to
@@ -39,7 +22,6 @@ esac
 
 case "$(file -biL -- "$1" | cut -d';' -f1)" in
 	image/avif) CACHE="${XDG_CACHE_HOME:-$HOME/.cache}/lf/thumb.$(stat -f '%N %i %HT %z %B %m' -- "$(readlink -f "$1")" | md5)" CACHE="${CACHE%% *}"
-		# convert: ImageMagick 6, OpenBSD's package, has no magick.
 		[ ! -f "$CACHE.jpg" ] && convert "$1" "$CACHE.jpg"
 		image "$CACHE.jpg" "$2" "$3" "$4" "$5" "$1" ;;
 	image/vnd.djvu)
@@ -55,18 +37,9 @@ case "$(file -biL -- "$1" | cut -d';' -f1)" in
 		[ ! -f "$CACHE.jpg" ] && convert "$1[0]" "$CACHE.jpg"
 		image "$CACHE.jpg" "$2" "$3" "$4" "$5" "$1" ;;
 	image/*) image "$1" "$2" "$3" "$4" "$5" "$1" ;;
-	# $2 is the width; upstream passed $4 (the pane's x position).
-	text/html) lynx -width="$2" -display_charset=utf-8 -dump "$1" ;;
+	text/html) lynx -width="$2" -display_charset=utf-8 -dump "$1" ;;	# $2: the width
 	text/troff) man ./ "$1" | col -b ;;
-	# highlight (pkglist.extra; also ccat) colours the first screenful
-	# ($3 is the preview's height in lines); --force prints files of an
-	# unknown syntax plain. Without it, the first screenful as it is.
-	text/* | */xml | application/json | application/x-ndjson)
-		if command -v highlight >/dev/null 2>&1; then
-			highlight -O ansi --force "$1" | head -n "$3"
-		else
-			head -n "$3" -- "$1"
-		fi ;;
+	text/* | */xml | application/json | application/x-ndjson) { highlight -O ansi --force "$1" || cat -- "$1"; } 2>/dev/null | head -n "$3" ;;
 	audio/* | application/octet-stream) mediainfo "$1" || exit 1 ;;
 	video/* )
 		CACHE="${XDG_CACHE_HOME:-$HOME/.cache}/lf/thumb.$(stat -f '%N %i %HT %z %B %m' -- "$(readlink -f "$1")" | md5)" CACHE="${CACHE%% *}"
@@ -80,7 +53,7 @@ case "$(file -biL -- "$1" | cut -d';' -f1)" in
 		CACHE="${XDG_CACHE_HOME:-$HOME/.cache}/lf/thumb.$(stat -f '%N %i %HT %z %B %m' -- "$(readlink -f "$1")" | md5)" CACHE="${CACHE%% *}"
 		[ ! -f "$CACHE.jpg" ] && gnome-epub-thumbnailer "$1" "$CACHE.jpg"
 		image "$CACHE.jpg" "$2" "$3" "$4" "$5" "$1" ;;
-	application/zip) unzip -l "$1" ;;	# a zip without the name
+	application/*zip) bsdtar -tf "$1" ;;
 	*opendocument*) odt2txt "$1" ;;
 	application/pgp-encrypted) gpg -d -- "$1" ;;
 esac

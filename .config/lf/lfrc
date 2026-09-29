@@ -64,7 +64,6 @@ cmd extract ${{
 	printf "%s\n\t" "$fx"
 	printf "extract?[y/N]"
 	read ans
-	# ext holds the one table of archive types (shell and lf share it).
 	[ "$ans" = "y" ] && ext $fx
 }}
 
@@ -151,9 +150,7 @@ map <c-s> set hidden!
 map <enter> shell
 map x $$f
 map X !$f
-# o: the default program from mimeapps.list, through xdg-open (xdg-utils,
-# installed with chromium). O asks which program: that needs mimeopen
-# (p5-File-MimeInfo, in no list); without it ifinstalled says so.
+# o: mimeapps.list's program (xdg-open); O asks, if p5-File-MimeInfo is installed.
 map o &xdg-open "$f"
 map O $ifinstalled mimeopen && mimeopen --ask "$f"
 
