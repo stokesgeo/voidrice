@@ -11,7 +11,9 @@ cleanup() {
 	rm "$FIFO_UEBERZUG"
 }
 
-if [ -n "$SSH_CLIENT" ] || [ -n "$SSH_TTY" ]; then
+# Plain lf over ssh, or where ueberzug is not installed (it is not in
+# OpenBSD packages).
+if [ -n "$SSH_CLIENT" ] || [ -n "$SSH_TTY" ] || ! command -v ueberzug >/dev/null 2>&1; then
 	lf "$@"
 else
 	[ ! -d "$HOME/.cache/lf" ] && mkdir -p "$HOME/.cache/lf"
@@ -19,6 +21,6 @@ else
 	mkfifo "$FIFO_UEBERZUG"
 	ueberzug layer -s <"$FIFO_UEBERZUG" -p json &
 	exec 3>"$FIFO_UEBERZUG"
-	trap cleanup HUP INT QUIT TERM PWR EXIT
+	trap cleanup HUP INT QUIT TERM EXIT
 	lf "$@" 3>&-
 fi

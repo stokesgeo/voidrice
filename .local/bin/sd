@@ -1,6 +1,13 @@
 #!/bin/sh
 
 # Open a terminal window in the same directory as the currently active window.
+#
+# NOT PORTED to OpenBSD. It reads another process's working directory from
+# /proc/PID/cwd, and uses pstree and tac; OpenBSD has none of the three.
+# OpenBSD does expose the cwd, through sysctl(3) with KERN_PROC_CWD (tmux
+# uses it), but not through the sysctl(8) command. A small C helper would
+# close the gap. Until then the fallback below opens a plain terminal.
+command -v pstree >/dev/null 2>&1 && [ -d /proc/self ] || exec "$TERMINAL"
 
 windowPID=$(xprop -id "$(xprop -root | sed -n "/_NET_ACTIVE_WINDOW/ s/^.*# // p")" | sed -n "/PID/ s/^.*= // p")
 PIDlist=$(pstree -lpATna "$windowPID" | sed -En 's/.*,([0-9]+).*/\1/p' | tac)

@@ -14,7 +14,7 @@ data="$([ -z "$1" ] && cat "$report" 2>/dev/null || curl -sfm 5 "${WTTRURL:-wttr
 
 [ -n "$copy" ] && {
 	[ -z "$1" ] && read -r location <"$report" && location="${location#*: }"
-	echo "$data" | sed 's/\x1b\[[^m]*m//g' | xclip -selection clipboard
+	echo "$data" | sed "s/$(printf '\033')\[[^m]*m//g" | xclip -selection clipboard
 	printf "Weather forecast for '%s' copied to clipboard.\n" "${1:-$location}"
 	exit ;}
 

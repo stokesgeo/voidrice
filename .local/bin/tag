@@ -30,7 +30,7 @@ shift $((OPTIND - 1))
 file="$1"
 
 temp="$(mktemp -p "$(dirname "$file")")"
-trap 'rm -f $temp' HUP INT QUIT TERM PWR EXIT
+trap 'rm -f $temp' HUP INT QUIT TERM EXIT
 
 [ ! -f "$file" ] && echo 'Provide file to tag.' && err
 

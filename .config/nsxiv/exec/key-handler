@@ -36,6 +36,6 @@ do
 		"g" )
 			ifinstalled gimp && detach gimp "$file" ;;
 		"i" )
-			notify-send "File information" "$(mediainfo "$file" | sed "s/[ ]\+:/:/g;s/: /: <b>/;s/$/<\/b>/" | grep "<b>")" ;;
+			notify-send "File information" "$(mediainfo "$file" | sed "s/[ ][ ]*:/:/g;s/: /: <b>/;s/$/<\/b>/" | grep "<b>")" ;;
 	esac
 done

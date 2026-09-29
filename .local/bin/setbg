@@ -20,12 +20,17 @@ esac done
 
 shift $((OPTIND - 1))
 
+# A directory is tested with -d: MIME names for directories differ between
+# file(1) implementations. OpenBSD has no shuf(1); sort -R shuffles.
 trueloc="$(readlink -f "$1")" &&
-case "$(file --mime-type -b "$trueloc")" in
-	image/* ) ln -sf "$trueloc" "$bgloc" && [ -z "$silent" ] && notify-send -i "$bgloc" "Changing wallpaper..." ;;
-	inode/directory ) ln -sf "$(find "$trueloc" -iregex '.*.\(jpg\|jpeg\|png\|gif\)' -type f | shuf -n 1)" "$bgloc" && [ -z "$silent" ] && notify-send -i "$bgloc" "Random Wallpaper chosen." ;;
-	*) [ -z "$silent" ] && notify-send "🖼️ Error" "Not a valid image or directory." ; exit 1;;
-esac
+if [ -d "$trueloc" ]; then
+	ln -sf "$(find "$trueloc" -type f \( -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.png' -o -iname '*.gif' \) | sort -R | head -n 1)" "$bgloc" && [ -z "$silent" ] && notify-send -i "$bgloc" "Random Wallpaper chosen."
+else
+	case "$(file -bi "$trueloc")" in
+		image/* ) ln -sf "$trueloc" "$bgloc" && [ -z "$silent" ] && notify-send -i "$bgloc" "Changing wallpaper..." ;;
+		*) [ -z "$silent" ] && notify-send "🖼️ Error" "Not a valid image or directory." ; exit 1;;
+	esac
+fi
 
 # If pywal is installed, use it.
 if command -v wal >/dev/null 2>&1 ; then

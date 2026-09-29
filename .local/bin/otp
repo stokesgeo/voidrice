@@ -6,8 +6,8 @@
 # suffix `-otp`. This script automatically appends newly added otps as such.
 
 # For OTP passwords to be generated properly, it is important for the local
-# computer to have its time properly synced. This can be done with the command
-# below which requires the package `ntp`.
+# computer to have its time properly synced. On OpenBSD, ntpd(8) in base does
+# this; the sync-time entry shows its status.
 
 ifinstalled pass pass-otp || exit 1
 
@@ -19,9 +19,13 @@ case $choice in
 	🆕add )
 		ifinstalled maim zbar xclip || exit 1
 
-		temp=$(mktemp -p "$XDG_RUNTIME_DIR" --suffix=.png)
+		# BSD mktemp has no --suffix, and maim picks the format from the
+		# extension, so make a private directory and name the file in it.
+		# rm -P overwrites the files before unlinking (GNU shred's job).
+		tmpd=$(mktemp -d) || exit 1
+		temp="$tmpd/qr.png"
 		otp="otp-test-script"
-		trap 'shred -fu $temp; pass rm -f $otp' HUP INT QUIT TERM PWR EXIT
+		trap 'rm -rfP "$tmpd"; pass rm -f $otp' HUP INT QUIT TERM EXIT
 
 		notify-send "Scan the image." "Scan the OTP QR code."
 
@@ -32,7 +36,7 @@ case $choice in
 		if echo "$info" | pass otp insert "$otp"; then
 			while [ "${num:-0}" -lt 3 ] ; do
 				export name="$(prinf | dmenu -p "Give this One Time Password a one-word name:")"
-				echo "$name" | grep -q -- "^[A-Za-z0-9-]\+$" && break
+				echo "$name" | grep -qE -- "^[A-Za-z0-9-]+$" && break
 				num="$((num + 1))"
 			done
 			pass mv "$otp" "$name-otp"
@@ -42,10 +46,9 @@ case $choice in
 		fi
 		;;
 	🕙sync-time )
-		ifinstalled ntp || exit 1
-		notify-send -u low "🕙 Synchronizing Time..." "Synching time with remote NTP servers..."
-		updatedata="$(sudo ntpdate pool.ntp.org)" &&
-		notify-send -u low "🕙 Synchronizing Time..." "Done. Time changed by ${updatedata#*offset }"
+		# OpenBSD runs ntpd(8) from base by default and keeps the clock
+		# synced, so report its state instead of forcing a sync as root.
+		notify-send -u low "🕙 Time sync" "$(ntpctl -s status)"
 		;;
 	*) pass otp -c ${choice}-otp ;;
 esac
