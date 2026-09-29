@@ -76,4 +76,4 @@ esac
 				updateprice
 	fi
 
-[ -f "$pricefile" ] && printf "%s%s%0.2f" "$icon" "$symb" "$(cat "$pricefile")"
+[ -f "$pricefile" ] && printf "%s%s%0.2f\\n" "$icon" "$symb" "$(cat "$pricefile")"

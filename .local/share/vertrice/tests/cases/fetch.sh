@@ -54,6 +54,9 @@ t_fetch_sb_price() {
 	logged '^ftp -MV -U curl -o .*/crypto-prices/btc-usd https://usd\.rate\.sx/1btc$'
 	logged '^ftp -MV -U curl -o .*/crypto-prices/btc-usd-chart https://usd\.rate\.sx/btc@14d$'
 	eq "price" 'B$61234.57' "$out"
+	# sbar joins the blocks' lines: the price must end its line.
+	eq "ends its line" 'B$61234.57 next' \
+		"$({ sb-price btc-usd Bitcoin B; echo next; } | grep . | paste -sd ' ' -)"
 }
 
 t_fetch_sb_ticker() {
