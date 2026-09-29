@@ -28,11 +28,10 @@ chartfile="$dir/$target-$denom-chart"
 [ -d "$dir" ] || mkdir -p "$dir"
 
 checkprice() {
-	[ "$(stat -c %y "$pricefile" 2>/dev/null |
-		cut -d' ' -f1)" = "$(date '+%Y-%m-%d')" ]
+	[ "$(stat -f %Sm -t %Y-%m-%d "$pricefile" 2>/dev/null)" = "$(date '+%Y-%m-%d')" ]
 }
 
-updateprice() { { grep -q -m1 '^up$' /sys/class/net/w*/operstate || grep -q -m1 '^up$' /sys/class/net/e*/operstate; } &&
+updateprice() { route -n get default >/dev/null 2>&1 &&
 	curl -sf \
 		--fail-early "${denom}.${url}/1${target}" "${denom}.${url}/${target}${interval}" \
 		--output "$pricefile" --output "$chartfile" &&
@@ -44,7 +43,7 @@ checkprice || updateme="1"
 case $BLOCK_BUTTON in
 	1) detach "$TERMINAL" -e less -Srf "$chartfile" ;;
 	2) notify-send -u low "$icon Updating..." "Updating $name price..." ; updateme="1" ; showupdate="1" ;;
-	3) uptime="$(date -d "$(stat -c %x "$pricefile" 2>/dev/null)" '+%D at %T' | sed "s|$(date '+%D')|Today|")"
+	3) uptime="$(stat -f %Sa -t '%D at %T' "$pricefile" 2>/dev/null | sed "s|$(date '+%D')|Today|")"
 		notify-send "$icon $name module" "\- <b>Exact price: \$$(cat "$pricefile")</b>
 - Left click for chart of changes.
 - Middle click to update.

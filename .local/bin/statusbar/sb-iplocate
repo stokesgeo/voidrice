@@ -8,7 +8,7 @@
 ifinstalled "geoip" || exit 1
 
 getip() {
-	{ grep -q -m1 '^up$' /sys/class/net/w*/operstate || grep -q -m1 '^up$' /sys/class/net/e*/operstate; } &&
+	route -n get default >/dev/null 2>&1 &&
 		curl -sf api.ipify.org --output "$ipfile"
 }
 

@@ -7,14 +7,13 @@ url="${WTTRURL:-wttr.in}"
 weatherreport="${XDG_CACHE_HOME:-$HOME/.cache}/weatherreport"
 
 # Get a weather report from 'wttr.in' and save it locally.
-getforecast() { { grep -q -m1 '^up$' /sys/class/net/w*/operstate || grep -q -m1 '^up$' /sys/class/net/e*/operstate; } &&
+getforecast() { route -n get default >/dev/null 2>&1 &&
 	curl -sf "$url/$LOCATION" --output "$weatherreport" && touch "$weatherreport"
 }
 
 # Forecast should be updated only once a day.
 checkforecast() {
-	[ "$(stat -c %y "$weatherreport" 2>/dev/null |
-		cut -d' ' -f1)" = "$(date '+%Y-%m-%d')" ]
+	[ "$(stat -f %Sm -t %Y-%m-%d "$weatherreport" 2>/dev/null)" = "$(date '+%Y-%m-%d')" ]
 }
 
 getprecipchance() {

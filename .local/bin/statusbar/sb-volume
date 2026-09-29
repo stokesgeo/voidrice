@@ -1,25 +1,22 @@
 #!/bin/sh
 
 # Prints the current volume or 🔇 if muted.
+# OpenBSD sound goes through sndiod(8); sndioctl(1) reads and sets its
+# controls. output.level runs 0 to 1, output.mute is 0 or 1.
 
 case $BLOCK_BUTTON in
-	1) "$TERMINAL" -e pulsemixer; sb-refresh ;;
-	2) wpctl set-mute @DEFAULT_SINK@ toggle ;;
-	4) wpctl set-volume @DEFAULT_SINK@ 1%+ ;;
-	5) wpctl set-volume @DEFAULT_SINK@ 1%- ;;
+	2) sndioctl -q output.mute=! ;;
+	4) sndioctl -q output.level=+0.01 ;;
+	5) sndioctl -q output.level=-0.01 ;;
 	3) notify-send "📢 Volume module" "\- Shows volume 🔊, 🔇 if muted.
 - Middle click to mute.
 - Scroll to change." ;;
 	6) detach "$TERMINAL" -e "$EDITOR" "$0" ;;
 esac
 
-vol="$(wpctl get-volume @DEFAULT_AUDIO_SINK@)"
+[ "$(sndioctl -n output.mute)" = 1 ] && { printf "🔇\n"; exit ;}
 
-# If muted, print 🔇 and exit.
-[ "$vol" != "${vol%\[MUTED\]}" ] && { printf "🔇\n"; exit ;}
-
-# Omit the '.' without calling an external program.
-vol="$(IFS=.; set -- ${vol#Volume: }; printf "%.0f" "$1$2")"
+vol=$(sndioctl -n output.level | awk '{printf "%.0f", $1 * 100}')
 
 case 1 in
 	$((vol >= 70)) ) icon="🔊" ;;

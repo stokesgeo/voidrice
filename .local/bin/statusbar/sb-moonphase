@@ -5,11 +5,10 @@
 moonfile="${XDG_DATA_HOME:-$HOME/.local/share}/moonphase"
 
 checkmoon() {
-	[ "$(stat -c %y "$moonfile" 2>/dev/null |
-		cut -d' ' -f1)" = "$(date '+%Y-%m-%d')" ]
+	[ "$(stat -f %Sm -t %Y-%m-%d "$moonfile" 2>/dev/null)" = "$(date '+%Y-%m-%d')" ]
 }
 
-getmoon() { { grep -q -m1 '^up$' /sys/class/net/w*/operstate || grep -q -m1 '^up$' /sys/class/net/e*/operstate; } &&
+getmoon() { route -n get default >/dev/null 2>&1 &&
 	curl -sf "wttr.in/?format=%m" --output "$moonfile" && touch "$moonfile"
 }
 

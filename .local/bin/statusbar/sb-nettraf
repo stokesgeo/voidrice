@@ -3,27 +3,33 @@
 # Module showing network traffic. Shows how much data has been received (RX) or
 # transmitted (TX) since the previous time this script ran. So if run every
 # second, gives network traffic per second.
+#
+# OpenBSD: `netstat -ibn` lists byte counters per interface; the <Link> row
+# of each interface carries its totals in the last two columns (the address
+# column is empty for some interfaces, so count from the end). Loopback is
+# skipped. numfmt(1) is GNU; a short awk does the human units.
 
 case $BLOCK_BUTTON in
-	1) detach "$TERMINAL" -e bmon ;;
+	1) detach "$TERMINAL" -e systat ifstat ;;
 	3) notify-send "🌐 Network traffic module" "🔻: Traffic received
 🔺: Traffic transmitted" ;;
 	6) detach "$TERMINAL" -e "$EDITOR" "$0" ;;
 esac
 
-update() {
-    sum=0
-    for arg; do
-        read -r i < "$arg"
-        sum=$(( sum + i ))
-    done
-    cache=/tmp/${1##*/}
-    [ -f "$cache" ] && read -r old < "$cache" || old=0
-    printf %d\\n "$sum" > "$cache"
-    printf %d\\n $(( sum - old ))
+cache=/tmp/nettraf-$(id -u)
+
+set -- $(netstat -ibn | awk '$3 ~ /<Link>/ && $1 !~ /^lo/ { rx += $(NF-1); tx += $NF }
+	END { printf "%d %d\n", rx, tx }')
+rx=$1 tx=$2
+[ -f "$cache" ] && read -r oldrx oldtx < "$cache"
+echo "$rx $tx" > "$cache"
+
+human() {
+	awk -v n="$1" 'BEGIN {
+		split(" K M G T", u, " "); i = 1
+		while (n >= 1024 && i < 5) { n /= 1024; i++ }
+		if (i == 1) printf "%d", n; else printf "%.1f%s", n, u[i - 1]
+	}'
 }
 
-rx=$(update /sys/class/net/[ew]*/statistics/rx_bytes)
-tx=$(update /sys/class/net/[ew]*/statistics/tx_bytes)
-
-printf "🔻%4sB 🔺%4sB\\n" $(numfmt --to=iec $rx $tx)
+printf "🔻%4sB 🔺%4sB\\n" "$(human $((rx - ${oldrx:-$rx})))" "$(human $((tx - ${oldtx:-$tx})))"

@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/local/bin/bash
 
 # Usage
 #   sb-ticker
@@ -18,8 +18,7 @@ tickerfile="${XDG_CONFIG_HOME:-$HOME/.config}/tickers"
 [ -f "$tickerfile" ] && tickers="$(cat "$tickerfile")" || tickers="^GSPC,^DJI,^IXIC";
 
 checkprice() {
-    [ -s "$pricefile" ] && [ "$(stat -c %y "$pricefile" 2>/dev/null |
-        cut -d':' -f1)" != "$(date '+%Y-%m-%d %H')" ]
+    [ -s "$pricefile" ] && [ "$(stat -f %Sm -t '%Y-%m-%d %H' "$pricefile" 2>/dev/null)" != "$(date '+%Y-%m-%d %H')" ]
 }
 
 getchange() {

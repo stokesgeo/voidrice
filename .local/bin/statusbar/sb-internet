@@ -3,10 +3,15 @@
 # Show wifi 📶 and percent strength or 📡 if none.
 # Show 🌐 if connected to ethernet or ❎ if none.
 # Show 🔒 if a vpn connection is active
+#
+# OpenBSD has no /sys; everything comes from one ifconfig(8) run. A wireless
+# interface has "media: IEEE802.11", wired has "media: Ethernet", a working
+# link has "status: active", and the ieee80211 line of a joined network
+# carries the signal as a percentage. wg(4) and tun(4) count as VPN.
 
 case $BLOCK_BUTTON in
-	1) "$TERMINAL" -e nmtui; sb-refresh ;;
-	3) notify-send "🌐 Internet module" "\- Click to connect
+	1) notify-send "🌐 Network" "$(ifconfig wlan 2>/dev/null | grep -E 'ieee80211|status')" ;;
+	3) notify-send "🌐 Internet module" "\- Click to show the wifi network
 ❌: wifi disabled
 📡: no wifi connection
 📶: wifi connection with quality
@@ -17,17 +22,28 @@ case $BLOCK_BUTTON in
 	6) detach "$TERMINAL" -e "$EDITOR" "$0" ;;
 esac
 
-# Wifi
-if [ "$(cat /sys/class/net/w*/operstate 2>/dev/null)" = 'up' ] ; then
-	wifiicon="$(awk '/^\s*w/ { print "📶", int($3 * 100 / 70) "% " }' /proc/net/wireless)"
-elif [ "$(cat /sys/class/net/w*/operstate 2>/dev/null)" = 'down' ] ; then
-	[ "$(cat /sys/class/net/w*/flags 2>/dev/null)" = '0x1003' ] && wifiicon="📡 " || wifiicon="❌ "
-fi
-
-# Ethernet
-[ "$(cat /sys/class/net/e*/operstate 2>/dev/null)" = 'up' ] && ethericon="🌐" || ethericon="❎"
-
-# TUN
-[ -n "$(cat /sys/class/net/tun*/operstate 2>/dev/null)" ] && tunicon=" 🔒"
-
-printf "%s%s%s\n" "$wifiicon" "$ethericon" "$tunicon"
+ifconfig -a | awk '
+	/^[a-z]/ {
+		ifc = $1; sub(/:$/, "", ifc)
+		up[ifc] = ($2 ~ /<UP/)
+		if (ifc ~ /^(wg|tun)[0-9]/ && up[ifc]) vpn = 1
+	}
+	/media: IEEE802\.11/	{ wifi = ifc }
+	/media: Ethernet/	{ eth[ifc] = 1 }
+	/status: active/	{ active[ifc] = 1 }
+	/ieee80211:/ {
+		for (i = 1; i <= NF; i++)
+			if ($i ~ /^[0-9]+%$/) sig = $i
+	}
+	END {
+		if (wifi != "") {
+			if (!up[wifi])			printf "❌ "
+			else if (active[wifi] && sig != "")	printf "📶 %s ", sig
+			else				printf "📡 "
+		}
+		e = "❎"
+		for (i in eth) if (active[i]) e = "🌐"
+		printf "%s", e
+		if (vpn) printf " 🔒"
+		printf "\n"
+	}'

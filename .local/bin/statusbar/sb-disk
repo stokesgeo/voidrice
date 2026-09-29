@@ -8,7 +8,7 @@ location=${1:-/}
 [ -d "$location" ] || exit
 
 case $BLOCK_BUTTON in
-	1) notify-send "💽 Disk space" "$(df -h --output=target,used,size)" ;;
+	1) notify-send "💽 Disk space" "$(df -h)" ;;
 	3) notify-send "💽 Disk module" "\- Shows used hard drive space.
 - Click to show all disk info." ;;
 	6) detach "$TERMINAL" -e "$EDITOR" "$0" ;;
