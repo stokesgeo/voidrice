@@ -14,8 +14,8 @@ case $BLOCK_BUTTON in
 	6) detach "$TERMINAL" -e "$EDITOR" "$0" ;;
 esac
 
-# One Maildir per account; unread mail is in new/.
-unread="$(find "${XDG_DATA_HOME:-$HOME/.local/share}"/mail/*/[Ii][Nn][Bb][Oo][Xx]/new/* -type f | wc -l 2>/dev/null)"
+# One Maildir per account; unread mail is in new/. OpenBSD's wc pads the count.
+unread="$(find "${XDG_DATA_HOME:-$HOME/.local/share}"/mail/*/[Ii][Nn][Bb][Oo][Xx]/new/* -type f | wc -l 2>/dev/null | tr -d ' ')"
 
 pgrep -x mbsync >/dev/null 2>&1 && icon="🔃"
 

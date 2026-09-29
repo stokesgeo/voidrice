@@ -115,6 +115,18 @@ t_sb_clock() {
 	eq "evening" "2026 Sep 29 (Tue) 🕚11:59PM" "$(VT_EPOCH=1790726340 sb-clock)"
 }
 
+# OpenBSD's wc prints each count as " %7lld" (usr.bin/wc/wc.c,
+# format_and_print), so `wc -l` on a pipe gives "       0", not "0".
+t_sb_mailbox() {
+	printf '#!/bin/sh\nprintf " %%7d\\n" "$(grep -c "")"\n' >"$T/bin/wc"
+	chmod +x "$T/bin/wc"
+	box=$HOME/.local/share/mail/me/INBOX/new
+	mkdir -p "$box"
+	eq "no unread: nothing" "" "$(sb-mailbox)"
+	: >"$box/1"; : >"$box/2"
+	eq "two unread" "📬2" "$(sb-mailbox)"
+}
+
 t_sb_music() {
 	printf '%s\n' "Boards of Canada - Roygbiv" "[playing] #3/10   1:02/2:31 (41%)" \
 		"volume: 80%   repeat: off   random: off   single: off   consume: off" \
