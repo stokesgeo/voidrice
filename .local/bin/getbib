@@ -1,5 +1,10 @@
 #!/bin/sh
 
+# getbib PDF|DIR|DOI [BIBFILE]: add the BibTeX entry for a DOI to BIBFILE.
+# The DOI is given, or read from a PDF (or every PDF in DIR). The entry comes
+# from Crossref. BIBFILE is ~/latex/uni.bib, else $2, else the first .bib
+# under $HOME.
+
 BIB_FILE="${HOME}/latex/uni.bib"
 [ -f "${BIB_FILE}" ] || BIB_FILE="${2:-$(find "${HOME}" -path "${HOME}/.*" \
 	-prune -o -type "f" -name "*.bib" -print | head -n 1)}"
@@ -8,7 +13,7 @@ BIB_FILE="${HOME}/latex/uni.bib"
 	printf "%s\n" "Create a .bib file or provide as \$2." && exit "1"
 }
 
-filter() {	# the first DOI; head, as OpenBSD's sed has no T
+filter() {	# the first DOI on stdin; head keeps one, as OpenBSD sed has no T
 	sed -n -E 's/.*((DOI|doi)((\.(org))?\/?|:? *))([^: ]+[^ .]).*/\6/p' | head -n 1
 }
 
@@ -23,7 +28,9 @@ fpdf() {
 	printf "%s\n" "${doi}"
 }
 
-# awk in place of upstream's two GNU sed passes (\L, \s, \n in replacements).
+# Reflow Crossref's one-line entry: one field per line, field names lower
+# case, and a short lower-case key with a two-digit year. awk, as OpenBSD sed
+# lacks GNU's \L and \n in replacements.
 arrange() {
 	awk '{
 		s = $0
