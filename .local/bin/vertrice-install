@@ -1,4 +1,5 @@
 #!/bin/sh
+
 # vertrice-install: the system half of vertrice. Read it, then run it as root:
 #	doas sh ~/.local/bin/vertrice-install
 # The first time there is no doas.conf yet: su -, then sh ~you/.local/bin/vertrice-install

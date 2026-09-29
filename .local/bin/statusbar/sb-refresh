@@ -1,3 +1,5 @@
 #!/bin/sh
+
 # sb-refresh: redraw the bar now (voidrice's pkill -RTMIN+n dwmblocks).
+
 pkill -USR1 -f 'statusbar/sbar$'

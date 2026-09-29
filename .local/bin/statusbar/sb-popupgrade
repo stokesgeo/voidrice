@@ -1,5 +1,7 @@
 #!/bin/sh
+
 # Install the waiting updates in a terminal: base errata, then packages.
+
 [ -t 0 ] || exec "$TERMINAL" -e "$0"
 
 printf "Beginning upgrade.\n"

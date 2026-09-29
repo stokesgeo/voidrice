@@ -1,4 +1,5 @@
 #!/bin/ksh
+
 # check: run once on the X220 after the first boot, as you, inside X.
 # Confirms what the mocks in this suite stand in for. Changes nothing.
 
