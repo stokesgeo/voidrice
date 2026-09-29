@@ -30,6 +30,10 @@ pgrep -x xidle >/dev/null || xidle -timeout 600 &
 # USB drives: turn the root-side hotplugd note into a notification.
 hotplug-watch &
 
+# Backups: a notice when the newest dump of /home is older than BK_DAYS
+# (7) days. It reads one small file; no daemon. See `bk` and OPENBSD.md.
+bk remind &
+
 # Ensure that xrdb has finished running before moving on to start the WM/DE.
 [ -n "$xrdbpid" ] && wait "$xrdbpid"
 

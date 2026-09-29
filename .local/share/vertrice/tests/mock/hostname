@@ -1,0 +1,6 @@
+#!/bin/sh
+
+# hostname(1) mock: the X220 is "x220.home.lan"; -s gives "x220".
+
+[ "$1" = -s ] && { echo x220; exit 0; }
+echo x220.home.lan

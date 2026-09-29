@@ -1,0 +1,165 @@
+#!/bin/ksh
+
+# bk: back up /home to an encrypted USB disk with dump(8), OpenBSD's own.
+#	bk full		dump of the /home filesystem at level 0: all of it
+#	bk incr		dump at level 1: everything changed since the last
+#			full, per the record dump -u keeps in /etc/dumpdates
+#	bk restore-test	restore -t (table of contents) of the newest dumps:
+#			they read back, and the newest full lists the files
+#			in ~/.config/bk/keyfiles. Writes nothing on the system.
+#	bk status	age of the newest full and incremental
+#	bk remind	a notification when the newest dump, full or
+#			incremental, is older than BK_DAYS days (xprofile)
+#
+# The backup disk is a softraid CRYPTO volume holding an FFS filesystem,
+# which mounter puts at $BK_DIR through its fstab line (OPENBSD.md,
+# "Backups"). bk never mounts it, and refuses to run when $BK_DIR is not a
+# mount point, so a backup cannot fill the laptop's own disk instead.
+#
+# Only dump runs as root, because it reads the raw disk device. Its output
+# goes down a pipe to gzip, which writes the file as you (mode 600), so
+# restore-test needs no root. A dump is written to NAME.part and renamed
+# when the whole pipe succeeded: a file named HOST-YYYYmmdd-HHMM-lN.dump.gz
+# is complete. ~/.local/state/bk keeps the time of the last good dump of
+# each kind, so status and remind work with the disk unplugged.
+
+BK_DIR=${BK_DIR:-/mnt/backup}
+BK_FS=${BK_FS:-/home}
+BK_DAYS=${BK_DAYS:-7}
+conf=${XDG_CONFIG_HOME:-$HOME/.config}/bk
+state=${XDG_STATE_HOME:-$HOME/.local/state}/bk
+host=$(hostname -s)
+dumps=$BK_DIR/dump
+
+die() { print -ru2 -- "bk: $1"; notify-send "💾 Backup" "$1"; exit 1; }
+# ismounted DIR: is DIR a mount point? mount(8) prints "DEV on DIR type ...".
+ismounted() { mount | awk -v d="$1" '$2 == "on" && $3 == d { f = 1 } END { exit !f }'; }
+needdisk() {
+	ismounted "$BK_DIR" ||
+		die "$BK_DIR is not mounted: unlock and mount the backup disk (Super+F9)."
+}
+# since KIND: seconds since the last good dump of KIND; fails if none.
+# The record is one line, "seconds-since-1970 FILENAME".
+since() {
+	typeset t rest
+	[ -f "$state/$1" ] && read -r t rest <"$state/$1" || return 1
+	case $t in '' | *[!0-9]*) return 1 ;; esac
+	print $(($(date +%s) - t))
+}
+# newest PATTERN: the last matching dump; the names sort by date.
+newest() {
+	typeset f last=''
+	for f in $dumps/$1; do [ -f "$f" ] && last=$f; done
+	print -r -- "$last"
+}
+
+# dumpfs LEVEL KIND: dump $BK_FS at LEVEL into $dumps.
+dumpfs() {
+	typeset level=$1 kind=$2 name
+	ismounted "$BK_FS" || die "$BK_FS is not a mounted filesystem; set BK_FS."
+	needdisk
+	# doas has no askpass: started from a key, reopen in a small floating
+	# terminal where it can ask, as mounter does. BK_TERM keeps that
+	# terminal open at the end if something failed.
+	if [ ! -t 0 ]; then
+		case $TERMINAL in
+			st) exec env BK_TERM=1 "$TERMINAL" -n floatterm -g 80x16 -e "$0" "$kind" ;;
+			*) exec env BK_TERM=1 "$TERMINAL" -name floatterm -geometry 80x16 -e "$0" "$kind" ;;
+		esac
+	fi
+	mkdir -p "$dumps" || die "cannot write to $BK_DIR: doas chown $(id -un) $BK_DIR"
+	doas true || exit 1	# the password now, not half way down the pipe
+	name=$host-$(date +%Y%m%d-%H%M)-l$level.dump.gz
+	print -r -- "bk: level $level dump of $BK_FS to $dumps/$name"
+	set -o pipefail	# the pipe fails if dump fails, not only if gzip does
+	umask 077
+	# -a: write until the end of the medium, with no tape-length guess.
+	# -u: record the dump in /etc/dumpdates, which the next incr reads.
+	if doas dump -"$level"au -f - "$BK_FS" | gzip -c >"$dumps/$name.part" &&
+	    mv "$dumps/$name.part" "$dumps/$name"; then
+		mkdir -p "$state" && print -r -- "$(date +%s) $name" >"$state/$kind"
+		notify-send "💾 Backup done." "$name"
+	else
+		rm -f "$dumps/$name.part"
+		print -u2 "bk: if dump itself finished, /etc/dumpdates records this dump anyway; after a failed full, run bk full again before the next incr."
+		[ -n "$BK_TERM" ] && { print "Press Enter to close."; read -r _; }
+		die "Level $level dump of $BK_FS failed."
+	fi
+}
+
+# toc FILE: restore -t of a gzipped dump, on stdout. restore keeps its
+# scratch files in TMPDIR, here a directory of our own, removed after.
+toc() {
+	typeset tmp rc
+	tmp=$(mktemp -d) || return 1
+	gzip -dc "$1" | TMPDIR=$tmp restore -tf -
+	rc=$?
+	rm -rf "$tmp"
+	return $rc
+}
+
+restoretest() {
+	typeset full incr keys rel missing
+	needdisk
+	set -o pipefail
+	full=$(newest "$host-*-l0.dump.gz")
+	[ -n "$full" ] || die "no full dump of $host in $dumps."
+	# Paths in a dump are relative to the filesystem's root: ./USER/...
+	case $HOME in "$BK_FS"/*) rel=./${HOME#"$BK_FS"/}/ ;; *) rel=./ ;; esac
+	keys=$conf/keyfiles
+	[ -f "$keys" ] || keys=''
+	missing=$(toc "$full" | awk -F '\t' -v rel="$rel" -v keys="$keys" '
+		BEGIN {
+			if (keys == "") want[rel ".profile"] = 1
+			else while ((getline k < keys) > 0) {
+				if (k == "" || k ~ /^#/) continue
+				sub(/\/$/, "", k); want[rel k] = 1
+			}
+		}
+		{ delete want[$2] }
+		END { for (k in want) print k }') || die "${full##*/} does not read back."
+	[ -z "$missing" ] ||
+		die "${full##*/} lacks: $(print -r -- "$missing" | tr '\n' ' ')"
+	print -r -- "bk: ${full##*/} reads back; key files listed."
+	# An incremental holds only what changed, so it is only read through.
+	incr=$(newest "$host-*-l1.dump.gz")
+	if [ -n "$incr" ] && [[ ${incr##*/} > ${full##*/} ]]; then
+		toc "$incr" >/dev/null || die "${incr##*/} does not read back."
+		print -r -- "bk: ${incr##*/} reads back."
+	fi
+}
+
+status() {
+	typeset k s t name
+	for k in full incr; do
+		if s=$(since "$k"); then
+			read -r t name <"$state/$k"
+			printf '%-5s %4d days ago  %s\n' "$k" $((s / 86400)) "$name"
+		else
+			printf '%-5s never\n' "$k"
+		fi
+	done
+}
+
+# remind: the newest dump of either kind counts.
+remind() {
+	typeset k s age=''
+	for k in full incr; do
+		s=$(since "$k") || continue
+		[ -z "$age" ] || [ "$s" -lt "$age" ] && age=$s
+	done
+	if [ -z "$age" ]; then
+		notify-send "💾 No backup yet." "Mount the backup disk (Super+F9), then bk full."
+	elif [ "$age" -gt $((BK_DAYS * 86400)) ]; then
+		notify-send "💾 Backup is $((age / 86400)) days old." "Mount the backup disk (Super+F9), then bk incr."
+	fi
+}
+
+case $1 in
+	full) dumpfs 0 full ;;
+	incr) dumpfs 1 incr ;;
+	restore-test) restoretest ;;
+	status) status ;;
+	remind) remind ;;
+	*) sed -n '3,12p' "$0" | sed 's/^# \{0,1\}//' >&2; exit 2 ;;
+esac
