@@ -1,0 +1,44 @@
+#!/bin/sh
+
+# sysctl(8) mock, read-only: `sysctl [-n] name`. A case sets values with
+# setsysctl (lib.sh), which writes "name=value" lines to $VT_STATE/sysctl;
+# anything not set there comes from the X220 defaults below.
+#
+# Formats, and how sure they are:
+#	hw.sensors.*.temp0	"52.00 degC" (known: sysctl(8) sensor output)
+#	kern.cp_time2.N		six counters, comma-separated, in the order
+#				user,nice,sys,spin,intr,idle (assumed from
+#				sysctl(2) CPUSTATES; check prints it on the machine)
+#	hw.disknames		"sd0:duid,cd0:,..." with an empty duid for a disk
+#				without a label (known)
+#	hw.physmem		bytes (known)
+# A node set to "<missing>", or not known at all, prints an error and exits $VT_STATE/rc.sysctl-missing
+# (default 1); sb-cpu is written for either status.
+
+bare=
+[ "$1" = -n ] && { bare=1; shift; }
+
+defaults() {
+	cat <<'EOF'
+hw.ncpu=4
+hw.physmem=8342470656
+hw.sensors.cpu0.temp0=52.00 degC
+hw.sensors.acpitz0.temp0=50.00 degC
+kern.cp_time2.0=1000,0,500,0,100,10000
+kern.cp_time2.1=5,0,5,0,0,90
+kern.cp_time2.2=3000,0,1000,0,200,5000
+kern.cp_time2.3=5,0,5,0,0,90
+hw.disknames=sd0:4f2a19c07d3e8b61,sd1:9c1e5f7a3b2d4c68,cd0:,sd2:7b3d0e9f1a2c5b84
+kern.audio.record=0
+EOF
+}
+
+for name; do
+	v=$(grep "^$name=" "$VT_STATE/sysctl" 2>/dev/null | head -n 1)
+	[ -n "$v" ] || v=$(defaults | grep "^$name=" | head -n 1)
+	if [ -z "$v" ] || [ "${v#*=}" = "<missing>" ]; then
+		echo "sysctl: $name: No such file or directory" >&2
+		exit "$(cat "$VT_STATE/rc.sysctl-missing" 2>/dev/null || echo 1)"
+	fi
+	if [ -n "$bare" ]; then echo "${v#*=}"; else echo "$v"; fi
+done

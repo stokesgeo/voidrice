@@ -1,0 +1,12 @@
+#!/bin/sh
+
+# umount(8) mock: logs the call and drops the mount point from
+# $VT_STATE/mounts (see the mount mock), so a script that asks mount(8)
+# afterwards sees it gone. $VT_STATE/rc.umount makes it fail (busy).
+
+echo "umount $*" >>"$VT_STATE/log"
+rc=$(cat "$VT_STATE/rc.umount" 2>/dev/null || echo 0)
+[ "$rc" -eq 0 ] || { echo "umount: $1: Device busy" >&2; exit "$rc"; }
+mount >/dev/null	# make sure the mounts file exists
+awk -v mp="$1" '$3 != mp' "$VT_STATE/mounts" >"$VT_STATE/mounts.new"
+mv "$VT_STATE/mounts.new" "$VT_STATE/mounts"

@@ -1,0 +1,21 @@
+#!/bin/sh
+
+# xdotool mock. Windows are lines "ID INSTANCE VISIBLE" in
+# $VT_STATE/windows (VISIBLE 1 or 0). `search [--onlyvisible] --classname
+# REGEX` prints matching ids and exits 1 when none match, as xdotool does.
+# Every other command (windowmap, windowunmap, windowactivate) is logged.
+
+if [ "$1" = search ]; then
+	shift; vis=
+	[ "$1" = --onlyvisible ] && { vis=1; shift; }
+	[ "$1" = --classname ] && shift
+	ids=$(while read -r id inst v; do
+		printf '%s\n' "$inst" | grep -Eq -- "$1" || continue
+		[ -n "$vis" ] && [ "$v" != 1 ] && continue
+		echo "$id"
+	done <"$VT_STATE/windows" 2>/dev/null)
+	[ -n "$ids" ] || exit 1
+	echo "$ids"
+	exit 0
+fi
+echo "xdotool $*" >>"$VT_STATE/log"

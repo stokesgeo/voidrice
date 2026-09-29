@@ -1,0 +1,11 @@
+#!/bin/sh
+
+# sndioctl(1) mock. `sndioctl -n output.level` prints a fraction with three
+# decimals, "0.502"; `-n output.mute` prints 0 or 1 (known: sndioctl(1)).
+# Set SND_LEVEL and SND_MUTE. Changes (-q output.level=+0.05) are logged.
+
+case $* in
+"-n output.level") echo "${SND_LEVEL:-0.502}" ;;
+"-n output.mute") echo "${SND_MUTE:-0}" ;;
+*) echo "sndioctl $*" >>"$VT_STATE/log" ;;
+esac
