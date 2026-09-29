@@ -1,5 +1,9 @@
 #!/bin/sh
 
+# noisereduce IN OUT: cut steady background noise from a video or audio file.
+# You name a quiet stretch of IN that holds only the noise; sox(1) learns it
+# (noiseprof), then subtracts it from the whole track (noisered).
+
 usage ()
 {
     printf "Usage : noisereduce <input video file> <output video file>\n"
@@ -71,6 +75,7 @@ if [ $isVideo -eq "1" ]; then
 else
     cp "$1" "$tmpAudFile"
 fi
+# noisered needs a profile: sox(1) measures it on the noise sample.
 ffmpeg -v warning -y -i "$1" -vn -ss "$sampleStart" -t "$sampleEnd" "$noiseAudFile"
 sox "$noiseAudFile" -n noiseprof "$noiseProfFile"
 sox "$tmpAudFile" "$tmpAudCleanFile" noisered "$noiseProfFile" "$sensitivity"

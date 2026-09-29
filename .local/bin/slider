@@ -62,7 +62,7 @@ Timecodes and filenames must be separated by Tabs." &&
 	exit 1
 	}
 
-# HH:MM:SS[.frac] to seconds, as GNU date -d did.
+# secs HH:MM:SS: whole seconds. Any fraction is cut off.
 secs() { echo "$1" | awk -F: '{printf "%d\n", $1 * 3600 + $2 * 60 + $3}'; }
 
 if [ -n "${audio+x}" ]; then
@@ -114,7 +114,8 @@ duration $duration"
 	prevtime="$time"
 	prevseconds="$(secs "$prevtime")"
 done < "$file"
-# Do last file which must be given twice as follows
+# List the last slide twice: ffmpeg's concat demuxer ignores the duration of
+# the final entry.
 endtime="$((totseconds-seconds))"
 echo "file '$base'
 duration ${endtime:-5}

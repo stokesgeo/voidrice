@@ -10,4 +10,5 @@ pgrep -x transmission-daemon >/dev/null &&
 	{ [ "$(printf "No\nYes" | dmenu -i -p "Turn on transmission daemon?")" = Yes ] &&
 		transmission-daemon && notify-send "transmission-daemon enabled." ;}
 
+# Wait for the daemon to settle before the status bar looks.
 sleep 3; sb-refresh

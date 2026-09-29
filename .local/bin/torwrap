@@ -1,5 +1,8 @@
 #!/bin/sh
 
+# torwrap: start transmission-daemon if it is not running, then open tremc
+# in a terminal.
+
 ifinstalled tremc transmission-daemon || exit 1
 
 ! pgrep -x transmission-daemon >/dev/null && transmission-daemon && notify-send "Starting torrent daemon..."

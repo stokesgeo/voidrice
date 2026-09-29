@@ -1,5 +1,8 @@
 #!/bin/sh
 
+# tag [options] FILE: write audio metadata (title, artist, ...) into FILE with
+# ffmpeg. Missing title, artist, album and track are asked for.
+
 err() { echo "Usage:
 	tag [OPTIONS] file
 Options:
@@ -29,6 +32,7 @@ shift $((OPTIND - 1))
 
 file="$1"
 
+# ffmpeg cannot edit a file in place: it reads a copy and writes over FILE.
 temp="$(mktemp -p "$(dirname "$file")")"
 trap 'rm -f $temp' HUP INT QUIT TERM EXIT
 

@@ -1,7 +1,8 @@
 #!/bin/sh
 
 # Pause every mpv, through the socket each opens (mpv/scripts/mpvSockets.lua).
-# Base nc(1) in place of socat: -U a Unix socket, -N close after sending.
+# nc(1) from base talks to the socket: -U for a Unix socket, -N to close
+# after sending.
 
 for s in "${XDG_CACHE_HOME:-$HOME/.cache}"/mpvSockets/*; do
 	[ -S "$s" ] || continue

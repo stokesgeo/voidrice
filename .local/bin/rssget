@@ -34,6 +34,8 @@ getRedditRss() {
 	echo "${1%/}.rss"
 }
 
+# /channel/ URLs hold the channel id. /c/ and /user/ pages carry the feed URL
+# in their page data as "rssUrl".
 getYoutubeRss() {
 	url="$1"
 	path=$(echo "$url" | sed -e 's|^http[s]*://||')
@@ -86,6 +88,7 @@ else
 	[ -z "$url" ] && echo "usage: $0 url 'tag1 tag2 tag3'" && exit 1
 fi
 
+# YouTube and its Invidious mirrors.
 yt_regex="^(http(s)?://)?((w){3}\.)?(youtube\.com|invidio\.us|invidious\.flokinet\.to|invidious\.materialio\.us|iv\.datura\.network|invidious\.perennialte\.ch|invidious\.fdn\.fr|invidious\.private\.coffee|invidious\.protokolla\.fi|invidious\.privacyredirect\.com|yt\.artemislena\.eu|yt\.drgnz\.club|invidious\.incogniweb\.net|yewtu\.be|inv\.tux\.pizza|invidious\.reallyaweso\.me|iv\.melmac\.space|inv\.us\.projectsegfau\.lt|inv\.nadeko\.net|invidious\.darkness\.services|invidious\.jing\.rocks|invidious\.privacydev\.net|inv\.in\.projectsegfau\.lt|invidious\.drgns\.space)/(channel|user|c).+"
 reddit_regex="^(http(s)?://)?((w){3}\.)?reddit\.com.*"
 vimeo_regex="^(http(s)?://)?((w){3}.)?vimeo\.com.*"

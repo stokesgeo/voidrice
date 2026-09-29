@@ -1,6 +1,7 @@
 #!/bin/sh
 
-# scratch term|calc: show or hide a scratchpad terminal, as dwm's togglescratch.
+# scratch term|calc: show or hide a scratchpad xterm, and start it on first
+# use. The window class (spterm, spcalc) is what cwmrc matches.
 
 case $1 in
 	term) name=spterm geo=120x34 cmd= ;;
