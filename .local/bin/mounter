@@ -18,7 +18,7 @@ partitions() {
 	typeset label
 	label=$(doas disklabel "$1" 2>/dev/null | sed -n 's/^label: *//p' | tr -cd '[:print:]')
 	doas disklabel -h "$1" 2>/dev/null | l=$label awk -v d="$1" '
-		BEGIN { l = ENVIRON["l"] }
+		BEGIN { l = ENVIRON["l"] }	# -v would expand backslashes
 		$1 ~ /^[a-p]:$/ && $1 != "c:" && $4 !~ /^(unused|swap)$/ {
 			printf "%s%s %s %s %s\n", d, substr($1, 1, 1), $2, $4, l }'
 }
