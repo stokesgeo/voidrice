@@ -130,3 +130,17 @@ t_kshrc_loads() {
 	hasnt "no errors" "not found" "$out"
 	hasnt "no syntax errors" "syntax error" "$out"
 }
+
+# xinitrc's session-env block, run alone (the rest starts X programs):
+# the file it writes is private and gives a cron job the bus and display.
+t_xinitrc_session_env() {
+	awk '/^# Cron jobs run outside this session/ { on = 1 } on && /^$/ { exit } on' \
+		"$REPO/.config/x11/xinitrc" >"$T/block"
+	grep -q session-env "$T/block" || fail "no session-env block in xinitrc"
+	DBUS_SESSION_BUS_ADDRESS='unix:path=/tmp/dbus-AbC,guid=123' DISPLAY=:0 \
+		XAUTHORITY= "$VT_SH" "$T/block" || fail "block failed"
+	f=$XDG_CACHE_HOME/session-env
+	eq "private" "-rw-------" "$(ls -l "$f" | cut -c1-10)"
+	got=$(env -i HOME="$HOME" "$VT_SH" -c ". '$f'; echo \"\$DBUS_SESSION_BUS_ADDRESS \$DISPLAY \$XAUTHORITY\"")
+	eq "a cron job gets the session" "unix:path=/tmp/dbus-AbC,guid=123 :0 $HOME/.Xauthority" "$got"
+}
