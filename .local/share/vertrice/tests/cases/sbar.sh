@@ -69,10 +69,10 @@ t_sbar_term() {
 
 # The session starts the bar and cwmrc knows it: for xterm and for st, the
 # instance name is one cwmrc puts in no group, the title one it ignores, and
-# a top gap keeps windows off it.
+# a bottom gap keeps windows off it.
 t_sbar_cwm_bar() {
 	c=$REPO/.config/cwm/cwmrc
-	grep -Eq '^gap [1-9][0-9]* 0 0 0$' "$c" || fail "cwmrc: no top gap"
+	grep -Eq '^gap 0 [1-9][0-9]* 0 0$' "$c" || fail "cwmrc: no bottom gap"
 	for t in xterm:-name:XTerm st:-n:St; do
 		IFS=: read -r term opt class <<-EOF
 		$t
@@ -98,9 +98,9 @@ t_sbar_session_start() {
 		eq "$term: then cwm" cwm "$out"
 		waitfor 2 grep -q "^$term " "$VT_STATE/log" || fail "$term: no bar started"
 		notlogged "^xsetroot"
-		[ "$term" = xterm ] && logged '^xterm -name vbar -T vbar -geometry 300x1\+0\+0 -e sbar -t$'
+		[ "$term" = xterm ] && logged '^xterm -name vbar -T vbar -geometry 300x1\+0-0 -e sbar -t$'
 	done
-	logged '^st -n vbar -T vbar -g 300x1\+0\+0 -e sbar -t$'
+	logged '^st -n vbar -T vbar -g 300x1\+0-0 -e sbar -t$'
 }
 
 t_sbar_exits_without_x() {
