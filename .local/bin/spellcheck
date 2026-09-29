@@ -1,81 +1,8 @@
 #!/bin/sh
 
-# spellcheck: base spell(1), with each word it flags shown in its line.
-#	spellcheck [-b] FILE ...	check; -b for British spelling
-#	spellcheck -a WORD ...		add words to your own list
-#
-# spell prints the words it cannot find, one per line, and not where they
-# are. This takes the words out of the files, asks spell about them, then
-# prints each line that holds one, grep style, with the word in brackets:
-#	chapter1.md:12: She [recieved] the letter.
-#
-# Words are runs of ASCII letters and apostrophes, as spell's deroff(1)
-# splits them. A curly apostrophe (U+2019) counts as a straight one, so
-# "don’t" stays one word (lines are shown with straight apostrophes).
-# Accented letters split a word: "café" is checked as "caf".
-#
-# Two extra lists go to spell as +list, from ~/.local/share/spell:
-#	contractions	can't, I'm, they've ...: spell's list (Webster's
-#			Second, 1934) has none, so dialogue would drown in them
-#	words		your own: names, places, coinages (-a adds to it)
-# spell looks words up by binary search, folding case and nothing else, so
-# a list must be sorted with sort -f. (spell(1) says sort -df; -d skips the
-# apostrophe and puts "I've" where the search cannot find it.)
-#
-# Exit: 0 nothing flagged, 1 words flagged, 2 trouble.
+# spellcheck FILE: base spell(1), each flagged word shown in its line (grep style).
+# ~/.local/share/spell/words is your own list; spell needs it sorted with sort -f.
 
-export LC_ALL=C
-dir=${XDG_DATA_HOME:-$HOME/.local/share}/spell
-usage() { echo "usage: spellcheck [-b] FILE ... | spellcheck -a WORD ..." >&2; exit 2; }
-
-if [ "$1" = -a ]; then
-	shift
-	[ $# -gt 0 ] || usage
-	mkdir -p "$dir" && touch "$dir/words" || exit 2
-	# The lookup ignores case, so "Anna" and "anna" are one entry.
-	{ cat "$dir/words"; printf '%s\n' "$@"; } | sort -fu >"$dir/words.new" &&
-		mv "$dir/words.new" "$dir/words"
-	exit
-fi
-
-b=
-[ "$1" = -b ] && { b=-b; shift; }
-[ $# -gt 0 ] || usage
-for f; do
-	if [ ! -f "$f" ] || [ ! -r "$f" ]; then echo "spellcheck: cannot read $f" >&2; exit 2; fi
-done
-c=$dir/contractions w=$dir/words
-[ -s "$c" ] || c=
-[ -s "$w" ] || w=
-
-# One awk program, two jobs. With BAD empty it prints every word, one per
-# line, for spell. With BAD set (spell's answer) it prints the lines that
-# hold a flagged word. \047 is the apostrophe; the other one is U+2019.
-# shellcheck disable=SC1112,SC2016
-scan='
-function core(w) { sub(/^\047+/, "", w); sub(/\047+$/, "", w); return w }
-BEGIN {
-	listing = ENVIRON["BAD"] == ""
-	n = split(ENVIRON["BAD"], b, "\n")
-	for (i = 1; i <= n; i++) bad[b[i]] = 1
-}
-{
-	line = $0; gsub(/’/, "\047", line)
-	out = ""; hit = 0
-	while (match(line, /[A-Za-z\047]+/)) {
-		w = substr(line, RSTART, RLENGTH)
-		out = out substr(line, 1, RSTART - 1)
-		line = substr(line, RSTART + RLENGTH)
-		c = core(w)
-		if (listing) { if (c != "") print c }
-		else if (c in bad) { w = "[" w "]"; hit = 1 }
-		out = out w
-	}
-	if (hit) printf "%s:%d: %s\n", FILENAME, FNR, out line
-}'
-
-# spell always exits 0, so its output is the only answer.
-bad=$(BAD='' awk "$scan" "$@" | sort -u | spell $b ${c:+"+$c"} ${w:+"+$w"})
-[ -n "$bad" ] || exit 0
-BAD=$bad awk "$scan" "$@"
-exit 1
+d=${XDG_DATA_HOME:-$HOME/.local/share}/spell
+touch "$d/words"
+spell +"$d/contractions" +"$d/words" "$1" | grep -nwF -f /dev/stdin "$1"

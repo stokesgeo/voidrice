@@ -1,7 +1,7 @@
 # cdxb deny list: paths no cdxb session can see, even with -H or a grant
 # that holds them. One path per line; "~" is your home. A grant at or
-# inside one of these is refused. `cdxb -X` drops this list for one
-# session. Codex cannot change this file; it can propose a new one.
+# inside one of these is refused. The list is yours to edit; Codex cannot
+# change it, only propose a new one.
 
 # Keys and passwords
 ~/.ssh
