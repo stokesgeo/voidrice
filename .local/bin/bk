@@ -1,0 +1,14 @@
+#!/bin/ksh
+
+# bk full|incr: dump(8) /home to the backup disk mounted on /mnt/backup.
+# dump -u records each run in /etc/dumpdates: `dump -W` shows the last ones.
+# Restore test: gzip -dc FILE | restore -tf - | less
+
+case $1 in full) l=0 ;; incr) l=1 ;; *) echo "usage: bk full|incr" >&2; exit 2 ;; esac
+[ -t 0 ] || exec xterm -name floatterm -geometry 80x16 -e "$0" "$@"
+mount | grep -q ' on /mnt/backup ' || { notify-send "💾 Mount the backup disk first (Super+F9)."; exit 1; }
+mkdir -p -m 700 /mnt/backup/dump || exit
+f=/mnt/backup/dump/$(hostname -s)-$(date +%Y%m%d-%H%M)-l$l.dump.gz
+set -o pipefail
+doas dump -${l}au -f - /home | gzip >"$f.part" && mv "$f.part" "$f" && notify-send "💾 Backup done." "${f##*/}" ||
+	{ rm -f "$f.part"; notify-send "💾 Backup failed."; exit 1; }

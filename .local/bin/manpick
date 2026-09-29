@@ -1,0 +1,6 @@
+#!/bin/sh
+
+# manpick: any manual page, picked in dmenu ("ksh, rksh(1) - ..." becomes man 1 ksh).
+
+set -- $(apropos . | dmenu -i -l 20 -p Manual: | sed -E 's/^([^,( ]+)[^(]*\(([0-9a-z]+).*/\2 \1/')
+[ $# -gt 0 ] && exec "$TERMINAL" -e man "$@"

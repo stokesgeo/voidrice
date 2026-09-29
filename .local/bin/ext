@@ -1,43 +1,12 @@
 #!/bin/sh
 
-# ext: extract archives, one script for every archive type. Picks the tool
-# by file name and extracts into the current directory. lf's E key calls it.
-#	ext file ...
-#
-# OpenBSD base covers tar, gzip and compress. The rest come from packages in
-# pkglist: bzip2, xz, zstd, unzip, and p7zip (7z) for 7z, rar and iso.
-# A single compressed file (.gz, .bz2, .xz, .zst, .Z) is decompressed next
-# to the original, which is kept; an existing output file is never
-# overwritten.
+# ext FILE...: extract archives here with bsdtar (libarchive); a lone .gz,
+# .bz2, .xz, .zst or .Z is decompressed beside it. Existing files are kept.
 
-[ $# -eq 0 ] && { echo "usage: ext archive ..." >&2; exit 1; }
-
-# unpack prog file ext: decompress one file to its name without ext.
-unpack() {
-	out=${2%"$3"}
-	[ -e "$out" ] && { echo "ext: $out exists, skipped" >&2; return 1; }
-	"$1" -dc -- "$2" > "$out" || { rm -f "$out"; return 1; }
-}
-
-rc=0
-for f; do
-	[ -f "$f" ] || { echo "ext: $f: no such file" >&2; rc=1; continue; }
-	case $f in -*) f=./$f ;; esac	# never read as an option
-	case $f in
-		*.tar.gz|*.tgz)		tar xzf "$f" ;;
-		*.tar.Z|*.taz)		tar xZf "$f" ;;
-		*.tar.bz2|*.tbz2|*.tbz)	bzip2 -dc -- "$f" | tar xf - ;;
-		*.tar.xz|*.txz)		xz -dc -- "$f" | tar xf - ;;
-		*.tar.zst|*.tzst)	zstd -dcq -- "$f" | tar xf - ;;
-		*.tar)			tar xf "$f" ;;
-		*.gz)			unpack gzip "$f" .gz ;;
-		*.Z)			unpack gzip "$f" .Z ;;
-		*.bz2)			unpack bzip2 "$f" .bz2 ;;
-		*.xz)			unpack xz "$f" .xz ;;
-		*.zst)			unpack zstd "$f" .zst ;;
-		*.zip|*.jar|*.epub)	unzip -q "$f" ;;
-		*.7z|*.rar|*.iso)	7z x -aos "$f" >/dev/null ;;	# -aos: skip existing files
-		*) echo "ext: $f: unknown archive type" >&2; false ;;
-	esac || rc=1
-done
-exit $rc
+set -C
+for f; do case $f in
+	*.tar*|*.t[abgx]z|*.tbz2|*.tzst|*.zip|*.jar|*.epub|*.7z|*.rar|*.iso) bsdtar -xkf "$f" ;;
+	*.gz|*.bz2|*.xz|*.zst|*.Z) bsdcat -- "$f" >"${f%.*}" ;;
+	*) echo "ext: $f: unknown archive type" >&2; false ;;
+esac || rc=1; done
+exit ${rc:-0}

@@ -5,33 +5,21 @@
 
 xrandr --dpi 96		# Set DPI. User may want to use a larger number for larger screens.
 setbg &			# set the background with the `setbg` script
-xrdb ${XDG_CONFIG_HOME:-$HOME/.config}/x11/xresources & xrdbpid=$!	# xterm, the default terminal, reads its font and colors from here
+xrdb ${XDG_CONFIG_HOME:-$HOME/.config}/x11/xresources & xrdbpid=$!	# xterm's font and colours
 
-# Sound is sndiod(8), a system daemon started by rc(8), so nothing to start here.
-autostart="mpd xcompmgr dunst unclutter"
+autostart="mpd xcompmgr dunst unclutter"	# sound is sndiod, started by rc(8)
 
 for program in $autostart; do
 	pgrep -x "$program" >/dev/null || "$program" &
 done >/dev/null 2>&1
 
-# Key remaps, once. Linux used remapd to redo them when a USB keyboard was
-# plugged in (via udevadm); OpenBSD has no udev. Run `remaps` again by hand.
-remaps &
-
-# Lock after 10 idle minutes: xidle(1), from base, runs xlock (mode blank,
-# set in xresources).
-pgrep -x xidle >/dev/null || xidle -timeout 600 &
-
-# USB drives: turn the root-side hotplugd note into a notification.
-hotplug-watch &
+remaps &			# once: OpenBSD has no udev to redo it on a new keyboard
+pgrep -x xidle >/dev/null || xidle -timeout 600 &	# lock after 10 idle minutes
+hotplug-watch &			# a notice when a USB drive is attached
+dump -w 2>/dev/null | grep -q /home && notify-send "💾 Backup due." "Mount the backup disk (Super+F9), then bk incr." &
+rm -f "${XDG_CACHE_HOME:-$HOME/.cache}/nightlight"	# the screen starts neutral
 
 # Ensure that xrdb has finished running before moving on to start the WM/DE.
 [ -n "$xrdbpid" ] && wait "$xrdbpid"
 
-# Day/night palette, after xresources is loaded so the palette merges on
-# top: day from 07:00, night from 19:00; Super+F8 flips it by hand.
-theme clock &
-
-# A new session starts with a neutral screen, so nightlight's toggle state
-# starts off as well.
-rm -f "${XDG_CACHE_HOME:-$HOME/.cache}/nightlight"
+theme clock &			# day palette from 07:00, night from 19:00, on top of xresources

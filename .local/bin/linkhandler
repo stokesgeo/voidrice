@@ -8,17 +8,17 @@
 
 url="${1:-$(xclip -o)}"
 
-tmpfile="/tmp/$(echo "$url" | sed "s/.*\///;s/%20/ /g")"
+fetch() { d=$(mktemp -d) && tmpfile=$d/${url##*/} && ftp -MV -o "$tmpfile" "$url"; }	# a private dir, not /tmp/NAME
 
 case "$url" in
 	*mkv|*webm|*mp4|*youtube.com/watch*|*youtube.com/playlist*|*youtube.com/shorts*|*youtu.be*|*hooktube.com*|*bitchute.com*|*videos.lukesmith.xyz*|*odysee.com*)
 		detach mpv -quiet "$url" >/dev/null 2>&1 ;;
 	*png|*jpg|*jpe|*jpeg|*gif|*webp)
-		curl -sL -o "$tmpfile" "$url" && nsxiv -a "$tmpfile" >/dev/null 2>&1 & ;;
+		fetch && nsxiv -a "$tmpfile" >/dev/null 2>&1 & ;;
 	*pdf|*cbz|*cbr)
-		curl -sL -o "$tmpfile" "$url" && zathura "$tmpfile" >/dev/null 2>&1 & ;;
+		fetch && zathura "$tmpfile" >/dev/null 2>&1 & ;;
 	*mp3|*flac|*opus|*mp3?source*)
-		qndl "$url" "curl -LO" >/dev/null 2>&1 ;;
+		qndl "$url" "ftp" >/dev/null 2>&1 ;;
 	*)
 		[ -f "$url" ] && detach "$TERMINAL" -e "$EDITOR" "$url" >/dev/null 2>&1 || detach "$BROWSER" "$url" >/dev/null 2>&1
 esac

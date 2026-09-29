@@ -1,0 +1,8 @@
+#!/bin/sh
+
+# spellcheck FILE: base spell(1), each flagged word shown in its line (grep style).
+# ~/.local/share/spell/words is your own list; spell needs it sorted with sort -f.
+
+d=${XDG_DATA_HOME:-$HOME/.local/share}/spell
+touch "$d/words"
+spell +"$d/contractions" +"$d/words" "$1" | grep -nwF -f /dev/stdin "$1"

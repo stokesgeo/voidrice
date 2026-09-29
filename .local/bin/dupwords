@@ -1,0 +1,20 @@
+#!/bin/sh
+
+# dupwords FILE...: doubled words ("the the"), across line ends, case ignored.
+# Punctuation between them breaks the pair ("Go. Go."). Exit 1 when found.
+
+LC_ALL=C exec awk '
+FNR == 1 { prev = "" }
+{
+	for (i = 1; i <= NF; i++) {
+		w = $i
+		open = sub(/^[^A-Za-z]+/, "", w)
+		shut = sub(/[^A-Za-z]+$/, "", w)
+		if (w != "" && !open && tolower(w) == prev) {
+			printf "%s:%d: %s %s\n", FILENAME, FNR, pw, w
+			found = 1
+		}
+		prev = shut ? "" : tolower(w); pw = w
+	}
+}
+END { exit found }' "$@"

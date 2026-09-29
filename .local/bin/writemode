@@ -1,0 +1,8 @@
+#!/bin/sh
+
+# writemode [FILE]: full-screen nvim in Goyo on FILE, or on the writing file changed last.
+
+mkdir -p ~/writing && cd ~/writing || exit
+f=${1:-$(proof -l)}
+if [ -n "$f" ]; then set -- -c 'silent! Goyo' "$f"; else set -- .; fi
+exec xterm -name write -fullscreen -e nvim "$@"

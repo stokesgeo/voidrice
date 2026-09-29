@@ -19,9 +19,7 @@ case $choice in
 	🆕add )
 		ifinstalled maim zbar xclip || exit 1
 
-		# BSD mktemp has no --suffix, and maim picks the format from the
-		# extension, so make a private directory and name the file in it.
-		# rm -P overwrites the files before unlinking (GNU shred's job).
+		# BSD mktemp has no --suffix: a private directory; rm -P as shred.
 		tmpd=$(mktemp -d) || exit 1
 		temp="$tmpd/qr.png"
 		otp="otp-test-script"
@@ -35,7 +33,7 @@ case $choice in
 
 		if echo "$info" | pass otp insert "$otp"; then
 			while [ "${num:-0}" -lt 3 ] ; do
-				export name="$(prinf | dmenu -p "Give this One Time Password a one-word name:")"
+				export name="$(printf '' | dmenu -p "Give this One Time Password a one-word name:")"
 				echo "$name" | grep -qE -- "^[A-Za-z0-9-]+$" && break
 				num="$((num + 1))"
 			done
@@ -46,8 +44,6 @@ case $choice in
 		fi
 		;;
 	🕙sync-time )
-		# OpenBSD runs ntpd(8) from base by default and keeps the clock
-		# synced, so report its state instead of forcing a sync as root.
 		notify-send -u low "🕙 Time sync" "$(ntpctl -s status)"
 		;;
 	*) pass otp -c ${choice}-otp ;;

@@ -1,7 +1,4 @@
-! day: pastel paper, muted ink. Every text colour (1-6, 9-14) is at least
-! 4.5:1 against the background (WCAG AA); the foreground is 10.5:1. On light
-! paper, pastel inks would be illegible, so the pastel is the page and the
-! inks are soft but dark. Loaded by `theme`; xterm and st read these.
+! day: pastel paper, muted ink. Loaded by `theme`.
 *.foreground: #383642
 *.background: #f5f1e8
 *.cursorColor: #a8474a

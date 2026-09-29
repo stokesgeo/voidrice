@@ -1,0 +1,13 @@
+# cdxb grants: paths every cdxb session may use, besides the directory it
+# starts in. One per line:
+#	rw PATH	read and change (create, remove, run)
+#	r PATH	read only
+# "~" is your home. Paths that do not exist are skipped. A path on the deny
+# list, or a protected one with rw, is skipped with a message.
+# Codex cannot change this file; it can propose a new one (cdxb review).
+
+rw ~/src
+rw ~/Documents
+rw ~/notes
+rw ~/.calendar
+r ~/Downloads

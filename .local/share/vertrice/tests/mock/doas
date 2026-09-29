@@ -1,0 +1,20 @@
+#!/bin/sh
+
+# doas(1) mock. Logs "doas CMD ARGS". It runs CMD only when CMD is itself
+# a mock (so `doas mount` reaches the mount mock) or is `true`; anything
+# else (mkdir, rmdir, a real program) is logged and not run, so a test can
+# never do real work as root. $VT_STATE/rc.doas makes it fail, as a wrong
+# password does. If the case writes $VT_STATE/doas.keepin, what a command
+# that is not run gets on its stdin is saved to $VT_STATE/doas.in (for
+# `doas tee -a FILE`); off by default, as stdin may be a terminal.
+
+echo "doas $*" >>"$VT_STATE/log"
+rc=$(cat "$VT_STATE/rc.doas" 2>/dev/null || echo 0)
+[ "$rc" -eq 0 ] || { echo "doas: Authentication failed" >&2; exit "$rc"; }
+[ "$1" = true ] && exit 0
+if [ -x "$VT_MOCKS/$1" ]; then
+	cmd=$1; shift
+	exec "$VT_MOCKS/$cmd" "$@"
+fi
+[ -f "$VT_STATE/doas.keepin" ] && cat >>"$VT_STATE/doas.in"
+exit 0

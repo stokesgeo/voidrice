@@ -6,7 +6,8 @@ secs=600 # Download a new doppler radar if one hasn't been downloaded in $secs s
 radarloc="${XDG_CACHE_HOME:-$HOME/.cache}/radar"
 doppler="${XDG_CACHE_HOME:-$HOME/.cache}/doppler.gif"
 
-pickloc() { chosen="$(echo "US: CONUS: Continental United States
+# The dmenu package has no -r (a patch in Luke's build): the pick is checked below.
+pickloc() { locs="US: CONUS: Continental United States
 US: Northeast
 US: Southeast
 US: PacNorthWest
@@ -198,10 +199,12 @@ DE: SAA: Saxony-Anhalt
 DE: SHH: Schleswig-Holstein
 DE: SHH: Hamburg
 DE: THU: Thuringia
-NL: The Netherlands" | dmenu -r -i -l 50 -p "Select a radar to use as default:")"
+NL: The Netherlands"
+chosen="$(printf '%s\n' "$locs" | dmenu -i -l 50 -p "Select a radar to use as default:")"
 
-# Ensure user did not escape.
+# Ensure user did not escape or type something not in the list.
 [ -z "$chosen" ] && exit 1
+printf '%s\n' "$locs" | grep -qxF -- "$chosen" || exit 1
 
 # Set country code and radar code.
 countrycode=${chosen%%:*}
@@ -216,10 +219,10 @@ getdoppler() {
 	notify-send "🌦️ Doppler RADAR" "Pulling most recent Doppler RADAR for $province."
 	case "$country" in
 		"US") province="$(echo "$province" | tr "[:lower:]" "[:upper:]")"
-		curl -sL "https://radar.weather.gov/ridge/standard/${province}_loop.gif" > "$doppler" ;;
+		ftp -MV -o "$doppler" "https://radar.weather.gov/ridge/standard/${province}_loop.gif" ;;
 		"DE") province="$(echo "$province" | tr "[:upper:]" "[:lower:]")"
-		curl -sL "https://www.dwd.de/DWD/wetter/radar/radfilm_${province}_akt.gif" > "$doppler" ;;
-		"NL") curl -sL "https://cdn.knmi.nl/knmi/map/general/weather-map.gif" > "$doppler" ;;
+		ftp -MV -o "$doppler" "https://www.dwd.de/DWD/wetter/radar/radfilm_${province}_akt.gif" ;;
+		"NL") ftp -MV -o "$doppler" "https://cdn.knmi.nl/knmi/map/general/weather-map.gif" ;;
 	esac
 }
 

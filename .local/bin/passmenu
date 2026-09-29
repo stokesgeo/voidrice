@@ -1,0 +1,5 @@
+#!/bin/sh
+
+# passmenu: password-store's dmenu script, which the package installs only as an example.
+
+exec bash /usr/local/share/examples/password-store/dmenu/passmenu "$@"

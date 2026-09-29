@@ -55,11 +55,13 @@ read -r sensitivity
 if [ -z "$sensitivity" ] ; then sensitivity="0.21"; fi
 
 
-tmpVidFile="/tmp/noiseclean_tmpvid.$inExt"
-tmpAudFile="/tmp/noiseclean_tmpaud.wav"
-noiseAudFile="/tmp/noiseclean_noiseaud.wav"
-noiseProfFile="/tmp/noiseclean_noise.prof"
-tmpAudCleanFile="/tmp/noiseclean_tmpaud-clean.wav"
+tmpd=$(mktemp -d) || exit 1
+trap 'rm -rf "$tmpd"' EXIT
+tmpVidFile="$tmpd/tmpvid.$inExt"
+tmpAudFile="$tmpd/tmpaud.wav"
+noiseAudFile="$tmpd/noiseaud.wav"
+noiseProfFile="$tmpd/noise.prof"
+tmpAudCleanFile="$tmpd/tmpaud-clean.wav"
 
 printf "Cleaning noise on %s...\n" "$1"
 

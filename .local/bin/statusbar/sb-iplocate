@@ -9,7 +9,7 @@ ifinstalled geoiplookup || exit 1
 
 getip() {
 	route -n get default >/dev/null 2>&1 &&
-		curl -sf api.ipify.org --output "$ipfile"
+		ftp -MV -o "$ipfile" https://api.ipify.org 2>/dev/null
 }
 
 ipfile="${XDG_CACHE_HOME:-$HOME/.cache}/iplocate"

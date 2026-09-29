@@ -1,0 +1,16 @@
+#!/bin/sh
+
+# Install the waiting updates in a terminal: base errata, then packages.
+
+[ -t 0 ] || exec "$TERMINAL" -e "$0"
+
+printf "Beginning upgrade.\n"
+
+doas syspatch
+doas pkg_add -u
+doas rm -f /var/db/updates	# root's cron counts again within four hours
+
+sb-refresh
+
+printf "\nUpgrade complete.\nPress <Enter> to exit window.\n"
+read -r _

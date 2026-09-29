@@ -1,0 +1,42 @@
+#!/bin/sh
+
+# vertrice-dict: GCIDE's definitions and Roget's Thesaurus (1911) from dictd
+# on localhost, for `dict word`, `dict -d roget word` and K in nvim. Run it
+# once as root, after pkg_add -l pkglist.extra:
+#	doas sh ~/.local/bin/vertrice-dict
+# Each awk writes entries as dictfmt -c5 reads them: a line of underscores,
+# a blank line, the headwords joined by %%%, then the text.
+#	gcide: the headwords are the entry's <ent> lines. sed then drops the
+#	markup: an accented letter (<imac/, <udd/) becomes the plain letter,
+#	other symbols (<hand/, <root/) and the tags go.
+#	roget: one entry per heading (#914. Pity.), whose headwords are all
+#	the words in it, so a word finds each heading that holds it.
+# Roget is Project Gutenberg #22.
+
+install -m 644 "$(dirname "$0")/../share/openbsd/dictd.conf" /etc/dictd.conf
+mkdir -p /usr/local/share/dictd && cd /usr/local/share/dictd || exit
+awk 'FNR == 1 { e = 0 }
+	/<ent>/ { s = /^<p>/ ? "_____\n\n" : "%%%"; gsub(/.*<ent>|<\/ent>.*/, ""); printf "%s%s", s, $0; e = 1; next }
+	e == 1 { print ""; e = 2 }
+	e' /usr/local/share/doc/gcide/CIDE.? |
+sed -E 's/<--[^>]*-->//g; s/<[lr]dquo\//"/g; s/<(ae|oe|AE|OE)\//\1/g
+	s/<([A-Za-z])[a-z]?(cr|mac|acute|grave|um|til|cir|ring|dot|dd|sl|it|ced)\//\1/g
+	s/<[^ <>\/]+\///g; s/<[^>]*>//g' |
+dictfmt -c5 -q --without-headword --headword-separator %%% -s GCIDE gcide && dictzip gcide.dict || exit
+ftp -o pg22.txt https://www.gutenberg.org/cache/epub/22/pg22.txt || exit
+awk 'function out(	s, w, n, i, h, seen) {
+		s = t; gsub(/\[[^]]*\]|&c\.|—/, " ", s)
+		n = split(tolower(s), w, /[ \t\n0-9.,;:!?()"_&+=\/*#{}[\]]+/)
+		for (i = 1; i <= n; i++)
+			if (length(w[i]) > 1 && !seen[w[i]]++) h = h (h ? "%%%" : "") w[i]
+		printf "_____\n\n%s\n%s", h, t
+	}
+	{ sub(/\r$/, "") }
+	/^\*\*\* END/ { exit }
+	/^#[0-9]+[a-z]?\./ { if (t) out(); t = "" }
+	t || /^#[0-9]/ { if (/[a-z]/) t = t $0 "\n" }
+	END { if (t) out() }' pg22.txt |
+dictfmt -c5 -q --utf8 --without-headword --headword-separator %%% -s "Roget's Thesaurus (1911)" roget && dictzip roget.dict || exit
+rcctl enable dictd
+rcctl set dictd flags --listen-to localhost	# rc.subr does not read the rc script's daemon_args
+rcctl restart dictd

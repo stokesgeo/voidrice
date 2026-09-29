@@ -1,0 +1,26 @@
+#!/bin/ksh
+
+# dmenuwifi: join a wireless network picked in dmenu (voidrice used nmtui).
+
+[ -t 0 ] || exec xterm -name floatterm -geometry 64x4 -e "$0"
+if=$(ifconfig wlan | sed -n '1s/:.*//p')
+[ -n "$if" ] || { notify-send "📶 No wireless interface."; exit 1; }
+doas ifconfig "$if" up
+
+# ifconfig lists networks strongest first and quotes a name with a space.
+nets=$(doas ifconfig "$if" scan | awk '/^\t\tnwid / {
+	n = $0; sub(/^\t\tnwid /, "", n); sub(/ chan [0-9]+ bssid .*/, "", n); gsub(/^"|"$/, "", n)
+	if (n != "" && !seen[n]++) print (/privacy/ ? "🔒" : "🔓"), n }')
+chosen=$(print -r -- "$nets" | dmenu -i -l 10 -p "Join which network?") || exit 1
+print -r -- "$nets" | grep -qxF -- "$chosen" || exit 1
+name=${chosen#* } key=
+[ "${chosen%% *}" = 🔒 ] && { print -n "Key for $name: "; stty -echo; IFS= read -r key; stty echo; print; }
+doas ifconfig "$if" join "$name" ${key:+wpakey "$key"} || { notify-send "📶 Join failed." "$name"; exit 1; }
+doas ifconfig "$if" inet autoconf	# dhcpleased(8) asks for an address
+notify-send "📶 Joining $name"
+
+# netstart(8) evals hostname.if as root: never write " $ ` or \ into it.
+hn=/etc/hostname.$if
+case $name$key in *[\"\$\`\\]*) exit ;; esac
+[ -e "$hn" ] && [ "$(printf 'No\nYes' | dmenu -i -p "Add $name to $hn?")" = Yes ] &&
+	print -r -- "join \"$name\"${key:+ wpakey \"$key\"}" | doas tee -a "$hn" >/dev/null

@@ -1,0 +1,12 @@
+#!/bin/sh
+
+# ps(1) mock. `ps -U UID -o tty=` (theme, finding your terminals) prints
+# $VT_STATE/ttys: one terminal per line as ps(1) names them, "p3" for
+# /dev/ttyp3, "C0" for the console, "??" for none (the names are known;
+# whether ps pads them with spaces is assumed not). Anything else goes to
+# the real ps, which sbar and sb-refresh use to look at a live pid.
+
+case $* in
+*tty=*) cat "$VT_STATE/ttys" 2>/dev/null ;;
+*) exec "$VT_REAL_PS" "$@" ;;
+esac

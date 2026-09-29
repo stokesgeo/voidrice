@@ -1,0 +1,13 @@
+#!/bin/sh
+
+# proof [FILE]: the checks on FILE, or on the writing file changed last, in a pager.
+# proof -l names that file: the newest .md or .txt under ~/writing.
+
+last() {
+	find ~/writing -name '.?*' -prune -o -type f \( -name '*.md' -o -name '*.txt' \) \
+		-exec ls -t {} + 2>/dev/null | head -n 1
+}
+[ "$1" = -l ] && { f=$(last); [ -n "$f" ] && echo "$f"; exit; }
+f=${1:-$(last)}
+[ -r "$f" ] || { echo "proof: cannot read ${f:-a file in ~/writing}" >&2; exit 1; }
+for c in spellcheck dupwords "diction -s" style; do echo "== $c"; $c "$f"; done 2>&1 | less

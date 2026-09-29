@@ -1,0 +1,5 @@
+#!/bin/sh
+
+# Updates waiting: the lines root's cron writes to /var/db/updates (updates.cron).
+
+n=$(grep -c . /var/db/updates 2>/dev/null) && echo "📦$n"

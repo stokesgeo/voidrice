@@ -11,8 +11,7 @@ cleanup() {
 	rm "$FIFO_UEBERZUG"
 }
 
-# Plain lf over ssh, or where ueberzug is not installed (it is not in
-# OpenBSD packages).
+# ueberzug has no OpenBSD package: without it, plain lf.
 if [ -n "$SSH_CLIENT" ] || [ -n "$SSH_TTY" ] || ! command -v ueberzug >/dev/null 2>&1; then
 	lf "$@"
 else

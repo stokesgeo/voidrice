@@ -1,52 +1,77 @@
-# The Voidrice (Luke Smith <https://lukesmith.xyz>'s dotfiles)
+# vertrice
 
-**This branch is an OpenBSD port. Read [OPENBSD.md](OPENBSD.md) first:**
-what changed, how to install it, and what is not ported.
+vertrice is [voidrice](https://github.com/LukeSmithxyz/voidrice), Luke
+Smith's dotfiles, ported to OpenBSD and set up for a ThinkPad X220. It keeps
+voidrice's layout: scripts in `~/.local/bin`, configuration in `~/.config`,
+dmenu for every menu, one status line. It uses the base system first: ksh,
+cwm with voidrice's keys, and xterm. A package is added only for a feature
+base does not have.
 
-These are the dotfiles deployed by [LARBS](https://larbs.xyz) and as seen on
-[my YouTube channel](https://youtube.com/c/lukesmithxyz).
+It tracks the latest OpenBSD release or -current. It has been tested
+against mocked OpenBSD commands, not yet on an X220.
 
-- Very useful scripts are in `~/.local/bin/`
-- Settings for:
-	- vim/nvim (text editor)
-	- zsh (shell)
-	- lf (file manager)
-	- mpd/ncmpcpp (music)
-	- nsxiv (image/gif viewer)
-	- mpv (video player)
-	- other stuff like xdg default programs, inputrc and more, etc.
-- I try to minimize what's directly in `~` so:
-	- All configs that can be in `~/.config/` are.
-	- Some environmental variables have been set in `~/.zprofile` to move configs into `~/.config/`
-- Bookmarks in text files used by various scripts (like `~/.local/bin/shortcuts`)
-	- File bookmarks in `~/.config/shell/bm-files`
-	- Directory bookmarks in `~/.config/shell/bm-dirs`
+## Install
 
-## Usage
+As root on a fresh system:
 
-These dotfiles are intended to go with numerous suckless programs I use:
+    pkg_add git
 
-- [dwm](https://github.com/lukesmithxyz/dwm) (window manager)
-- [dwmblocks](https://github.com/lukesmithxyz/dwmblocks) (statusbar)
-- [st](https://github.com/lukesmithxyz/st) (terminal emulator)
+As your user:
 
-I also recommend trying out
-[mutt-wizard](https://github.com/lukesmithxyz/mutt-wizard), which additionally
-works with this setup. It gives you an easy-to-install terminal-based email
-client regardless of your email provider. It is integrated into these dotfiles
-as well.
+    git clone --bare https://github.com/stokesgeo/vertrice.git ~/.local/share/vertrice.git
+    git --git-dir=$HOME/.local/share/vertrice.git --work-tree=$HOME checkout -f
+    git --git-dir=$HOME/.local/share/vertrice.git config status.showUntrackedFiles no
 
-## Install these dotfiles and all dependencies
+Then read `~/.local/bin/vertrice-install`, the system half, and run it as
+root. The first time there is no doas rule yet: `su -`, then
+`sh /home/YOU/.local/bin/vertrice-install`. Later:
 
-Use [LARBS](https://larbs.xyz) to autoinstall everything:
+    doas sh ~/.local/bin/vertrice-install
 
-```
-curl -LO larbs.xyz/larbs.sh
-```
+Reboot. Optional packages (mail, news, torrents, the dictionary and others),
+then the dictionary:
 
-or clone the repo files directly to your home directory and install the
-[dependencies](https://github.com/LukeSmithxyz/LARBS/blob/master/static/progs.csv).
+    doas pkg_add -l ~/.local/share/openbsd/pkglist.extra
+    doas sh ~/.local/bin/vertrice-dict
 
-## Default Desktop Artwork
+Update with `config pull origin master`. After an update that changes
+`~/.local/share/openbsd`, run the installer again.
 
-Thomas Thiemeyer's *The Road to Samarkand* ([fb](https://www.facebook.com/t.thiemeyer/), [insta](https://www.instagram.com/tthiemeyer/))
+## Documentation
+
+`man vertrice` is the reference: the install and what the installer
+changes in `/etc`, the session, the keys, the machine settings, the tools
+and the Codex box. Super+F1 lists the keys from `~/.config/cwm/cwmrc`.
+
+On the X220, after the first boot, run `~/.local/share/vertrice/tests/check`
+once, inside X. `~/.local/share/vertrice/tests/run` is the regression suite.
+
+## What differs from voidrice
+
+| | voidrice | vertrice |
+|---|---|---|
+| Shell | zsh | ksh |
+| Window manager | dwm | cwm, with dwm's keys; dwm with `WM=dwm` |
+| Terminal | st | xterm |
+| Root | sudo | doas |
+| Status bar | dwmblocks | sbar under dwm; Super+b under cwm |
+| Sound | PipeWire | sndio |
+| Wi-Fi | nmtui | `dmenuwifi`, Super+Shift+F11 |
+| Download queue | task-spooler | nq |
+| Archives | tar, unzip, 7z, unrar | bsdtar |
+| Updates | pacman | syspatch and `pkg_add -u`, counted in the bar |
+| Camera and microphone | on | off; `rectoggle`, Super+Ctrl+F11 |
+| Touchpad | on | off; the TrackPoint scrolls |
+| Backups | none | `bk`: dump(8) to a USB disk |
+| Reminders | none | calendar(1), mailed at 08:00 |
+| Dictionary | none | `dict` and `roget`, from dictd on localhost |
+| Codex | none | `cdxb`: Codex in an unveil(2) box |
+| Key list, Super+F1 | the LARBS guide | the cwmrc in dmenu |
+
+## Credits
+
+vertrice is built on voidrice by [Luke Smith](https://lukesmith.xyz) and
+voidrice's contributors; most of the scripts and configs are theirs. The
+license is unchanged: GNU GPL version 3 (see [LICENSE](LICENSE)).
+
+Default desktop artwork: Thomas Thiemeyer, *The Road to Samarkand*.

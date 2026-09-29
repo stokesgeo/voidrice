@@ -4,14 +4,10 @@
 #	Run by itself, set the wallpaper (at X start).
 #	If given a file, set that as the new wallpaper.
 #	If given a directory, choose random file in it.
-#	If wal is installed, also generates a colorscheme.
+#	If wal is installed and PALETTE=wal, also generates a colorscheme.
 
 # Location of link to wallpaper link.
 bgloc="${XDG_DATA_HOME:-$HOME/.local/share}/bg"
-
-# Configuration files of applications that have their themes changed by pywal.
-dunstconf="${XDG_CONFIG_HOME:-$HOME/.config}/dunst/dunstrc"
-zathuraconf="${XDG_CONFIG_HOME:-$HOME/.config}/zathura/zathurarc"
 
 # Give -s as parameter to make notifications silent.
 while getopts "s" o; do case "${o}" in
@@ -20,10 +16,8 @@ esac done
 
 shift $((OPTIND - 1))
 
-# A directory is tested with -d: MIME names for directories differ between
-# file(1) implementations. OpenBSD has no shuf(1); sort -R shuffles.
 trueloc="$(readlink -f "$1")" &&
-if [ -d "$trueloc" ]; then
+if [ -d "$trueloc" ]; then	# OpenBSD's file(1) has no inode/directory, nor a shuf(1)
 	ln -sf "$(find "$trueloc" -type f \( -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.png' -o -iname '*.gif' \) | sort -R | head -n 1)" "$bgloc" && [ -z "$silent" ] && notify-send -i "$bgloc" "Random Wallpaper chosen."
 else
 	case "$(file -bi "$trueloc")" in
@@ -32,13 +26,9 @@ else
 	esac
 fi
 
-# If pywal is installed, use it.
-if command -v wal >/dev/null 2>&1 ; then
-	wal -n -i "$(readlink -f $bgloc)" -o "${XDG_CONFIG_HOME:-$HOME/.config}/wal/postrun" >/dev/null 2>&1
-# If pywal is removed, return config files to normal.
-else
-	[ -f "$dunstconf.bak" ] && unlink "$dunstconf" && mv "$dunstconf.bak" "$dunstconf"
-	[ -f "$zathuraconf.bak" ] && unlink "$zathuraconf" && mv "$zathuraconf.bak" "$zathuraconf"
+# pywal is opt-in (PALETTE=wal in the profile); `theme` is the default.
+if [ "$PALETTE" = wal ] && command -v wal >/dev/null 2>&1 ; then
+	wal -n -i "$(readlink -f "$bgloc")" -o "${XDG_CONFIG_HOME:-$HOME/.config}/wal/postrun" >/dev/null 2>&1
 fi
 
 xwallpaper --zoom "$bgloc"

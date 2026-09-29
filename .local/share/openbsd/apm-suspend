@@ -1,0 +1,5 @@
+#!/bin/sh
+
+# /etc/apm/suspend and hibernate: xidle locks X on USR1; the pause lets xlock cover the screen first.
+
+pkill -USR1 -x xidle && sleep 1

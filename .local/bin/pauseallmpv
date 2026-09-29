@@ -1,11 +1,10 @@
 #!/bin/sh
 
-# You might notice all mpv commands are aliased to have this input-ipc-server
-# thing. That's just for this particular command, which allows us to pause
-# every single one of them with one command! This is bound to super + shift + p
-# (with other things) by default and is used in some other places.
+# Pause every mpv, through the socket each opens (mpv/scripts/mpvSockets.lua).
+# Base nc(1) in place of socat: -U a Unix socket, -N close after sending.
 
-find /tmp/mpvSockets -type s -exec sh -c '
-	echo "{ \"command\": [\"set_property\", \"pause\", true] }" \
-		| socat - "UNIX-CONNECT:$1" >/dev/null 2>&1
-' sh {} \;
+for s in "${XDG_CACHE_HOME:-$HOME/.cache}"/mpvSockets/*; do
+	[ -S "$s" ] || continue
+	echo '{ "command": ["set_property", "pause", true] }' |
+		nc -NU -w 1 "$s" >/dev/null 2>&1
+done

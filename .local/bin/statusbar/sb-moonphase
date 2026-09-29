@@ -9,7 +9,8 @@ checkmoon() {
 }
 
 getmoon() { route -n get default >/dev/null 2>&1 &&
-	curl -sf "wttr.in/?format=%m" --output "$moonfile" && touch "$moonfile"
+	ftp -MV -U curl -o "$moonfile" "https://wttr.in/?format=%m" 2>/dev/null &&
+	touch "$moonfile"
 }
 
 checkmoon ||

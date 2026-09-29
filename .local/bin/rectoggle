@@ -1,0 +1,6 @@
+#!/bin/sh
+
+# rectoggle: switch the microphone and camera on for a call, or off again (they ship off).
+
+[ "$(sysctl -n kern.audio.record)" = 1 ] && n=0 s=off || n=1 s=on
+doas sysctl kern.audio.record=$n kern.video.record=$n >/dev/null && notify-send "🎙️ Microphone and camera $s"

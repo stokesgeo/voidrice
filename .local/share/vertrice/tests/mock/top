@@ -1,0 +1,16 @@
+#!/bin/sh
+
+# top(1) mock for `top -b -d 1`: the header only. The memory line reads
+# "Memory: Real: 450M/1466M act/tot Free: ..." (assumed from top(1) on
+# OpenBSD 7.x; check greps for it on the machine). Set MEM_ACT to change
+# the active figure (a number with K, M or G).
+
+cat <<EOF
+load averages:  0.21,  0.25,  0.20    x220.home 10:00:00
+42 processes: 41 idle, 1 on processor  up 1 day,  2:03
+CPU0 states:  1.0% user,  0.0% nice,  0.5% sys,  0.0% spin,  0.2% intr, 98.3% idle
+CPU1 states:  0.8% user,  0.0% nice,  0.4% sys,  0.0% spin,  0.0% intr, 98.8% idle
+Memory: Real: ${MEM_ACT:-450M}/1466M act/tot Free: 6243M Cache: 718M Swap: 0K/8195M
+
+  PID USERNAME PRI NICE  SIZE   RES STATE     WAIT      TIME    CPU COMMAND
+EOF

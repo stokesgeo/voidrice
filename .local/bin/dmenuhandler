@@ -7,7 +7,7 @@ url="${1:-$(true | dmenu -p "Paste URL or file path")}"
 
 [ -z "$url" ] && exit
 
-tmpfile="/tmp/$(echo "$url" | sed "s/.*\///;s/%20/ /g")"
+fetch() { d=$(mktemp -d) && tmpfile=$d/${url##*/} && ftp -MV -o "$tmpfile" "$url"; }	# a private dir, not /tmp/NAME
 
 case "$(printf "copy url\nnsxiv\nsetbg\nPDF\nbrowser\nlynx\nvim\nmpv\nmpv loop\nmpv float\nqueue download\nqueue yt-dlp\nqueue yt-dlp audio" | dmenu -i -p "Open it with?")" in
 	"copy url" ) echo "$url" | xclip -selection clipboard ;;
@@ -15,12 +15,12 @@ case "$(printf "copy url\nnsxiv\nsetbg\nPDF\nbrowser\nlynx\nvim\nmpv\nmpv loop\n
 	"mpv loop" ) detach mpv -quiet --loop "$url" >/dev/null 2>&1 ;;
 	"mpv float" ) detach "$TERMINAL" -e mpv --geometry=+0-0 --autofit=30% --title="mpvfloat" "$url" >/dev/null 2>&1 ;;
 	"queue yt-dlp" ) qndl "$url" >/dev/null 2>&1 ;;
-	"queue yt-dlp audio" ) qndl "$url" 'yt-dlp -o "%(title)s.%(ext)s" -f bestaudio --embed-metadata --restrict-filenames' ;;
-	"queue download" ) qndl "$url" "curl -LO" >/dev/null 2>&1 ;;
-	PDF ) curl -sL -o "$tmpfile" "$url" && zathura "$tmpfile" >/dev/null 2>&1 ;;
-	nsxiv ) curl -sL -o "$tmpfile" "$url" && nsxiv -a "$tmpfile" >/dev/null 2>&1 ;;
-	vim ) curl -sL -o "$tmpfile" "$url" && detach "$TERMINAL" -e "$EDITOR" "$tmpfile" >/dev/null 2>&1 ;;
-	setbg ) curl -L -o "${XDG_CACHE_HOME:-$HOME/.cache}/pic" "$url"; xwallpaper --zoom "${XDG_CACHE_HOME:-$HOME/.cache}/pic" >/dev/null 2>&1 ;;
+	"queue yt-dlp audio" ) qndl "$url" 'yt-dlp -o %(title)s.%(ext)s -f bestaudio --embed-metadata --restrict-filenames' ;;
+	"queue download" ) qndl "$url" "ftp" >/dev/null 2>&1 ;;
+	PDF ) fetch && zathura "$tmpfile" >/dev/null 2>&1 ;;
+	nsxiv ) fetch && nsxiv -a "$tmpfile" >/dev/null 2>&1 ;;
+	vim ) fetch && detach "$TERMINAL" -e "$EDITOR" "$tmpfile" >/dev/null 2>&1 ;;
+	setbg ) ftp -MV -o "${XDG_CACHE_HOME:-$HOME/.cache}/pic" "$url" && setbg "${XDG_CACHE_HOME:-$HOME/.cache}/pic" ;;
 	browser ) detach "$BROWSER" "$url" >/dev/null 2>&1 ;;
 	lynx ) detach "$TERMINAL" -e lynx "$url" >/dev/null 2>&1 ;;
 esac

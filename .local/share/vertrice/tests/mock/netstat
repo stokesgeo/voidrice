@@ -1,0 +1,17 @@
+#!/bin/sh
+
+# netstat(1) mock for `netstat -ibn`: byte counters per interface. Columns
+# Name Mtu Network Address Ibytes Obytes (known: netstat(1) -b). The <Link>
+# row has an empty Address for interfaces without a MAC (lo0 here), which
+# is why sb-nettraf counts columns from the end. Set NET_RX and NET_TX for
+# iwn0; lo0 moves with LO_BYTES and must never be counted.
+
+rx=${NET_RX:-1000000} tx=${NET_TX:-20000} lo=${LO_BYTES:-9999}
+cat <<EOF
+Name    Mtu   Network     Address              Ibytes    Obytes
+lo0     32768 <Link>                           $lo      $lo
+lo0     32768 127/8       127.0.0.1            $lo      $lo
+em0     1500  <Link>      f0:de:f1:00:00:01         0         0
+iwn0    1500  <Link>      00:24:d7:00:00:02  $rx  $tx
+iwn0    1500  192.168.1/24 192.168.1.20      $rx  $tx
+EOF

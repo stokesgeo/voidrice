@@ -1,0 +1,25 @@
+#!/bin/sh
+
+# Mock spell(1): splits the files named (else stdin) into words, as deroff -w
+# does (runs of letters and apostrophes), and prints each word that is in
+# neither $VT_STATE/dict nor a +list given, ignoring case, sorted. Logs its
+# arguments. Known from spell.ksh and spellprog.c (OpenBSD src): the +lists
+# added to the word list, case folded in the lookup, exit status 0 always;
+# a +list that cannot be opened makes spellprog fail, so nothing is printed.
+# Not modelled: derivations (walked from walk), the stop list.
+
+echo "spell $*" >>"$VT_STATE/log"
+lists=
+[ -f "$VT_STATE/dict" ] && lists=$VT_STATE/dict
+while [ $# -gt 0 ]; do
+	case $1 in
+	+*) [ -f "${1#+}" ] || exit 0; lists="$lists ${1#+}" ;;
+	*) break ;;
+	esac
+	shift
+done
+# shellcheck disable=SC2086
+cat "$@" | tr -cs "A-Za-z'" '\n' | sed "s/^'*//; s/'*\$//; /^\$/d" |
+	awk 'FILENAME != "-" { known[tolower($0)] = 1; next }
+	!(tolower($0) in known)' $lists - | sort -u
+exit 0

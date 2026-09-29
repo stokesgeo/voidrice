@@ -1,0 +1,15 @@
+#!/bin/sh
+
+# nq(1) mock. Logs "nq ARGS"; takes only nq's flags (getopt "+chqtw" in
+# nq.c, v0.5). Unlike nq it runs the job in the foreground, writing its
+# output to the job file ,TIME.PID in $NQDIR, which -c removes on success.
+
+echo "nq $*" >>"$VT_STATE/log"
+c=
+while getopts chqtw o; do
+	case $o in c) c=1 ;; q|t|w) ;; *) exit 1 ;; esac
+done
+shift $((OPTIND - 1))
+f=${NQDIR:-.}/,$("$VT_REAL_DATE" +%s).$$
+mkdir -p "${NQDIR:-.}" && "$@" >"$f" 2>&1 && [ -n "$c" ] && "$VT_REAL_RM" "$f"
+exit 0

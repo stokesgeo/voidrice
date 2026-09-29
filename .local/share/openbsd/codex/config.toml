@@ -1,0 +1,17 @@
+# Codex config for cdxb, copied to ~/.codex/config.toml on first use.
+
+# Codex has no sandbox of its own on OpenBSD; the cdxb box is the wall, so it
+# runs commands without asking unless one looks dangerous. No approval_policy:
+# one set here would override cdxb -a, whose untrusted project asks first.
+sandbox_mode = "workspace-write"
+# pkg_add -u updates Codex.
+check_for_update_on_startup = false
+# The login token in ~/.codex/auth.json: OpenBSD has no keyring for Codex.
+cli_auth_credentials_store = "file"
+
+# No usage analytics and no feedback uploads.
+[analytics]
+enabled = false
+
+[feedback]
+enabled = false

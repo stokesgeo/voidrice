@@ -1,19 +1,13 @@
-# kshrc: settings for interactive ksh. The profile sets ENV to this file, and
-# ksh reads $ENV at the start of every interactive shell. It replaces
-# voidrice's .zshrc; see ksh(1) for everything used here.
+# kshrc: interactive ksh(1), in place of voidrice's .zshrc. The profile sets ENV to it.
 
-# Prompt: [user@host dir]$ in the voidrice colors. \[ \] mark the escape
-# sequences as zero-width so line editing counts columns right.
+# [user@host dir]$ in the voidrice colours; \[ \] mark the escapes as zero-width.
 PS1='\[\e[1;31m\][\[\e[33m\]\u\[\e[32m\]@\[\e[34m\]\h \[\e[35m\]\w\[\e[31m\]]\[\e[0m\]\$ '
 
-set -o vi		# vi line editing (zsh: bindkey -v)
+set -o vi		# vi line editing; v in command mode opens $EDITOR
 set -o vi-tabcomplete	# Tab completes in insert mode too
 stty stop undef		# free ctrl-s from freezing the terminal
+HISTSIZE=10000		# the profile exports HISTFILE
 
-# History. The profile exports HISTFILE; ksh reads it when it starts.
-HISTSIZE=10000
-
-# Aliases and bookmark shortcuts, if they exist.
 for f in shortcutrc shortcutenvrc aliasrc; do
 	[ -f "${XDG_CONFIG_HOME:-$HOME/.config}/shell/$f" ] &&
 		. "${XDG_CONFIG_HOME:-$HOME/.config}/shell/$f"
@@ -30,9 +24,7 @@ lfcd() {
 	[ -d "$dir" ] && [ "$dir" != "$PWD" ] && cd "$dir"
 }
 
-# Not carried over from .zshrc, because ksh has no equivalent:
-# - key macros (ctrl-o lfcd, ctrl-a bc, ctrl-f fzf cd): ksh's `bind -m`
-#   works only in emacs mode. Type the command instead.
-# - cursor shape per vi mode, autocd, menu completion, syntax highlighting.
-# Kept for free: in vi command mode, `v` opens the line in $VISUAL/$EDITOR
-# (zsh needed ctrl-e and edit-command-line for this).
+# config: git for the dotfiles, a bare repo with $HOME as the work tree.
+# The bare clone has no fetch refspec: update with `config pull origin master`.
+# Add files by name, never `config add .` from $HOME.
+config() { git --git-dir="$HOME/.local/share/vertrice.git" --work-tree="$HOME" "$@"; }

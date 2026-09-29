@@ -1,0 +1,4 @@
+/* Reminders for calendar(1): a date, a tab, the text. Each morning cron
+ * mails you the lines for today and tomorrow (on Friday, through Monday). */
+Jan 1	New Year's Day
+15 *	Example: the 15th of every month (delete this line)

@@ -32,9 +32,8 @@ checkprice() {
 }
 
 updateprice() { route -n get default >/dev/null 2>&1 &&
-	curl -sf \
-		--fail-early "${denom}.${url}/1${target}" "${denom}.${url}/${target}${interval}" \
-		--output "$pricefile" --output "$chartfile" &&
+	ftp -MV -U curl -o "$pricefile" "https://${denom}.${url}/1${target}" 2>/dev/null &&
+	ftp -MV -U curl -o "$chartfile" "https://${denom}.${url}/${target}${interval}" 2>/dev/null &&
 		touch "$pricefile" "$chartfile"
 }
 

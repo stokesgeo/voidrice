@@ -1,0 +1,13 @@
+#!/bin/sh
+
+# apm(8) mock. Known format: -l, -a and -b each print one bare number
+# (apm(8): percent left; AC 0 off, 1 on, 2 backup, 255 unknown; battery
+# 0 high, 1 low, 2 critical, 3 charging, 4 absent, 255 unknown).
+# Set with APM_L, APM_A, APM_B. Default: 87%, on battery, state high.
+
+case $1 in
+-l) echo "${APM_L:-87}" ;;
+-a) echo "${APM_A:-0}" ;;
+-b) echo "${APM_B:-0}" ;;
+*) echo "apm $*" >>"$VT_STATE/log" ;;
+esac

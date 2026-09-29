@@ -8,7 +8,7 @@ queuefile="${XDG_DATA_HOME:-$HOME/.local/share}/newsboat/queue"
 while read -r line; do
 	[ -z "$line" ] && continue
 	url="${line%%[	 ]*}"
-	qndl "$url" "curl -LO"
+	qndl "$url" "ftp"	# base ftp(1): saves under the URL's file name
 done < "$queuefile"
 
 echo > "$queuefile"

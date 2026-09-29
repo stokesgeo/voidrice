@@ -1,0 +1,30 @@
+# cdxb deny list: paths no cdxb session can see, even with -H or a grant
+# that holds them. One path per line; "~" is your home. A grant at or
+# inside one of these is refused. The list is yours to edit; Codex cannot
+# change it, only propose a new one.
+
+# Keys and passwords
+~/.ssh
+~/.gnupg
+~/.password-store
+~/.local/share/password-store
+~/.netrc
+~/.Xauthority
+~/.local/share/electrum
+
+# Mail: the store and the account settings
+~/.local/share/mail
+~/Mail
+~/.config/mutt
+~/.config/mbsync
+~/.config/msmtp
+
+# Browser profiles: cookies, saved logins, history
+~/.mozilla
+~/.config/chromium
+~/.cache/chromium
+~/.local/share/qutebrowser
+~/.config/qutebrowser
+
+# Shell history: often holds typed secrets
+~/.local/share/history

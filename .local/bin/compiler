@@ -18,7 +18,7 @@ case "${ext}" in
     mom|ms) preconv "${file}" | refer -PS -e | groff -T pdf -m"${ext}" > "${base}.pdf" ;;
     c) cc "${file}" -o "${base}" && "./${base}" ;;
     cob) cobc -x -o "$base" "$file" && "$base" ;;
-    cpp) g++ "${file}" -o "${base}" && "./${base}" ;;
+    cpp) c++ "${file}" -o "${base}" && "./${base}" ;;	# base clang; no g++
     cs) mcs "${file}" && mono "${base}.exe" ;;
     go) go run "${file}" ;;
     h) doas make install ;;
@@ -26,8 +26,6 @@ case "${ext}" in
     m) octave "${file}" ;;
     md) [ -x "$(command -v lowdown)" ] && \
 	    lowdown --parse-no-intraemph "${file}" -Tms | groff -mpdfmark -ms -kept -T pdf > "${base}.pdf" || \
-	    [ -x "$(command -v groffdown)" ] && \
-	    groffdown -i "${file}" | groff -T pdf > "${base}.pdf" || \
 	    pandoc -t ms --highlight-style="kate" -s -o "${base}.pdf" "${file}" ;;
     org) emacs "${file}" --batch -u "${USER}" -f org-latex-export-to-pdf ;;
     py) python "${file}" ;;

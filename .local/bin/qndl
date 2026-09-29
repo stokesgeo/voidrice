@@ -1,12 +1,14 @@
 #!/bin/sh
 
 # $1 is a url; $2 is a command
+# nq(1) runs each job after the ones before it; sb-tasks counts them.
 [ -z "$1" ] && exit
 base="$(basename "$1")"
 notify-send "⏳ Queuing $base..."
 cmd="$2"
 [ -z "$cmd" ] && cmd="yt-dlp --embed-metadata -ic"
-idnum="$(tsp $cmd "$1")"
+export NQDIR="${XDG_CACHE_HOME:-$HOME/.cache}/qndl"
+nq -cq $cmd "$1"
 realname="$(echo "$base" | sed -E "s/\?(source|dest).*//;s/%20/ /g")"
-tsp -D "$idnum" mv "$base" "$realname"
-tsp -D "$idnum" notify-send "👍 $realname done."
+nq -cq mv "$base" "$realname"
+nq -cq notify-send "👍 $realname done."

@@ -2,11 +2,11 @@
 
 # Set as a cron job to check for new RSS entries for newsboat.
 # If newsboat is open, sends it an "R" key to refresh.
-# Packages live in /usr/local/bin on OpenBSD; cron's PATH includes it.
+# The cron line reads the profile and session-env first: see README.md.
 
 notify-send "📰 Updating RSS feeds..."
 
-pgrep -f newsboat$ && xdotool key --window "$(xdotool search --name "^newsboat$")" R && exit
+pgrep -f newsboat$ >/dev/null && xdotool key --window "$(xdotool search --name "^newsboat$")" R && exit
 
 echo 🔃 > "${XDG_CACHE_HOME:-$HOME/.cache}"/newsupdate
 sb-refresh

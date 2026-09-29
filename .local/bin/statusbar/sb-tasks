@@ -4,23 +4,22 @@
 # Some changes by Luke
 # Rebuild by Tenyun
 
-# Displays the number running background tasks.
-# Requires tsp.
+# Displays the number of running/queued qndl jobs (nq: ,TIME.PID, x while running).
+
+dir="${XDG_CACHE_HOME:-$HOME/.cache}/qndl"
 
 case $BLOCK_BUTTON in
-	1) detach "$TERMINAL" -e tsp -l ;;
+	1) NQDIR="$dir" detach "$TERMINAL" -e fq ;;
 	3) notify-send "Tasks module" "🤖: number of running/queued background tasks
-- Left click opens tsp" ;; # Right click
+- Left click follows them (fq)" ;; # Right click
 	6) detach "$TERMINAL" -e "$EDITOR" "$0" ;;
 esac
 
-tsp -l | {
-	numr=0
-	numq=0
-	while read -r line; do case "$line" in
-		*running* ) numr=$((numr + 1)) ;;
-		*queued* ) numq=$((numq + 1)) ;;
-	esac done
-	num="$((numr + numq))($numq)"
-	[ "$num" != "0(0)" ] && printf "🤖%s\n" "$num"
-}
+numr=0
+numq=0
+for f in "$dir"/,*; do
+	kill -0 "${f##*.}" 2>/dev/null || continue	# job done
+	[ -x "$f" ] && numr=$((numr + 1)) || numq=$((numq + 1))
+done
+num="$((numr + numq))($numq)"
+[ "$num" != "0(0)" ] && printf "🤖%s\n" "$num"

@@ -1,0 +1,172 @@
+#!/bin/sh
+
+# run: the vertrice regression suite. Runs the scripts of this repository
+# against a directory of fake OpenBSD commands (mock/), so each case can set
+# the machine's state and check what a script printed or which commands it
+# called. It runs on OpenBSD and, with two stand-ins, on Linux.
+#
+#	run [-k] [NAME ...]	run every case, or those whose name starts
+#				with a NAME ("ext", "sb_battery", "ext_dash")
+#	run -l			--live: OpenBSD only, no mocks; run each read-only
+#				status block and print what it shows
+#	-k			keep the scratch directories
+#
+# Prints PASS, FAIL, SKIP, XFAIL (a known bug, see the case) or XPASS (a
+# known bug no longer shows: drop its xfail) per case, then a total. Exits 1
+# if anything failed or passed unexpectedly.
+#
+# On Linux it needs OpenBSD's ksh and awk: set OKSH to a build of oksh
+# (portable OpenBSD ksh) and BWK_AWK to the one true awk, or put oksh and
+# original-awk on PATH. It links them as sh, ksh and awk in a directory put
+# before the system's, so scripts run under the shell and awk they will have
+# on the machine. Optional: CWM (a cwm binary) and CWM_SRC (cwm's source,
+# for conf.c); on OpenBSD these default to base cwm and /usr/xenocara.
+
+here=$(cd "$(dirname "$0")" && pwd)
+REPO=$(cd "$here/../../../.." && pwd)
+keep='' live=''
+while [ $# -gt 0 ]; do
+	case $1 in
+	-k) keep=1 ;;
+	-l|--live) live=1 ;;
+	-h|--help) sed -n '3,24p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+	--) shift; break ;;
+	-*) echo "run: unknown option $1" >&2; exit 2 ;;
+	*) break ;;
+	esac
+	shift
+done
+
+RUN=$(mktemp -d "${TMPDIR:-/tmp}/vertrice-tests.XXXXXX") || exit 2
+trap '[ -n "$keep" ] || rm -rf "$RUN"' EXIT
+trap 'exit 130' INT TERM
+
+# Real tools, found before the mocks go on PATH. Mocks that wrap a real
+# command (ps, sleep, rm, date, pgrep) call these.
+VT_REAL_PS=$(command -v ps) VT_REAL_SLEEP=$(command -v sleep)
+VT_REAL_RM=$(command -v rm) VT_REAL_DATE=$(command -v date)
+VT_REAL_PGREP=$(command -v pgrep)
+export VT_REAL_PS VT_REAL_SLEEP VT_REAL_RM VT_REAL_DATE VT_REAL_PGREP
+
+# The shell and awk the scripts expect. On OpenBSD they are base. Elsewhere,
+# oksh named "sh" runs in sh mode, as OpenBSD's /bin/sh does.
+os=$(uname -s)
+shim=
+if [ "$os" = OpenBSD ]; then
+	VT_KSH=/bin/ksh VT_SH=/bin/sh
+	CWM=${CWM:-$(command -v cwm)}
+	CWM_SRC=${CWM_SRC:-/usr/xenocara/app/cwm}
+else
+	oksh=${OKSH:-$(command -v oksh)}
+	bwk=${BWK_AWK:-$(command -v original-awk || command -v bwk-awk)}
+	[ -x "$oksh" ] || { echo "run: need oksh: set OKSH" >&2; exit 2; }
+	[ -x "$bwk" ] || { echo "run: need BWK awk: set BWK_AWK" >&2; exit 2; }
+	shim=$RUN/shim
+	mkdir -p "$shim"
+	ln -s "$oksh" "$shim/sh"; ln -s "$oksh" "$shim/ksh"; ln -s "$bwk" "$shim/awk"
+	VT_KSH=$shim/ksh VT_SH=$shim/sh
+	CWM=${CWM:-$(command -v cwm)}
+fi
+export VT_KSH VT_SH CWM CWM_SRC REPO
+
+# One wrapper per script, so scripts that call each other by name (sbar runs
+# the blocks, sb-show runs sbar) find the repository's copy and run under
+# the right shell. The wrapper runs the file where it is; nothing is copied.
+wrap=$RUN/wrap
+mkdir -p "$wrap"
+for f in "$REPO"/.local/bin/* "$REPO"/.local/bin/statusbar/* \
+    "$REPO"/.local/share/openbsd/hotplug-attach; do
+	[ -f "$f" ] || continue
+	case $(sed -n 1p "$f") in
+	'#!/bin/ksh'*) i=$VT_KSH ;;
+	'#!/bin/sh'*) i=$VT_SH ;;
+	*) i= ;;
+	esac
+	printf '#!/bin/sh\nexec %s "%s" "$@"\n' "$i" "$f" >"$wrap/${f##*/}"
+	chmod +x "$wrap/${f##*/}"
+done
+syspath=$PATH
+
+# --live: the status blocks as the machine sees them. Read-only: the blocks
+# that keep counters (sb-cpubars, sb-nettraf) get a scratch cache, and
+# sb-music is left out because it starts sb-mpdup.
+if [ -n "$live" ]; then
+	[ "$os" = OpenBSD ] || { echo "run: --live needs OpenBSD" >&2; exit 2; }
+	export XDG_CACHE_HOME="$RUN/cache" PATH="$wrap:$syspath"
+	mkdir -p "$XDG_CACHE_HOME"
+	for b in sb-battery sb-brightness sb-cpu sb-cpubars sb-internet \
+	    sb-memory sb-nettraf sb-volume sb-clock sb-disk sb-updates; do
+		out=$("$b" 2>&1); rc=$?
+		printf '%-14s rc=%d  %s\n' "$b" "$rc" "$out"
+	done
+	exit 0
+fi
+
+. "$here/lib.sh"	# for killstate
+
+# Case discovery: each cases/*.sh file defines functions t_NAME, and the
+# case is called NAME. Names start with the file's subject (ext_, sbar_),
+# so `run ext` picks every ext case. The files are sourced inside each
+# case, after its scratch environment is set, so nothing in them can
+# expand against the real HOME.
+list=
+for f in "$here"/cases/*.sh; do
+	list="$list $(sed -n 's/^t_\([A-Za-z0-9_]*\)().*/\1/p' "$f")"
+done
+
+want() {
+	_name=$1; shift
+	[ $# -eq 0 ] && return 0
+	for w; do case $_name in "$w"*) return 0 ;; esac; done
+	return 1
+}
+
+pass=0 failed=0 skipped=0 xfailed=0 xpassed=0 n=0
+for name in $list; do
+	want "$name" "$@" || continue
+	n=$((n + 1))
+	T=$RUN/case/$name
+	mkdir -p "$T/state" "$T/home" "$T/cache" "$T/bin"
+	(
+		export T VT_STATE="$T/state" HOME="$T/home" XDG_CACHE_HOME="$T/cache" \
+			XDG_CONFIG_HOME="$T/home/.config" TERMINAL=xterm EDITOR=vi \
+			LC_ALL=C TZ=UTC VT_MOCKS="$here/mock" \
+			PATH="$T/bin:$here/mock:$wrap${shim:+:$shim}:$syspath"
+		# Nothing from the caller's environment may steer a mock.
+		unset DISPLAY BLOCK_BUTTON LANG APM_L APM_A APM_B WSCONS_BRIGHTNESS \
+			WSCONS_FAIL SND_LEVEL SND_MUTE NET_RX NET_TX LO_BYTES MEM_ACT \
+			VT_EPOCH VT_SLEEP BK_DIR BK_FS BK_DAYS BK_TERM \
+			XDG_STATE_HOME TMPDIR
+		: >"$VT_STATE/log"
+		cd "$T" || exit 1
+		. "$here/lib.sh"
+		# shellcheck disable=SC1090
+		for f in "$here"/cases/*.sh; do . "$f"; done
+		"t_$name"
+	) >"$T/.out" 2>&1 </dev/null &
+	cpid=$!
+	# A hung case must not hang the suite: 30 seconds, then it is killed.
+	( "$VT_REAL_SLEEP" 30; kill "$cpid" ) >/dev/null 2>&1 &
+	wpid=$!
+	wait "$cpid"; rc=$?
+	kill "$wpid" 2>/dev/null
+	killstate
+	why=
+	if [ -f "$T/.xfail" ]; then
+		why=$(cat "$T/.xfail")
+		if [ "$rc" -eq 0 ]; then st=XPASS; xpassed=$((xpassed + 1))
+		elif [ "$rc" -eq 77 ]; then st=SKIP; skipped=$((skipped + 1)); why=$(cat "$T/.skip")
+		else st=XFAIL; xfailed=$((xfailed + 1)); fi
+	elif [ "$rc" -eq 0 ]; then st=PASS; pass=$((pass + 1))
+	elif [ "$rc" -eq 77 ]; then st=SKIP; skipped=$((skipped + 1)); why=$(cat "$T/.skip")
+	else st=FAIL; failed=$((failed + 1)); fi
+	printf '%-5s %s%s\n' "$st" "$name" "${why:+  -- $why}"
+	if [ "$st" = FAIL ] || [ "$st" = XPASS ]; then
+		sed 's/^/	/' "$T/.out"
+	fi
+done
+
+[ "$n" -eq 0 ] && { echo "run: no case matches: $*" >&2; exit 2; }
+echo "== $n cases: $pass passed, $failed failed, $xfailed expected failures, $xpassed unexpected passes, $skipped skipped"
+[ -n "$keep" ] && echo "== scratch kept in $RUN"
+[ "$failed" -eq 0 ] && [ "$xpassed" -eq 0 ]

@@ -4,7 +4,9 @@
 #
 # Timecodes must be in format 00:00:00.
 #
-# Imagemagick and ffmpeg required.
+# Imagemagick and ffmpeg required. ImageMagick 6 here: convert, not magick.
+
+ifinstalled ImageMagick ffmpeg || exit 1
 
 # Application cache if not stated elsewhere.
 cache="${XDG_CACHE_HOME:-$HOME/.cache}/slider"
@@ -60,8 +62,7 @@ Timecodes and filenames must be separated by Tabs." &&
 	exit 1
 	}
 
-# HH:MM:SS[.frac] to whole seconds. GNU `date -d` did this; BSD date cannot
-# parse a bare time of day.
+# HH:MM:SS[.frac] to seconds, as GNU date -d did.
 secs() { echo "$1" | awk -F: '{printf "%d\n", $1 * 3600 + $2 * 60 + $3}'; }
 
 if [ -n "${audio+x}" ]; then
@@ -98,10 +99,10 @@ do
 		# If images have already been made in a previous run, do not recreate
 		# them unless -r was given.
 		{ [ ! -f "$prepdir/$base" ] || [ -n "${redo+x}" ] ;} &&
-			magick -size "${res:-1920x1080}" canvas:"${bgc:-black}" -gravity center "$content" -resize 1920x1080 -composite "$prepdir/$base"
+			convert -size "${res:-1920x1080}" canvas:"${bgc:-black}" -gravity center "$content" -resize 1920x1080 -composite "$prepdir/$base"
 	else
 		{ [ ! -f "$prepdir/$base" ] || [ -n "${redo+x}" ] ;} &&
-			magick -size "${res:-1920x1080}" -background "${bgc:-black}" -fill "${fgc:-white}" -font "${font:-Sans}" -pointsize "${ppt:-150}" -gravity center label:"$content" "$prepdir/$base"
+			convert -size "${res:-1920x1080}" -background "${bgc:-black}" -fill "${fgc:-white}" -font "${font:-Sans}" -pointsize "${ppt:-150}" -gravity center label:"$content" "$prepdir/$base"
 	fi
 
 	# If the first line, do not write yet.

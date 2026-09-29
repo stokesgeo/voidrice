@@ -1,0 +1,20 @@
+#!/bin/sh
+
+# restore(8) mock, for "restore -tf -" only. Logs "restore ARGS" and
+# "restore-read LINE", the first line of the dump it read on stdin, and
+# notes when TMPDIR was set. Input that does not start with the dump mock's
+# VTDUMP line fails, as restore does on a file that is not a dump. With -t
+# it prints $VT_STATE/toc, lines in restore -t's form: inode, a tab, the
+# path from the filesystem's root, "./user/.profile" (known: restore.c
+# listfile prints "%10llu\t%s"; main.c starts from ".").
+
+echo "restore $*" >>"$VT_STATE/log"
+[ -n "$TMPDIR" ] && echo "restore TMPDIR set" >>"$VT_STATE/log"
+first=$(head -n 1)
+echo "restore-read $first" >>"$VT_STATE/log"
+case $first in
+VTDUMP*) ;;
+*) echo "Tape is not a dump tape" >&2; exit 1 ;;
+esac
+cat "$VT_STATE/toc" 2>/dev/null
+exit 0

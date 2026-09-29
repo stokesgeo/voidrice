@@ -11,8 +11,7 @@
     font = IBM Plex Mono 10
     format = "<b>%s</b>\n%b"
 
-# Slate and pastel from the night palette, framed in cwm's border colours:
-# readable over either day or night terminals.
+# Frames in cwm's colours; `theme` writes dunstrc.d/theme.conf, read after this.
 [urgency_low]
     background = "#24232e"
     foreground = "#c7c0b4"

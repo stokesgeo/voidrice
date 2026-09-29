@@ -2,14 +2,14 @@
 
 BIB_FILE="${HOME}/latex/uni.bib"
 [ -f "${BIB_FILE}" ] || BIB_FILE="${2:-$(find "${HOME}" -path "${HOME}/.*" \
-	-prune -o -type "f" -name "*.bib" -print -quit)}"
+	-prune -o -type "f" -name "*.bib" -print | head -n 1)}"
 
 { [ -f "${BIB_FILE}" ] || [ "${2}" ]; } || {
 	printf "%s\n" "Create a .bib file or provide as \$2." && exit "1"
 }
 
-filter() {
-	sed -n -E 's/.*((DOI|doi)((\.(org))?\/?|:? *))([^: ]+[^ .]).*/\6/p; T; q'
+filter() {	# the first DOI; head, as OpenBSD's sed has no T
+	sed -n -E 's/.*((DOI|doi)((\.(org))?\/?|:? *))([^: ]+[^ .]).*/\6/p' | head -n 1
 }
 
 fpdf() {
@@ -23,9 +23,7 @@ fpdf() {
 	printf "%s\n" "${doi}"
 }
 
-# One awk pass does what two GNU sed passes did. \L (lowercase) and \s are
-# GNU sed only, and \t or \n in a replacement is not portable. The output
-# was checked identical to the sed version on sample BibTeX.
+# awk in place of upstream's two GNU sed passes (\L, \s, \n in replacements).
 arrange() {
 	awk '{
 		s = $0
@@ -55,7 +53,7 @@ arrange() {
 doi2bib() {
         doi="${1#doi:}"
 	url="https://api.crossref.org/works/${doi}/transform/application/x-bibtex"
-        entry="$(curl -kLsS --no-fail "${url}" | arrange)"
+	entry="$(ftp -MV -o - "${url}" | arrange)"
         red='\033[0;31m'
         reset='\033[0m'
 

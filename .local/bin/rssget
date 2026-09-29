@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/sh
 
 # Searches the website for RSS feeds and adds them to newsboat url list. Can
 # also find hidden RSS feeds on various websites, namely Youtube, Reddit,
@@ -13,8 +13,8 @@
 # This script requires rssadd to add feeds to the list.
 
 getlink () {
-	local url="$1"
-	feeds="$(curl -s "$url" | grep -Ex '.*type=.*(rss|rdf|atom).*' | sed 's/ //g')"
+	url="$1"
+	feeds="$(ftp -MV -o - "$url" 2>/dev/null | grep -Ex '.*type=.*(rss|rdf|atom).*' | sed 's/ //g')"
 	url="$(echo $url | sed 's|^\(https://[^/]*/\).*|\1|')"
 
 	for rsspath in $feeds; do
@@ -35,13 +35,13 @@ getRedditRss() {
 }
 
 getYoutubeRss() {
-	local url="$1"
+	url="$1"
 	path=$(echo "$url" | sed -e 's|^http[s]*://||')
 	case "$path" in
-		*"/channel/"*) channel_id="$(echo $path | sed -r 's|.*channel/([^/]*).*|\1|')" && feed="https://www.youtube.com/feeds/videos.xml?channel_id=${channel_id}" ;;
+		*"/channel/"*) channel_id="$(echo $path | sed -E 's|.*channel/([^/]*).*|\1|')" && feed="https://www.youtube.com/feeds/videos.xml?channel_id=${channel_id}" ;;
 		*"/c/"*|*"/user/"*)
-			feed=$(wget -q "$url" -O tmp_rssget_yt \
-			&& sed -n 's|.*\("rssUrl":"[^"]*\).*|\1|; p' tmp_rssget_yt \
+			feed=$(ftp -MV -o - "$url" 2>/dev/null \
+			| sed -n 's|.*\("rssUrl":"[^"]*\).*|\1|; p' \
 			| grep rssUrl \
 			| sed 's|"rssUrl":"||') ;;
 	esac
@@ -49,7 +49,7 @@ getYoutubeRss() {
 }
 
 getVimeoRss() {
-    local url="$1"
+    url="$1"
         if echo "$url" | grep -q "/videos$"; then
             feed_url=$(echo "$url" | sed 's/\/videos$//' | sed 's/\/$/\/rss/')
         else
@@ -59,7 +59,7 @@ getVimeoRss() {
 }
 
 getGithubRss () {
-	local url="${1%/}"
+	url="${1%/}"
 	if echo $url | grep -E "github.com/[^/]*/[a-zA-Z0-9].*" >/dev/null ; then
 		echo "${url}/commits.atom"
 		echo "${url}/releases.atom"
@@ -70,7 +70,7 @@ getGithubRss () {
 }
 
 getGitlabRss () {
-	local url="${1%/}"
+	url="${1%/}"
 	echo "${url}.atom"
 }
 
@@ -85,8 +85,6 @@ else
 	url="$(xclip -selection clipboard -o)"
 	[ -z "$url" ] && echo "usage: $0 url 'tag1 tag2 tag3'" && exit 1
 fi
-
-declare -a list=()
 
 yt_regex="^(http(s)?://)?((w){3}\.)?(youtube\.com|invidio\.us|invidious\.flokinet\.to|invidious\.materialio\.us|iv\.datura\.network|invidious\.perennialte\.ch|invidious\.fdn\.fr|invidious\.private\.coffee|invidious\.protokolla\.fi|invidious\.privacyredirect\.com|yt\.artemislena\.eu|yt\.drgnz\.club|invidious\.incogniweb\.net|yewtu\.be|inv\.tux\.pizza|invidious\.reallyaweso\.me|iv\.melmac\.space|inv\.us\.projectsegfau\.lt|inv\.nadeko\.net|invidious\.darkness\.services|invidious\.jing\.rocks|invidious\.privacydev\.net|inv\.in\.projectsegfau\.lt|invidious\.drgns\.space)/(channel|user|c).+"
 reddit_regex="^(http(s)?://)?((w){3}\.)?reddit\.com.*"
@@ -109,7 +107,7 @@ else
 	list="$(getlink "$url")"
 fi
 
-[ "$(echo "$list" | wc -l)" -eq 1 ] && chosen_link="$list" || chosen_link=$(printf '%s\n' "${list[@]}" | dmenu -p "Choose a feed:")
+[ "$(echo "$list" | wc -l)" -eq 1 ] && chosen_link="$list" || chosen_link=$(printf '%s\n' "$list" | dmenu -p "Choose a feed:")
 tags="$2"
 ifinstalled rssadd && rssadd "$chosen_link" "$tags"
 echo "$chosen_link" "$tags"

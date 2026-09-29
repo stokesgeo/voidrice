@@ -3,11 +3,7 @@
 # Module showing CPU load as a changing bars.
 # Just like in polybar.
 # Each bar represents amount of load on one core since
-# last run.
-#
-# OpenBSD: kern.cp_time2.N holds the tick counters for CPU N as
-# user,nice,sys,spin,intr,idle. With SMT off (the default, hw.smt=0), half
-# the threads are offline: their counters never move, so they get no bar.
+# last run. OpenBSD: kern.cp_time2.N; SMT threads, off by default, get no bar.
 
 cache="${XDG_CACHE_HOME:-$HOME/.cache}"/cpubarscache
 
