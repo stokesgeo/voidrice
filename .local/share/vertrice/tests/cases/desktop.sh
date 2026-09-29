@@ -194,3 +194,59 @@ t_dmenuhandler_private_tmp() {
 	private "${f%/*}"
 	rm -rf "${f%/*}"
 }
+
+# xdg-open defaults: the repository's mimeapps.list and .desktop files,
+# through mock/xdg-open (xdg-utils 1.2.1's generic lookup). Every Exec
+# program must be found on PATH; terminal programs open in $TERMINAL.
+xo_setup() {
+	command -v file >/dev/null 2>&1 || skip "no file(1) on this host"
+	mkdir -p "$XDG_CONFIG_HOME" "$HOME/.local/share"
+	ln -s "$REPO/.config/mimeapps.list" "$XDG_CONFIG_HOME/mimeapps.list"
+	ln -s "$REPO/.local/share/applications" "$HOME/.local/share/applications"
+	for v in nsxiv zathura mpv transadd rssadd; do
+		ln -s "$VT_MOCKS/_log" "$T/bin/$v"
+	done
+}
+
+t_xdgopen_defaults() {
+	xo_setup
+	printf '%%PDF-1.4\n' >"$T/doc.pdf"
+	printf '\211PNG\r\n\032\n\0\0\0\rIHDR\0\0\0\1\0\0\0\1\10\2\0\0\0' >"$T/pic.png"
+	printf 'hello\n' >"$T/notes.txt"
+	xdg-open "$T/doc.pdf" || fail "pdf did not open"
+	logged "^zathura $T/doc\.pdf$"
+	xdg-open "$T/pic.png" || fail "png did not open"
+	logged "^nsxiv -a $T/pic\.png$"
+	xdg-open "$T/notes.txt" || fail "text did not open"
+	logged "^xterm -e nvim $T/notes\.txt$"
+	xdg-open "$T" || fail "directory did not open"
+	logged "^xterm -e lfub $T$"
+	xdg-open "magnet:?xt=urn:btih:abc" || fail "magnet did not open"
+	logged '^transadd magnet:\?xt=urn:btih:abc$'
+	xdg-open "mailto:a@example.org" || fail "mailto did not open"
+	logged '^xterm -e neomutt mailto:a@example\.org$'
+}
+
+t_xdgopen_every_entry_resolves() {
+	xo_setup
+	for v in nvim lfub neomutt; do ln -s "$VT_MOCKS/_log" "$T/bin/$v"; done
+	for f in "$REPO"/.local/share/applications/*.desktop; do
+		e=$(sed -n 's/^Exec=//p' "$f")
+		case ${e%% *} in */*) fail "${f##*/}: Exec names a path: $e" ;; esac
+		command -v "${e%% *}" >/dev/null || fail "${f##*/}: ${e%% *} not found"
+	done
+	for d in $(sed -n 's/^[a-z-]*\/[^=]*=\([^;]*\).*/\1/p' "$REPO/.config/mimeapps.list"); do
+		[ -f "$REPO/.local/share/applications/$d" ] || fail "mimeapps.list names a missing $d"
+	done
+}
+
+# opout: a compiled document's PDF opens through xdg-open.
+t_opout_pdf() {
+	xo_setup
+	mkdir -p "$T/w"; cd "$T/w" || fail "no dir"
+	: >doc.md; printf '%%PDF-1.4\n' >doc.pdf
+	opout doc.md
+	logged '^detach xdg-open \./doc\.pdf$'
+	xdg-open ./doc.pdf
+	logged '^zathura \./doc\.pdf$'
+}

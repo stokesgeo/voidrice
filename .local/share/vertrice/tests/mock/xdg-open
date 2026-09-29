@@ -1,0 +1,45 @@
+#!/bin/sh
+
+# xdg-open mock: the "generic" path of xdg-utils 1.2.1 (the OpenBSD package's
+# version), cut to what vertrice relies on. Read in scripts/xdg-open.in and
+# xdg-mime.in of that tag: the MIME type comes from
+# "file --brief --dereference --mime-type" (OpenBSD file(1) takes these long
+# options, checked in usr.bin/file/file.c), a URL's from its scheme
+# (x-scheme-handler/NAME); the default comes from
+# $XDG_CONFIG_HOME/mimeapps.list; the .desktop file from
+# $XDG_DATA_HOME/applications; its Exec program must be found by
+# "command -v" (so a path to a missing file fails), %f %F %u %U become the
+# target, and Terminal= is ignored. Logs "xdg-open ARG", then runs the
+# program. Not modelled: system data directories, mailcap, mimeopen, the
+# $BROWSER fallback.
+
+echo "xdg-open $*" >>"$VT_STATE/log"
+[ $# -eq 1 ] || { echo "xdg-open: want one argument" >&2; exit 1; }
+t=$1
+case $t in
+	[A-Za-z]*:*) mime="x-scheme-handler/${t%%:*}"; target= ; uri=$t ;;
+	*) [ -e "$t" ] || { echo "xdg-open: file '$t' does not exist" >&2; exit 2; }
+	   mime=$(file --brief --dereference --mime-type "$t" | sed 's/[ ;].*//')
+	   target=$t uri= ;;
+esac
+list=${XDG_CONFIG_HOME:-$HOME/.config}/mimeapps.list
+desk=$(grep "^$mime=" "$list" 2>/dev/null | head -n 1 | cut -d= -f2 | cut -d';' -f1)
+[ -n "$desk" ] || { echo "xdg-open: no default for $mime" >&2; exit 3; }
+f=${XDG_DATA_HOME:-$HOME/.local/share}/applications/$desk
+[ -r "$f" ] || { echo "xdg-open: $desk not found" >&2; exit 3; }
+exec_line=$(sed -n 's/^Exec=//p' "$f" | head -n 1)
+set -f
+set -- $exec_line
+set +f
+command -v "$1" >/dev/null 2>&1 || { echo "xdg-open: $1: not found" >&2; exit 3; }
+cmd=$1; shift
+n=$#
+while [ "$n" -gt 0 ]; do
+	case $1 in
+	%[fF]) [ -n "$target" ] || exit 3; a=$target ;;
+	%[uU]) a=${uri:-$target} ;;
+	*) a=$1 ;;
+	esac
+	shift; set -- "$@" "$a"; n=$((n - 1))
+done
+exec "$cmd" "$@"
