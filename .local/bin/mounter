@@ -1,58 +1,136 @@
 #!/bin/ksh
 
-# mounter: mount a drive's partition under /mnt, picked with dmenu. The
-# OpenBSD version of voidrice's mounter. Run it in a terminal (Super+F9
-# does): reading disk labels and mounting need root, and doas asks for the
-# password there.
+# mounter: mount USB drives, encrypted drives and Android phones, picked with
+# dmenu. Luke Smith's voidrice mounter, same flow, on OpenBSD's own tools:
+#	💾 partitions	disklabel(8): FAT, exFAT, NTFS, FFS, ext2, ISO9660
+#	🔒 encrypted	softraid CRYPTO volumes, bioctl(8): OpenBSD's LUKS
+#	📱 phones	simple-mtpfs (package), as in voidrice
+# As in voidrice, an fstab entry wins: list the stick by its DUID (the id in
+# `sysctl hw.disknames`) with noauto, and it always lands in the same place.
+# Otherwise dmenu asks where, and offers to create the directory.
 #
-# Disks come from hw.disknames, partitions and their types from
-# disklabel(8). Mounted partitions (the root disk's, for one), swap and
-# RAID (softraid, e.g. an encrypted disk) are not offered. By type:
-#	MSDOS	FAT				mount_msdos (base)
-#	NTFS	exFAT or NTFS (one MBR type)	mount.exfat (exfat-fuse), else ntfs-3g
-#	4.2BSD	FFS				mount (base)
-#	ext2fs	Linux ext2/3/4			mount_ext2fs (base)
-#	ISO9660	CD/DVD				mount_cd9660 (base)
-# FAT, exFAT and NTFS have no Unix owners, so they mount owned by you.
+# Root: voidrice used `sudo -A` with a dmenu password prompt. doas has no
+# askpass; it needs a terminal. So, started without one (from a key or lf),
+# mounter reopens itself in a small floating terminal, as voidrice already
+# did to ask for the LUKS passphrase. The terminal closes when it is done.
+#
+# Every mount is nosuid,nodev: a setuid program on a found stick must not
+# become root. FAT, exFAT and NTFS have no owners, so they mount owned by you.
 
-doas true || exit 1	# ask for the password once; persist covers the rest
-
-mounted=$(mount | awk '{print $1}')
-list=$(sysctl -n hw.disknames | tr ',' '\n' | sed 's/:.*//' |
-	grep -E '^(sd|cd)[0-9]+$' | while read -r d; do
-		doas disklabel -h "$d" 2>/dev/null | awk -v d="$d" '
-			$1 ~ /^[a-p]:$/ {
-				p = substr($1, 1, 1); t = $4
-				if (p == "c" || t ~ /^(unused|swap|RAID)$/) next
-				printf "%s%s %s %s\n", d, p, $2, t
-			}'
-	done | while read -r part size type; do
-		print "$mounted" | grep -qx "/dev/$part" || print "$part $size $type"
-	done)
-
-[ -n "$list" ] || { notify-send "💾 mounter" "No unmounted partitions."; exit 1; }
-chosen=$(print "$list" | dmenu -i -p "Mount which partition?") || exit 1
-set -- $chosen
-part=$1 type=$3
-dev=/dev/$part mp=/mnt/$part
-u=$(id -u) g=$(id -g)
-
-doas mkdir -p "$mp" || exit 1
-case $type in
-	MSDOS)	doas mount_msdos -u "$u" -g "$g" "$dev" "$mp" ;;
-	NTFS)	{ command -v mount.exfat >/dev/null &&
-			doas mount.exfat -o "uid=$u,gid=$g" "$dev" "$mp"; } ||
-		{ command -v ntfs-3g >/dev/null &&
-			doas ntfs-3g -o "uid=$u,gid=$g" "$dev" "$mp"; } ;;
-	4.2BSD)	doas mount "$dev" "$mp" ;;
-	ext2fs)	doas mount_ext2fs "$dev" "$mp" ;;
-	ISO9660) doas mount_cd9660 "$dev" "$mp" ;;
-	*)	false ;;
-esac
-if [ $? -eq 0 ]; then
-	notify-send "💾 Mounted" "$part ($type) on $mp"
-else
-	doas rmdir "$mp" 2>/dev/null
-	notify-send "💾 Mount failed" "$part ($type)"
-	exit 1
+if [ ! -t 0 ]; then
+	case $TERMINAL in
+		st) exec "$TERMINAL" -n floatterm -g 64x4 -e "$0" ;;
+		*) exec "$TERMINAL" -name floatterm -geometry 64x4 -e "$0" ;;
+	esac
 fi
+
+doas true || exit 1	# one password; persist covers the rest of this run
+
+escape() { print -r -- "$*" | tr -cd '[:alnum:] -' | tr '[:upper:] ' '[:lower:]-'; }
+disknames=$(sysctl -n hw.disknames)
+duidof() { print "$disknames" | tr ',' '\n' | sed -n "s/^$1://p"; }
+
+# partitions DISK: "part size type label" for each usable partition.
+partitions() {
+	typeset label
+	label=$(doas disklabel "$1" 2>/dev/null | sed -n 's/^label: *//p')
+	doas disklabel -h "$1" 2>/dev/null | awk -v d="$1" -v l="$label" '
+		$1 ~ /^[a-p]:$/ && $1 != "c:" && $4 !~ /^(unused|swap)$/ {
+			printf "%s%s %s %s %s\n", d, substr($1, 1, 1), $2, $4, l }'
+}
+
+set -f	# dmenu text below must never glob
+mounted=$(mount)
+inuse=$(doas bioctl softraid0 2>/dev/null | grep -o '<[a-z]*[0-9]*[a-p]>' | tr -d '<>')
+
+drives=$(print "$disknames" | tr ',' '\n' | sed 's/:.*//' | grep -E '^(sd|cd)[0-9]+$' |
+	while read -r d; do partitions "$d"; done |
+	while read -r part size type label; do
+		if [ "$type" = RAID ]; then
+			print "$inuse" | grep -qx "$part" || print "🔒$part ($size $label) CRYPTO"
+		else
+			# FUSE mounts may not list the device, so check the default
+			# mount point too.
+			print "$mounted" | grep -qE "^/dev/$part |^[^ ]* on /mnt/$part " ||
+				print "💾$part ($size $label) $type"
+		fi
+	done)
+phones=$(simple-mtpfs -l 2>/dev/null | sed 's/^/📱/')
+
+alldrives=$(print "$phones\n$drives" | sed '/^$/d')
+[ -n "$alldrives" ] || { notify-send "💾 mounter" "Nothing to mount."; exit 1; }
+chosen=$(print "$alldrives" | dmenu -i -p "Mount which drive?") || exit 1
+print "$alldrives" | grep -qxF -- "$chosen" || exit 1	# only what was offered
+
+# getmount NAME: ask where to mount, as voidrice does; create it on request.
+getmount() {
+	mp=$({ print "/mnt/$1"; find /mnt /media /mount /home -maxdepth 1 -type d 2>/dev/null; } |
+		dmenu -i -p "Mount this drive where?") || exit 1
+	[ -n "$mp" ] || exit 1
+	if [ ! -d "$mp" ]; then
+		[ "$(printf 'No\nYes' | dmenu -i -p "$mp does not exist. Create it?")" = Yes ] || exit 1
+		mkdir -p "$mp" 2>/dev/null || doas mkdir -p "$mp" || exit 1
+	fi
+}
+
+# mountpart PART TYPE: fstab first (by DUID), else ask and mount by type.
+mountpart() {
+	typeset part=$1 type=$2 disk=${1%?} dev=/dev/$1 duid u g
+	duid=$(duidof "$disk")
+	if [ -n "$duid" ] && doas mount "$duid.${part#$disk}" 2>/dev/null; then
+		notify-send "💾 Drive mounted." "$part mounted from fstab."
+		exit 0
+	fi
+	getmount "$part"
+	u=$(id -u) g=$(id -g)
+	# Every mount is nosuid,nodev: a setuid program or device node on a
+	# found stick must not give root. FUSE needs allow_other for you to read
+	# a mount root made.
+	fuse="allow_other,uid=$u,gid=$g,nosuid,nodev"
+	case $type in
+		MSDOS|NTFS)
+			# MBR type 7 is exFAT or NTFS, and on GPT disks OpenBSD
+			# labels any Microsoft data partition MSDOS: try each.
+			{ [ "$type" = MSDOS ] &&
+				doas mount_msdos -o nosuid,nodev -u "$u" -g "$g" "$dev" "$mp" 2>/dev/null; } ||
+			doas mount.exfat -o "$fuse" "$dev" "$mp" 2>/dev/null ||
+			doas ntfs-3g -o "$fuse" "$dev" "$mp" ;;
+		4.2BSD)	doas mount -o nosuid,nodev "$dev" "$mp" ;;
+		ext2fs)	doas mount_ext2fs -o nosuid,nodev "$dev" "$mp" ;;
+		ISO9660) doas mount_cd9660 -o nosuid,nodev "$dev" "$mp" ;;
+		*)	false ;;
+	esac || { notify-send "💾 Mount failed." "$part ($type)"; exit 1; }
+	notify-send "💾 Drive mounted." "$part mounted to $mp."
+}
+
+case $chosen in
+	💾*)
+		set -- ${chosen#💾}
+		mountpart "$1" "${chosen##* }"
+		;;
+	🔒*)
+		set -- ${chosen#🔒}
+		before=$(sysctl -n hw.disknames)
+		print "Passphrase for $1:"
+		doas bioctl -c C -l "/dev/$1" softraid0 || exit 1
+		new=$(sysctl -n hw.disknames | tr ',' '\n' | sed 's/:.*//' |
+			grep -vxF "$(print "$before" | tr ',' '\n' | sed 's/:.*//')" | head -n 1)
+		[ -n "$new" ] || { notify-send "🔒 Unlock failed." "$1"; exit 1; }
+		disknames=$(sysctl -n hw.disknames)
+		inner=$(partitions "$new" | grep -v ' RAID ')
+		[ "$(print "$inner" | wc -l)" -gt 1 ] &&
+			inner=$(print "$inner" | dmenu -i -p "Mount which partition of $new?")
+		set -- $inner
+		[ -n "$1" ] || exit 1
+		notify-send "🔓 Decrypted." "$new unlocked."
+		mountpart "$1" "$3"
+		;;
+	📱*)
+		notify-send "❗Note" "Remember to allow file access on your phone now."
+		name=${chosen#📱}
+		getmount "$(escape "${name#*: }")"
+		doas simple-mtpfs -o allow_other,nosuid,nodev -o fsname="simple-mtpfs-$(escape "${name#*: }")" \
+			--device "${name%%:*}" "$mp" || { notify-send "📱 Mount failed."; exit 1; }
+		notify-send "🤖 Android mounted." "Android device mounted to $mp."
+		;;
+esac

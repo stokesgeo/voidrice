@@ -1,5 +1,6 @@
-# root.kshrc: a small interactive setup for root. Install as /root/.kshrc
-# and add `export ENV=/root/.kshrc` to /root/.profile (see OPENBSD.md).
+# root.kshrc: a small interactive setup for root. Install as /root/.kshrc.
+# `doas -s` reads it through the ENV the doas rule sets; for console root
+# logins add `export ENV=/root/.kshrc` to /root/.profile (see OPENBSD.md).
 #
 # Root gets its own file, not the user's dotfiles: a root shell should never
 # run code from a home directory the user (or anything running as the user)

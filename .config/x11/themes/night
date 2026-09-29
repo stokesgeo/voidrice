@@ -1,0 +1,22 @@
+! night: pastel inks on deep slate. Every text colour (1-6, 9-14) is at
+! least 7:1 against the background; the foreground is 10.7:1, dim grey
+! (color8) 4.6:1. Warm, low-saturation, no pure white. Loaded by `theme`.
+*.foreground: #dcd6ca
+*.background: #24232e
+*.cursorColor: #e8b4b8
+*.color0: #34323f
+*.color1: #e89c9c
+*.color2: #a9cf9b
+*.color3: #e3c98d
+*.color4: #9db8e3
+*.color5: #cfa6de
+*.color6: #94cccb
+*.color7: #c7c0b4
+*.color8: #908b9f
+*.color9: #f2b3b3
+*.color10: #bfe0b2
+*.color11: #efdaa7
+*.color12: #b6cbef
+*.color13: #dfbdea
+*.color14: #afdcdb
+*.color15: #f1ece2

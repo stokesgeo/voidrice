@@ -1,18 +1,44 @@
 #!/bin/ksh
 
-# unmounter: unmount something under /mnt, picked with dmenu, and remove
-# its empty mount point. Run it in a terminal (Super+F10 does), so doas can
-# ask for the password. Unmounting also flushes pending writes: wait for it
-# to finish before pulling the drive.
+# unmounter: unmount a USB drive or Android phone, picked with dmenu, and lock
+# an encrypted drive again. Luke Smith's voidrice unmounter on OpenBSD tools.
+# Drives on the system disk (the one holding /) are never offered. An
+# emptied softraid CRYPTO volume is detached with bioctl -d, as voidrice ran
+# `cryptsetup close`. Like mounter, it reopens itself in a small terminal so
+# doas can ask for the password.
 
-chosen=$(mount | awk '$3 ~ /^\/mnt\// {print $3, "(" $5 ")"}' |
-	dmenu -i -p "Unmount which?") || exit 1
-mp=${chosen%% *}
-
-if doas umount "$mp"; then
-	doas rmdir "$mp" 2>/dev/null
-	notify-send "💾 Unmounted" "$mp: safe to remove."
-else
-	notify-send "💾 Unmount failed" "$mp is busy? Close programs using it."
-	exit 1
+if [ ! -t 0 ]; then
+	case $TERMINAL in
+		st) exec "$TERMINAL" -n floatterm -g 64x4 -e "$0" ;;
+		*) exec "$TERMINAL" -name floatterm -geometry 64x4 -e "$0" ;;
+	esac
 fi
+
+rootdisk=$(mount | awk '$3 == "/" {sub("/dev/", "", $1); sub("[a-p]$", "", $1); print $1}')
+
+chosen=$(mount | awk -v r="/dev/$rootdisk" '
+	index($1, r) == 1 { next }			# the system disk
+	$1 ~ /^simple-mtpfs/	{ printf "📱%s (%s)\n", $3, $1; next }
+	$1 ~ /^\/dev\//		{ printf "💾%s (%s)\n", $3, $1 }' |
+	dmenu -i -p "Unmount which drive?") || exit 1
+# "💾/mnt/usb (/dev/sd1i)": the mount point runs from the first / to " (",
+# the device sits in the parentheses. sed, because the emoji is several
+# bytes and ksh reads parentheses in ${...} patterns as glob syntax.
+mp=$(print -r -- "$chosen" | sed 's|^[^/]*||; s| (.*||')
+dev=$(print -r -- "$chosen" | sed 's|.*(||; s|)$||')
+[ -n "$mp" ] || exit 1
+
+doas umount "$mp" || { notify-send "💾 Unmount failed." "$mp is busy? Close programs using it."; exit 1; }
+case $mp in /mnt/*) doas rmdir "$mp" 2>/dev/null ;; esac
+notify-send "💾 Drive unmounted." "$mp: safe to remove."
+
+# A softraid CRYPTO volume with nothing left mounted: detach it, which locks it.
+disk=${dev#/dev/}; disk=${disk%[a-p]}
+# bioctl -d refuses a disk that is not a softraid volume, so a plain stick
+# is left alone.
+case $disk in sd[0-9]*)
+	if ! mount | awk '{print $1}' | grep -q "^/dev/$disk[a-p]\$" &&
+	    doas bioctl -d "$disk" 2>/dev/null; then
+		notify-send "🔒 Drive locked." "$disk detached."
+	fi
+esac

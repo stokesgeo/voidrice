@@ -8,7 +8,9 @@
 
 f=/var/run/hotplug-disk
 
-pgrep -f "entr.*hotplug-disk" >/dev/null && exit 0	# one watcher per session
+# One watcher per user. An old one may have outlived its X session (and
+# would notify a dead display), so replace it rather than defer to it.
+pkill -U "$(id -u)" -f 'entr -n.*hotplug-disk' 2>/dev/null
 
 # The file appears on the first attach after boot (/var/run is cleared).
 # If it existed already, it names an old disk: -p skips entr's first run.

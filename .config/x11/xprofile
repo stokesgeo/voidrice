@@ -27,3 +27,11 @@ hotplug-watch &
 
 # Ensure that xrdb has finished running before moving on to start the WM/DE.
 [ -n "$xrdbpid" ] && wait "$xrdbpid"
+
+# Day/night palette, after xresources is loaded so the palette merges on
+# top: day from 07:00, night from 19:00; Super+F8 flips it by hand.
+theme clock &
+
+# A new session starts with a neutral screen, so nightlight's toggle state
+# starts off as well.
+rm -f "${XDG_CACHE_HOME:-$HOME/.cache}/nightlight"
