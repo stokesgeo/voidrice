@@ -1,13 +1,15 @@
 #!/bin/sh
 
-# Prints the CPU temperature. OpenBSD exposes hardware sensors as sysctl
-# nodes: cpu0.temp0 is the Intel core sensor from cpu(4), acpitz0 the ACPI
-# thermal zone. The value reads "52.00 degC".
+# Prints the CPU temperature and speed, e.g. "🌡 52°C 1.2GHz". OpenBSD
+# exposes hardware sensors as sysctl nodes: cpu0.temp0 is the Intel core
+# sensor from cpu(4), acpitz0 the ACPI thermal zone; the value reads
+# "52.00 degC". hw.cpuspeed is the current clock in MHz, which moves as
+# obsdfreqd changes hw.setperf.
 
 case $BLOCK_BUTTON in
 	1) notify-send "🖥 CPU hogs" "$(ps -Ao comm= -o %cpu= | awk '{cmd[$1]+=$2} END {for (i in cmd) print i, cmd[i]}' | sort -nrk2  | head)\\n(100% per core)" ;;
 	2) detach "$TERMINAL" -e top ;;
-	3) notify-send "🖥 CPU module " "\- Shows CPU temperature.
+	3) notify-send "🖥 CPU module " "\- Shows CPU temperature and clock speed.
 - Click to show intensive processes.
 - Middle click to open top." ;;
 	6) detach "$TERMINAL" -e "$EDITOR" "$0" ;;
@@ -16,6 +18,18 @@ esac
 # Test the value, not the exit status: sysctl may exit 0 for a missing node.
 temp=$(sysctl -n hw.sensors.cpu0.temp0 2>/dev/null)
 [ -n "$temp" ] || temp=$(sysctl -n hw.sensors.acpitz0.temp0 2>/dev/null)
-[ -n "$temp" ] || exit 1
+mhz=$(sysctl -n hw.cpuspeed 2>/dev/null)
 
-printf "🌡 %d°C\n" "${temp%%.*}"
+out=
+[ -n "$temp" ] && out="${temp%%.*}°C"
+# MHz to GHz with one decimal, in integer arithmetic: round to tenths first,
+# so 1990 MHz reads 2.0 and not 1.10.
+case $mhz in
+	''|*[!0-9]*) ;;
+	*) t=$(( (mhz + 50) / 100 ))
+	   out="${out:+$out }$((t / 10)).$((t % 10))GHz" ;;
+esac
+
+# Nothing to show: print nothing and fail, as the other blocks do.
+[ -n "$out" ] || exit 1
+printf "🌡 %s\n" "$out"
