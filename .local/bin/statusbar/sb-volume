@@ -1,8 +1,7 @@
 #!/bin/sh
 
 # Prints the current volume or 🔇 if muted.
-# OpenBSD sound goes through sndiod(8); sndioctl(1) reads and sets its
-# controls. output.level runs 0 to 1, output.mute is 0 or 1.
+# sndioctl(1): output.level runs 0 to 1, output.mute is 0 or 1.
 
 case $BLOCK_BUTTON in
 	2) sndioctl -q output.mute=! ;;

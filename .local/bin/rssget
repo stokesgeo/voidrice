@@ -11,8 +11,6 @@
 # https://github.com/shevabam/get-rss-feed-url-extension
 
 # This script requires rssadd to add feeds to the list.
-# Pages are fetched with base ftp(1): -o - to stdout, -M -V quiet.
-# Each function runs in $(...), a subshell, so its variables stay its own.
 
 getlink () {
 	url="$1"

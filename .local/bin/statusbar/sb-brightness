@@ -1,8 +1,6 @@
 #!/bin/sh
 
-# Prints the backlight level. On OpenBSD the backlight is a wscons display
-# setting: wsconsctl(8) reads it as a percentage, e.g. "70.00%". Logging in
-# on the console gives the user /dev/ttyC0 (see fbtab(5)), so no root needed.
+# Prints the backlight level (wsconsctl reads "70.00%"; fbtab gives the console user the device).
 
 case $BLOCK_BUTTON in
 	3) notify-send "💡 Brightness module" "\- Shows current brightness level ☀️." ;;

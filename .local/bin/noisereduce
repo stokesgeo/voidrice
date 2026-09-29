@@ -55,8 +55,6 @@ read -r sensitivity
 if [ -z "$sensitivity" ] ; then sensitivity="0.21"; fi
 
 
-# Work files in a new private directory, removed at exit: fixed names in
-# /tmp could be planted symlinks.
 tmpd=$(mktemp -d) || exit 1
 trap 'rm -rf "$tmpd"' EXIT
 tmpVidFile="$tmpd/tmpvid.$inExt"

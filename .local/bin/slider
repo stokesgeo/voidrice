@@ -4,9 +4,7 @@
 #
 # Timecodes must be in format 00:00:00.
 #
-# Imagemagick and ffmpeg required. OpenBSD's ImageMagick package is
-# ImageMagick 6 (graphics/ImageMagick: GH_PROJECT ImageMagick6), which
-# installs convert, not ImageMagick 7's magick; the options are the same.
+# Imagemagick and ffmpeg required. ImageMagick 6 here: convert, not magick.
 
 ifinstalled ImageMagick ffmpeg || exit 1
 
@@ -64,8 +62,7 @@ Timecodes and filenames must be separated by Tabs." &&
 	exit 1
 	}
 
-# HH:MM:SS[.frac] to whole seconds. GNU `date -d` did this; BSD date cannot
-# parse a bare time of day.
+# HH:MM:SS[.frac] to seconds, as GNU date -d did.
 secs() { echo "$1" | awk -F: '{printf "%d\n", $1 * 3600 + $2 * 60 + $3}'; }
 
 if [ -n "${audio+x}" ]; then

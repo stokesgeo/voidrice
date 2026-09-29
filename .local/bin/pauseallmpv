@@ -1,13 +1,7 @@
 #!/bin/sh
 
-# Pause every running mpv. Each mpv opens its own IPC socket through the
-# mpvSockets script (~/.config/mpv/scripts/mpvSockets.lua), one per process,
-# in ${XDG_CACHE_HOME:-$HOME/.cache}/mpvSockets. Bound to Super+Shift+p
-# (with mpc pause) and run by sysact before the screen locks.
-#
-# Base nc(1) talks to each socket: -U for a Unix socket, -N to shut down
-# its sending side after the command so mpv closes and nc exits, -w 1 as a
-# stop if mpv does not answer.
+# Pause every mpv, through the socket each opens (mpv/scripts/mpvSockets.lua).
+# Base nc(1) in place of socat: -U a Unix socket, -N close after sending.
 
 for s in "${XDG_CACHE_HOME:-$HOME/.cache}"/mpvSockets/*; do
 	[ -S "$s" ] || continue
