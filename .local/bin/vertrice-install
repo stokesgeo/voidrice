@@ -5,6 +5,7 @@
 #
 #	vertrice-install [-y] home		as you: fetch the dotfiles into $HOME
 #	doas vertrice-install [-y] [-r] system	as root: packages, doas, daemons
+#	doas vertrice-install [-y] pf		as root, optional: the laptop pf.conf
 #	vertrice-install check			run ~/.local/share/openbsd/check
 #
 # Without -y it only prints the plan: what is already done ("ok") and what
@@ -40,7 +41,7 @@ R=${ROOT:-/}; R=${R%/}	# "" for the real system, so "$R/etc" is /etc
 staffcaps="datasize-cur=4096M datasize-max=infinity openfiles-cur=4096 openfiles-max=8192"
 
 usage() {
-	print -u2 "usage: vertrice-install [-y] home | [-y] [-r] system | check"
+	print -u2 "usage: vertrice-install [-y] home | [-y] [-r] system | [-y] pf | check"
 	exit 2
 }
 
@@ -166,16 +167,18 @@ home() {
 	if [ -e "$gitdir/index" ]; then
 		ok "files checked out (config status shows your changes)"
 	else
-		typeset f backup list=""
+		typeset f backup list="" tmp
 		backup=$HOME/.local/share/vertrice-backup/$(date +%Y%m%d-%H%M%S)
-		g -c core.quotePath=false ls-tree -r --name-only HEAD >"${TMPDIR:-/tmp}/vertrice.$$" ||
-			{ print "  FAILED  cannot list the repo's files"; fails=$((fails + 1)); finish; }
+		# mktemp, not a name made from the pid: /tmp is shared.
+		if ! tmp=$(mktemp) || ! g -c core.quotePath=false ls-tree -r --name-only HEAD >"$tmp"; then
+			print "  FAILED  cannot list the repo's files"; fails=$((fails + 1)); finish
+		fi
 		while IFS= read -r f; do
 			if [ -e "$HOME/$f" ] || [ -L "$HOME/$f" ]; then
 				list="$list $f"	# names with spaces are not in this repo
 			fi
-		done <"${TMPDIR:-/tmp}/vertrice.$$"
-		rm -f "${TMPDIR:-/tmp}/vertrice.$$"
+		done <"$tmp"
+		rm -f "$tmp"
 		if [ -n "$list" ]; then
 			for f in $list; do note "existing ~/$f"; done
 			# shellcheck disable=SC2086
@@ -437,12 +440,59 @@ system() {
 	else
 		note "kern.audio.record=$(sysctl -n kern.audio.record 2>/dev/null) (-r turns recording on)"
 	fi
+
+	# sshd: on if "Start sshd(8) by default?" was answered yes at install.
+	# Left as it is; a laptop nobody logs in to remotely does not need it.
+	if rcctl ls on 2>/dev/null | grep -qx sshd; then
+		note "sshd is enabled. Not used? rcctl disable sshd; rcctl stop sshd"
+	fi
+	finish
+}
+
+### Optional: the laptop pf.conf, as root.
+#
+# Not part of the system stage: it changes what reaches the machine from the
+# network, so it is its own choice. The file is checked with pfctl -nf (parse
+# only, nothing loaded) before it replaces /etc/pf.conf, then loaded.
+
+newpf() {
+	typeset new=$R/etc/pf.conf.vertrice
+	install -o root -g wheel -m 0600 "$data/pf.conf" "$new" || return
+	if ! pfctl -nf "$new"; then
+		print "  pfctl -nf rejects $data/pf.conf; /etc/pf.conf unchanged"
+		rm -f "$new"; return 1
+	fi
+	keep_orig "$R/etc/pf.conf" && mv -f "$new" "$R/etc/pf.conf" &&
+		pfctl -f "$R/etc/pf.conf"
+}
+
+pf() {
+	if [ "$(id -u)" != 0 ]; then
+		print -u2 "vertrice-install: the pf stage changes /etc/pf.conf and must run as root:"
+		print -u2 "  doas $0 pf"
+		exit 1
+	fi
+	print "pf: the laptop pf.conf (read $data/pf.conf first)"
+	if same "$data/pf.conf" "$R/etc/pf.conf"; then
+		ok "/etc/pf.conf is vertrice's"
+	else
+		note "inbound: nothing, unless tcp_in is set in the file"
+		if [ $apply = 0 ]; then	# parsing loads nothing, so the plan can
+			if pfctl -nf "$data/pf.conf" >/dev/null 2>&1; then
+				ok "pfctl -nf accepts $data/pf.conf"
+			else
+				note "pfctl -nf rejects it; see: pfctl -nf $data/pf.conf"
+			fi
+		fi
+		step "install /etc/pf.conf after pfctl -nf accepts it, and load it" newpf
+	fi
 	finish
 }
 
 case $1 in
 home)	home ;;
 system)	system ;;
+pf)	pf ;;
 check)	exec "$data/check" ;;
 *)	usage ;;
 esac

@@ -88,8 +88,8 @@ The commits follow the same order.
     and OpenBSD's rc clears /tmp at boot, so a crash cannot leave a
     stale lock. State files that were in /tmp and could be abused by a
     planted symlink (OpenBSD has no protected_symlinks) moved to
-    `~/.cache`. Upstream's other /tmp downloads (linkhandler,
-    dmenuhandler, noisereduce) are unchanged.
+    `~/.cache`. linkhandler, dmenuhandler and noisereduce, which wrote
+    fixed names in /tmp, now write into a new `mktemp -d` directory.
 
 ## Keys: voidrice's dwm on cwm
 
@@ -220,7 +220,9 @@ exFAT or NTFS, so mounter tries them in turn. Every mount is
 `nosuid,nodev`, so a setuid program on a found stick cannot become root.
 The system disk (the one holding `/`), swap, and softraid chunks already
 in use (your encrypted internal disk) are never offered. Only entries dmenu
-offered are accepted. Tested end to end against mocked disklabel, mount,
+offered are accepted, in both questions, and in unmounter. The drive's
+label and a phone's name are text the device supplies: control characters
+and backslashes are removed, so they cannot add a line to the menu. Tested end to end against mocked disklabel, mount,
 bioctl and doas: plain FAT, encrypted unlock-and-mount, unmount-and-lock,
 and refusing typed input. Not yet on the machine.
 
@@ -442,9 +444,18 @@ files in `~/.local/share/openbsd` and does:
   `-r` turns it on, now and in /etc/sysctl.conf; dmenurecord records
   silence without it.
 
+- sshd: left as the OpenBSD installer set it; the stage notes when it is
+  enabled (see "Security").
+
 A daemon whose flags changed is restarted. If a step fails, the others
 still run, the failure is listed, and the exit status is nonzero; fix it
 and run again.
+
+**Optional: pf.** `doas vertrice-install pf` (the plan), then `-y pf`,
+installs `~/.local/share/openbsd/pf.conf` as /etc/pf.conf: nothing comes in
+unasked, everything may go out. It is checked with `pfctl -nf` first, the
+old file is kept as /etc/pf.conf.orig, and the new one is loaded. Read the
+file before installing it; see "Security".
 
 **3. Check.** Log in on the console and run `vertrice-install check`
 (which runs `~/.local/share/openbsd/check`), once on the console and once
@@ -494,6 +505,188 @@ OpenBSD once `config.mk` points at `/usr/X11R6` (their config.mk has
 OpenBSD lines). Luke's dwm sends status-bar clicks with sigqueue(3), so
 that patch needs replacing before his dwm builds here. dmenu comes from
 packages.
+
+## Security
+
+The rule: OpenBSD's defaults are the floor; above it, vertrice takes cheap
+changes that remove a real worry and leaves out costly ones. Sources read
+for this section: OpenBSD's etc/pf.conf, etc/examples/pf.conf,
+usr.bin/ssh/sshd_config, distrib/miniroot/install.sub, usr.bin/doas/doas.c,
+sbin/disklabel/disklabel.c and bin/pax (GitHub mirror of src). "From
+memory" marks what was not read.
+
+### What OpenBSD already gives
+
+- **Programs that limit themselves.** Base daemons and many base programs
+  call pledge(2) (which system calls they may make) and unveil(2) (which
+  paths they may see); chromium from ports does too (from memory, as a
+  general statement).
+- **Memory protections**, on by default: W^X (no memory both writable and
+  executable, except on a `wxallowed` mount such as /usr/local), address
+  randomisation, a kernel relinked at every boot, a hardened malloc (from
+  memory, as a list).
+- **Recording off.** `kern.audio.record=0`, so a program opening the
+  microphone gets silence; `kern.video.record=0` does the same for the
+  webcam (the video one from memory).
+- **Encrypted swap.** Swap pages are encrypted with keys that exist only
+  until shutdown (`vm.swapencrypt.enable=1`, from memory).
+- **The network.** The default /etc/pf.conf passes everything in and out
+  with state and blocks only remote X11 (ports 6000-6010); X does not listen
+  on TCP anyway. Nothing but sshd, if chosen at install, listens for the
+  network.
+- **sshd.** The installer asks "Start sshd(8) by default?" (default yes) and
+  then "Allow root ssh login?" (default no, written into sshd_config).
+  sshd's own defaults are good: privilege separation, no empty passwords.
+  Passwords are allowed (`PasswordAuthentication yes`).
+- **doas.** With no /etc/doas.conf, nobody may use it; there is no
+  passwordless default.
+- **Signed updates.** Install sets, packages and patches are signed with
+  signify(1) and checked before use (from memory).
+
+### What vertrice adds
+
+- One doas rule for wheel: password asked (persist, per terminal), no
+  `nopass`, no `keepenv`; root gets its own kshrc, never the user's files.
+- Drives: every mount `nosuid,nodev`; the system disk is never offered; only
+  lines the menu offered are accepted; device-supplied text (label, phone
+  name) cannot add lines.
+- hotplugd's root script writes one file and nothing else; nothing mounts
+  by itself.
+- unwind(8): DNS answers are validated (DNSSEC) where the zone signs them.
+- State and downloads out of fixed /tmp names (a shared directory where
+  a planted symlink could redirect a write).
+- xidle locks X after 10 idle minutes.
+- Optional: the laptop pf.conf (`vertrice-install pf`).
+
+**The laptop pf.conf** (`.local/share/openbsd/pf.conf`, each rule explained
+in the file). Nothing enters unless the laptop asked for it; everything may
+leave. In order: skip the loopback; `block in`, which drops silently, so a
+scan does not see the laptop; `pass out`, keeping state, so replies return;
+pass IPv6 neighbour and router messages, without which IPv6 fails; an
+optional `pass in on egress` for the ports in `tcp_in`, commented out with
+the macro, so no port is open by default, ssh included;
+`antispoof quick for lo0`, dropping forged 127.0.0.0/8 and ::1 sources.
+OpenBSD's own two rules stay: remote X11 blocked (made `quick`, so tcp_in
+can never open it) and no network for the `_pbuild` user. OpenBSD's default
+file has no antispoof or uRPF line. /etc/examples/pf.conf has uRPF
+commented out, marked "use with care"; it stays commented out here too,
+because with Wi-Fi and a wired dock both up it drops good replies. Not
+checked with pfctl off the machine; the installer runs `pfctl -nf` before
+it installs anything.
+
+**sshd on the laptop: off unless you log in to it remotely.**
+`rcctl disable sshd; rcctl stop sshd`. The system stage prints a note when
+it is enabled and changes nothing. If you use it, OpenBSD's sshd_config
+needs two lines, added above any Match block (OpenBSD's file has none
+active). sshd takes the first value it reads, so delete an earlier
+uncommented line for the same keyword:
+
+    PermitRootLogin no              # log in as yourself, then doas
+    AuthenticationMethods publickey # keys only; passwords are refused
+
+Put your key in `~/.ssh/authorized_keys` first, check with `sshd -t`, then
+`rcctl reload sshd`, and set `tcp_in = "{ ssh }"` in pf.conf.
+
+### Full-disk encryption on the X220
+
+For the rebuild. The whole OpenBSD disk goes inside a softraid(4) CRYPTO
+volume: /, swap, /home and the kernel. Only the boot blocks stay plain.
+boot(8) asks for the passphrase, unlocks the volume and loads the kernel
+from it (from memory).
+
+- **At install.** Recent installers ask whether to encrypt the root disk,
+  with a passphrase or a keydisk (from memory: added around 7.5; say yes).
+  By hand, from the installer's (S)hell (the OpenBSD FAQ's steps, from
+  memory):
+
+      cd /dev && sh MAKEDEV sd0
+      fdisk -iy sd0                     # MBR: boots from SeaBIOS
+      disklabel -E sd0                  # one partition a, fstype RAID, whole disk
+      bioctl -c C -l sd0a softraid0     # asks the passphrase; prints the new disk, e.g. sd1
+      cd /dev && sh MAKEDEV sd1
+      dd if=/dev/zero of=/dev/rsd1c bs=1m count=1
+      exit                              # then install onto sd1
+
+- **Libreboot.** The SeaBIOS payload boots OpenBSD's MBR boot blocks,
+  which then ask for the passphrase. GRUB cannot open softraid; with the
+  GRUB payload, chain to SeaBIOS (from memory).
+- **Keydisk instead of a passphrase.** `bioctl -c C -k sd2a -l sd0a
+  softraid0`, where sd2a is a small RAID partition on a USB stick: the
+  machine boots only with the stick in. Losing the stick loses the data:
+  keep a copy of that partition (dd it to a second stick). It is one or the
+  other, passphrase or keydisk (from memory). For one person carrying a
+  laptop, the passphrase costs less.
+- **Change the passphrase:** `bioctl -P sd1`.
+- **Suspend (zzz, the lid).** RAM stays powered and holds the disk key. The
+  encryption protects nothing while the laptop sleeps; the screen lock is
+  the only barrier, and closing the lid does not lock the screen yet
+  (proposed below).
+- **Hibernate (ZZZ).** RAM is written to the swap partition and the power
+  goes off. Swap is inside the CRYPTO volume, so the image is encrypted
+  with the disk key; at power-on boot(8) asks for the passphrase and
+  resumes (from memory, including that hibernating to a softraid CRYPTO
+  disk is supported). The per-boot keys of encrypted swap cannot survive
+  power-off, so they do not cover the image: without full-disk encryption,
+  a hibernated laptop has its RAM (open files, ssh-agent keys) in plain
+  text on disk (from memory). Swap must be at least the size of RAM.
+- **In practice:** zzz at home; ZZZ or power off when the laptop leaves
+  your hands (travel, a bag). That is the state in which a stolen laptop
+  is only ciphertext.
+
+### Updates: snapshots now, 8.0 later
+
+- **Snapshots (-current), until 8.0 ships.** `sysupgrade -s` moves base to
+  the newest snapshot and reboots; then `pkg_add -u` updates the
+  packages, which must come from the snapshot package tree. There is no
+  syspatch on -current: a fix arrives in the next snapshot. `fw_update`
+  runs as part of the upgrade (from memory).
+- **8.0 release.** `syspatch` installs base errata (security and
+  reliability fixes, signed); `pkg_add -u` updates packages from the
+  release's -stable package branch, which gets security fixes (from
+  memory: pkg_add looks there by itself on a release). `sysupgrade`
+  without `-s` moves to the next release when it is out.
+- **Moving from snapshots to 8.0:** a snapshot newer than 8.0 is 8.0-current
+  on its way to 8.1, so there is no step back to the release without a
+  reinstall or an upgrade from the 8.0 sets (from memory: sysupgrade does not
+  go backwards).
+
+### Left out, on purpose
+
+- **Filtering outbound traffic.** Every new program would need a rule;
+  it stops little that a program running as you could not do another way.
+- **pf on by default in the system stage.** With sshd off, nothing listens
+  for the network, so the default pf.conf already exposes nothing; the
+  laptop file is for the day something does listen. It is its own
+  explicit stage.
+- **sysctl and kernel hardening beyond OpenBSD's defaults**, securelevel 2,
+  USB device allow-lists: high cost (breaks X, updates or plugging in),
+  little worry removed on a one-person laptop.
+- **A random MAC address** (`lladdr random` in hostname.iwn0, from memory):
+  it is privacy, not security, and a café's login page would ask again
+  after every boot. One line to add if wanted.
+- **Integrity scanners and antivirus.** OpenBSD's nightly security(8) run
+  already reports setuid changes and file-system changes (from memory).
+
+### Review findings not fixed (proposals)
+
+- **Lock before sleeping.** Closing the lid suspends with X unlocked. A
+  root-owned `/etc/apm/suspend` (and `/etc/apm/hibernate`) running
+  `pkill -USR1 xidle`, if xidle starts its locker on SIGUSR1 (from memory),
+  would lock first, and root would only send a signal, not reach into the
+  session. The highest worry removed per line in this review; not built
+  because the signal is not verified.
+- **ext overwrites files.** OpenBSD tar has no `-k` (checked: bin/pax
+  tar_options), so `ext` in `$HOME` can overwrite a file of the same name
+  (`.profile` in a tarball). Escaping the directory is not possible: tar
+  strips leading `/` and `..` and defers symlinks that point outside
+  (checked in bin/pax); unzip and 7z strip them too (from memory).
+  Proposed: extract into a new directory named after the archive.
+- **mpd's fifo is /tmp/mpd.fifo.** A fixed name in /tmp; low risk (only
+  local users could plant it). Move it to `~/.cache` with ncmpcpp's
+  visualizer path.
+- **The system stage installs files from your home as root.** Accepted:
+  anything running as you that could change those files could as well
+  change your kshrc and wait for your next doas password.
 
 ## Not ported, or not tested
 

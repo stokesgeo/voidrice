@@ -8,15 +8,23 @@
 
 url="${1:-$(xclip -o)}"
 
-tmpfile="/tmp/$(echo "$url" | sed "s/.*\///;s/%20/ /g")"
+# fetch: download $url into a new private directory, as $tmpfile. A fixed
+# name in /tmp, chosen by the URL, could be a planted symlink. The file keeps
+# its name, so the viewer sees its extension. /tmp is cleared at boot.
+fetch() {
+	d=$(mktemp -d) || return
+	name=$(echo "$url" | sed "s/.*\///;s/%20/ /g")
+	tmpfile="$d/${name:-download}"
+	curl -sL -o "$tmpfile" "$url"
+}
 
 case "$url" in
 	*mkv|*webm|*mp4|*youtube.com/watch*|*youtube.com/playlist*|*youtube.com/shorts*|*youtu.be*|*hooktube.com*|*bitchute.com*|*videos.lukesmith.xyz*|*odysee.com*)
 		detach mpv -quiet "$url" >/dev/null 2>&1 ;;
 	*png|*jpg|*jpe|*jpeg|*gif|*webp)
-		curl -sL -o "$tmpfile" "$url" && nsxiv -a "$tmpfile" >/dev/null 2>&1 & ;;
+		fetch && nsxiv -a "$tmpfile" >/dev/null 2>&1 & ;;
 	*pdf|*cbz|*cbr)
-		curl -sL -o "$tmpfile" "$url" && zathura "$tmpfile" >/dev/null 2>&1 & ;;
+		fetch && zathura "$tmpfile" >/dev/null 2>&1 & ;;
 	*mp3|*flac|*opus|*mp3?source*)
 		qndl "$url" "curl -LO" >/dev/null 2>&1 ;;
 	*)
