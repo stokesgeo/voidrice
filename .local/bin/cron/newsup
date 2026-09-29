@@ -1,12 +1,14 @@
 #!/bin/sh
 
 # Set as a cron job to check for new RSS entries for newsboat.
-# If newsboat is open, sends it an "R" key to refresh.
+# If newsboat is open, it reloads by itself (auto-reload in its config), so
+# this leaves it alone. A key sent with xdotool does not reach an unfocused
+# xterm: xterm drops synthetic key events (allowSendEvents).
 # The cron line reads the profile and session-env first: see README.md.
 
-notify-send "📰 Updating RSS feeds..."
+pgrep -f newsboat$ >/dev/null && exit
 
-pgrep -f newsboat$ >/dev/null && xdotool key --window "$(xdotool search --name "^newsboat$")" R && exit
+notify-send "📰 Updating RSS feeds..."
 
 # The status bar shows the icon in newsupdate while the reload runs.
 echo 🔃 > "${XDG_CACHE_HOME:-$HOME/.cache}"/newsupdate

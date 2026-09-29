@@ -1,5 +1,34 @@
 # The download queue: qndl on nq (mock/nq runs the job at once),
-# queueandnotify, newsboat's a macro, sb-tasks.
+# queueandnotify, newsboat's a macro, sb-tasks; newsup, the cron reload.
+
+# newsup: stand-ins for newsboat (logs its arguments) and for pgrep, which
+# finds a running newsboat when $T/nb-open exists.
+nu_setup() {
+	printf '#!/bin/sh\necho "newsboat $*" >>"$VT_STATE/log"\n' >"$T/bin/newsboat"
+	printf '#!/bin/sh\necho "pgrep $*" >>"$VT_STATE/log"; [ -e "$T/nb-open" ]\n' >"$T/bin/pgrep"
+	chmod +x "$T/bin/newsboat" "$T/bin/pgrep"
+}
+# An open newsboat in xterm got an xdotool "R", which xterm drops when the
+# window is not focused (allowSendEvents is false by default), while
+# xdotool still exits 0: no reload happened. Now newsup leaves an open
+# newsboat to its own auto-reload.
+t_newsup_open() {
+	nu_setup; : >"$T/nb-open"
+	"$VT_SH" "$REPO/.local/bin/cron/newsup"
+	notlogged '^xdotool'
+	notlogged '^newsboat'
+	notlogged '^notify-send'
+	grep -qx 'auto-reload yes' "$REPO/.config/newsboat/config" ||
+		fail "an open newsboat reloads only with auto-reload yes"
+}
+t_newsup_closed() {
+	nu_setup
+	"$VT_SH" "$REPO/.local/bin/cron/newsup"
+	logged '^newsboat -x reload$'
+	logged '^notify-send .*RSS feed update complete\.$'
+	[ -e "$XDG_CACHE_HOME/newsupdate" ] && fail "left the newsupdate icon"
+	return 0
+}
 
 # yt-dlp stand-in: logs each argument in brackets, to show the word split.
 fx_ytdlp() {
