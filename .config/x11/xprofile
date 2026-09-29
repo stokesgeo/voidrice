@@ -7,7 +7,7 @@ xrandr --dpi 96		# Set DPI. User may want to use a larger number for larger scre
 setbg &			# set the background with the `setbg` script
 xrdb ${XDG_CONFIG_HOME:-$HOME/.config}/x11/xresources & xrdbpid=$!	# xterm's font and colours
 
-autostart="mpd xcompmgr dunst unclutter"	# sound is sndiod, started by rc(8)
+autostart="mpd dunst unclutter"	# sound is sndiod, started by rc(8); no compositor, no transparency
 
 for program in $autostart; do
 	pgrep -x "$program" >/dev/null || "$program" &

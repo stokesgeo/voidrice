@@ -87,7 +87,9 @@ The commits follow the same order.
    `gap`, `ignore` and `autogroup 0` lines keep it clear of maximized and
    tiled windows, frameless, and on every group (cwmrc(5)). It starts ssh-agent only if none is running (xenodm may
    have started one). xprofile now loads xresources, where xterm gets
-   voidrice's font and Alt-as-Meta.
+   voidrice's font and Alt-as-Meta. It starts no compositor: xterm has no
+   transparency, so xcompmgr (in base xenocara) only cost work. st's
+   `alpha` needs one; run xcompmgr by hand for it.
 6. **Sound.** sndiod(8) is the base sound server, started by rc(8).
    mpd outputs to sndio, volume goes through sndioctl(1), recording
    through ffmpeg's sndio input.

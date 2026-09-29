@@ -185,6 +185,22 @@ t_aliasrc_flags() {
 	return 0
 }
 
+# xprofile's autostart loop, run alone on the mocks: each program starts
+# once, and no compositor (xterm has no transparency to show).
+t_xprofile_autostart() {
+	sed -n '/^autostart=/,/^done/p' "$REPO/.config/x11/xprofile" >"$T/block"
+	grep -q '^done' "$T/block" || fail "no autostart loop in xprofile"
+	for p in mpd dunst unclutter xcompmgr picom; do
+		printf '#!/bin/sh\necho "%s $*" >>"$VT_STATE/log"\n' "$p" >"$T/bin/$p"
+	done
+	chmod +x "$T/bin/"*
+	printf '#!/bin/sh\nexit 1\n' >"$T/bin/pgrep"; chmod +x "$T/bin/pgrep"
+	"$VT_SH" "$T/block"; wait
+	waitfor 2 grep -q '^unclutter' "$VT_STATE/log" || fail "autostart ran nothing"
+	logged '^mpd'; logged '^dunst'
+	notlogged '^(xcompmgr|picom)'
+}
+
 # xinitrc's session-env block, run alone (the rest starts X programs):
 # the file it writes is private and gives a cron job the bus and display.
 t_xinitrc_session_env() {
