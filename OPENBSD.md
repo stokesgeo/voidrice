@@ -123,6 +123,7 @@ against cwm's source, and `cwm -n` accepts the file.
 | minus / equal / Shift+m | volume / mute (wpctl) | sndioctl |
 | BackSpace, Shift+q | sysact | sysact |
 | F1 / F5 | LARBS guide / reload xresources | `keys`: this key list in dmenu, read from cwmrc / `restart` (rereads cwmrc) |
+| Shift+F2 | (free) | `writemode`: full-screen writing terminal (see "Writing") |
 | Print, Shift+Print, Super+Print, Delete | screenshots, recording | same |
 
 Mouse: Super+drag moves, Super+right-drag resizes. cwm's Alt mouse
@@ -159,6 +160,111 @@ neither reads the other's:
   `EDITOR=vi`. Edit root-owned files with `doas vi file`. The nvim `:w!!`
   trick is removed: nvim gives doas no terminal to ask on, so it needed a
   passwordless rule.
+
+## Writing
+
+The X220 as a plain-text writing machine. The owner's rule for this part:
+"Unixisms like writers work bench and similar are fine to install, but we
+want to conform to OpenBSD base where possible, and believe in that
+workflow approach." So each check is a small command that reads a file and
+prints what it found, as `FILE:LINE: text`, and the checks compose.
+
+- **The writing directory** is `$WRITING_DIR`, set in the profile to
+  `~/writing`. Files there are `.md` or `.txt`.
+- **Super+Shift+F2** runs `writemode`: an xterm named "write", full screen
+  (xterm's `-fullscreen`; cwm honours it when it maps the window), in the
+  writing directory, with nvim in Goyo on the file you changed last (or
+  on the file named: `writemode FILE`). With no writing file yet it opens
+  the directory. Without nvim it opens base vi. Checked under Xvfb with cwm
+  built from source and xterm 390: the window maps at full screen, named
+  "write". Not yet on the machine.
+- **nvim prose settings.** For `.md` and `.txt` under the writing
+  directory, init.vim sets `wrap linebreak nonumber norelativenumber
+  textwidth=0 nospell`: a paragraph is one line, wrapped at word ends on
+  screen, and nvim inserts no line breaks. `,f` toggles Goyo, `,o` spelling.
+  Checked with nvim 0.11: the settings apply there and nowhere else.
+- **`sb-words`**: the word count (wc -w) of the writing file changed last,
+  as `📝1234`. It is in sbar's list, so Super+b shows it under cwm. wc
+  counts Markdown marks such as `#` as words.
+- **`proof [FILE]`** runs the checks below on FILE, or on the writing file
+  changed last, one after another, in `$PAGER`. From vi or nvim:
+  `:!proof %`.
+
+### The checks
+
+- **`spellcheck [-b] FILE`**: base spell(1), with each flagged word shown
+  in its line (`chapter1.md:12: She [recieved] the letter.`). `-b` is
+  British spelling. `spellcheck -a WORD ...` adds names and coinages to
+  your own list, `~/.local/share/spell/words`.
+- **`dupwords FILE`**: doubled words ("the the"), also across line ends,
+  which spell cannot see. A few lines of awk.
+- **`diction -s FILE`** (wordy and misused phrases, with a suggestion) and
+  **`style FILE`** (readability grades, sentence lengths, passive
+  sentences) come from the diction package. The Unix Writer's Workbench
+  from Bell Labs had both; GNU diction is a free reimplementation of the
+  two. They are text filters in exactly the base-tool pattern, and base
+  has nothing like them, so the package is argued in: it is in `pkglist`
+  (textproc/diction; flags checked against diction 1.14, the port is
+  1.11). style's passive-voice count is crude: in a three-sentence test
+  it counted all three as passive, where one was.
+
+### Spelling: base spell, and why no aspell or hunspell
+
+What base has, read from OpenBSD's source (usr.bin/spell, share/dict):
+`spell` is a ksh script. It runs deroff(1) to split the text into words,
+then `/usr/libexec/spellprog` looks each word up, stripping common
+prefixes and suffixes, in `/usr/share/dict/words`. That list is
+Webster's Second International (1934), 234,936 words, with `american`,
+`british` and a `stop` list of false derivations beside it. It prints the
+words it cannot find, one per line, sorted, with no place and no
+suggestion. It is not interactive. `+list` adds a word list of your own.
+
+What it does to fiction, tested by building spellprog and deroff from
+that source and running them with the real word lists:
+
+- Contractions: `can't`, `won't`, `isn't`, `I'm`, `I've`, `she'd`, and
+  capitalised `Don't`, are all flagged (the list has no apostrophes).
+  Dialogue would drown in them, so spellcheck always adds
+  `~/.local/share/spell/contractions`, 63 of them.
+- Modern words: `email` and `okay` are flagged. `spellcheck -a` fixes
+  each once.
+- Word lists must be sorted with `sort -f`. spell(1) says `sort -df`, but
+  spellprog's lookup folds case and nothing else, and `-d` sorts `I've`
+  where the lookup never finds it. `spellcheck -a` sorts with `-f`.
+- deroff takes ASCII letters and apostrophes only: `café` is checked as
+  `caf`. spellcheck turns a curly apostrophe into a straight one first,
+  so `don’t` stays one word.
+
+For spelling while typing, nvim needs nothing more: the neovim package
+ships its English list, `en.utf-8.spl` (in the port's packing list,
+ports -current). Nothing is downloaded. Checked with nvim 0.11's own
+list: it flags `recieved`, knows `email`, and marks `colour` as a
+regional spelling. `,o` turns it on with `spelllang=en_us`; for British,
+`:setlocal spell spelllang=en_gb`.
+
+So base spell does the batch check over a finished file, and nvim's list
+does the interactive one. aspell or hunspell would add a third dictionary
+system for a job already covered twice. They stay out.
+
+### Writing in base vi
+
+vi (nvi) has no soft wrap at word ends: a long line folds at the screen
+edge, mid-word. For prose in vi, break lines as you type:
+
+    :set wraplen=72 noautoindent
+
+`wraplen` breaks the line at a word end once it passes column 72;
+`noautoindent` stops a new line from copying the last one's indent (the
+exrc turns autoindent on, for code). `!}fmt -w 72` rewraps the paragraph
+under the cursor with base fmt(1). `:!spellcheck %` and `:!proof %` run
+the checks on the file. The option names were checked in nvi's source and
+accepted by nvi 1.81. A file written this way has line breaks inside
+paragraphs; Markdown joins them, and nvim shows them as they are.
+
+vi counts bytes, not characters: from its source (key.c), a byte that is
+not printable in its character set shows as an escape such as `\xe2`.
+So curly quotes and dashes typed in nvim show as escapes in vi (not yet
+seen on the machine).
 
 ## Root and doas
 

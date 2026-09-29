@@ -1,0 +1,25 @@
+#!/bin/sh
+
+# dupwords: doubled words ("the the"), the typo spell cannot see because
+# each word alone is spelt right. It looks across line ends too, where the
+# eye misses them most. Case is ignored ("The the"). A word that closes on
+# punctuation, or one that opens on a quote, starts afresh, so "Go. Go."
+# is not flagged. "had had" and "that that" are flagged: you decide.
+#	dupwords FILE ...	prints FILE:LINE: word word
+# Exit: 0 none found, 1 found.
+
+LC_ALL=C exec awk '
+FNR == 1 { prev = "" }
+{
+	for (i = 1; i <= NF; i++) {
+		w = $i
+		open = sub(/^[^A-Za-z]+/, "", w)
+		shut = sub(/[^A-Za-z]+$/, "", w)
+		if (w != "" && !open && tolower(w) == prev) {
+			printf "%s:%d: %s %s\n", FILENAME, FNR, pw, w
+			found = 1
+		}
+		prev = shut ? "" : tolower(w); pw = w
+	}
+}
+END { exit found }' "$@"

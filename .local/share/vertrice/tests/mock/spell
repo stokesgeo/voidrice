@@ -1,0 +1,19 @@
+#!/bin/sh
+
+# Mock spell(1): prints each word read on stdin (one per line, as
+# spellcheck sends them) that is in neither $VT_STATE/dict nor a +list
+# given, ignoring case, sorted. Logs its arguments. Known from spell.ksh
+# and spellprog.c (OpenBSD src): words in, unknown words out, the +lists
+# added to the word list, case folded in the lookup, exit status 0 always.
+# Not modelled: derivations (walked from walk), the stop list, deroff.
+
+echo "spell $*" >>"$VT_STATE/log"
+lists=
+[ -f "$VT_STATE/dict" ] && lists=$VT_STATE/dict
+for a; do
+	case $a in +*) [ -f "${a#+}" ] && lists="$lists ${a#+}" ;; esac
+done
+# shellcheck disable=SC2086
+awk 'FILENAME != "-" { known[tolower($0)] = 1; next }
+	!(tolower($0) in known)' $lists - | sort -u
+exit 0

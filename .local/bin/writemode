@@ -1,0 +1,29 @@
+#!/bin/sh
+
+# writemode: a quiet, full-screen terminal for writing (Super+Shift+F2).
+#	writemode [FILE]
+# Opens FILE, or else picks up where you left off: the writing file changed
+# last (see proof). With no writing file yet, it opens the writing directory
+# ($WRITING_DIR, default ~/writing, made if missing). The shell inside
+# starts in that directory.
+#
+# nvim opens the file in Goyo (text centred, nothing else on screen). With
+# no nvim, base vi. The window is named "write" (instance and title), which
+# is what a cwmrc autogroup line would match. xterm asks for full screen
+# itself (-fullscreen; cwm honours it when it maps the window). st has no
+# such option: press Super+f.
+
+dir=${WRITING_DIR:-$HOME/writing}
+mkdir -p "$dir" && cd "$dir" || exit 1
+f=${1:-$(proof -l)}
+
+if command -v nvim >/dev/null 2>&1; then
+	if [ -n "$f" ]; then set -- nvim -c 'silent! Goyo' "$f"; else set -- nvim .; fi
+else
+	set -- vi ${f:+"$f"}
+fi
+
+case $TERMINAL in
+	st) exec st -n write -t write -e "$@" ;;
+	*) exec "$TERMINAL" -name write -title write -fullscreen -e "$@" ;;
+esac
