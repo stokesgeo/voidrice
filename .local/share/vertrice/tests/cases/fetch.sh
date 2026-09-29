@@ -60,6 +60,8 @@ t_fetch_sb_iplocate() {
 	echo 1 >"$VT_STATE/rc.ftp"
 	eq "no address: nothing" "" "$(sb-iplocate)"
 	rm "$VT_STATE/rc.ftp"; echo 192.0.2.1 | fx out.ftp
+	# The address first: the fetcher may not have made its lock yet.
+	waitfor 5 test -s "$ipfile" || fail "no address fetched"
 	waitfor 5 test ! -d "$lock" || fail "the fetch never ended"
 	eq "address kept" 192.0.2.1 "$(cat "$ipfile")"
 	eq "block" "🇳🇱 Netherlands" "$(sb-iplocate)"
