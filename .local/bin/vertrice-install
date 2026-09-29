@@ -271,6 +271,10 @@ hotplugput() {
 	install -d -o root -g wheel -m 0755 "$R/etc/hotplug" &&
 		put "$data/hotplug-attach" "$R/etc/hotplug/attach" 0755
 }
+apmput() {	# apmput name: install apm-suspend as /etc/apm/name
+	install -d -o root -g wheel -m 0755 "$R/etc/apm" &&
+		put "$data/apm-suspend" "$R/etc/apm/$1" 0755
+}
 newdoas() {	# install doas.conf only if doas -C accepts it; never leave none
 	typeset new=$R/etc/doas.conf.vertrice
 	install -o root -g wheel -m 0640 "$data/doas.conf" "$new" || return
@@ -408,6 +412,15 @@ system() {
 		step "install /etc/hotplug/attach" hotplugput
 	fi
 
+	# Lock X before sleeping: apmd runs these before suspend and hibernate.
+	for p in suspend hibernate; do
+		if same "$data/apm-suspend" "$R/etc/apm/$p"; then
+			ok "/etc/apm/$p locks X first"
+		else
+			step "install /etc/apm/$p (lock X before sleeping)" apmput "$p"
+		fi
+	done
+
 	# Browser memory: the staff class and its limits.
 	class=$(awk -F: -v u="$user" '$1 == u { print $5 }' "$R/etc/master.passwd")
 	if [ "$class" = staff ]; then
@@ -431,14 +444,17 @@ system() {
 	daemon messagebus
 	daemon unwind	# resolvd then points resolv.conf at it
 
-	# Console: Caps Lock is Escape. wsconsctl.conf is read at boot.
-	p='keyboard.map+="keysym Caps_Lock = Escape"'
-	if grep -qxF "$p" "$R/etc/wsconsctl.conf" 2>/dev/null; then
-		ok "caps-to-escape in /etc/wsconsctl.conf"
-	else
-		step "add caps-to-escape to /etc/wsconsctl.conf (next boot)" \
-			rewrite "$R/etc/wsconsctl.conf" addline "$p"
-	fi
+	# Console: Caps Lock is Escape, and X's key repeat (300 ms, then 50
+	# a second). wsconsctl.conf is read at boot.
+	for p in 'keyboard.map+="keysym Caps_Lock = Escape"' \
+	    keyboard.repeat.del1=300 keyboard.repeat.deln=20; do
+		if grep -qxF "$p" "$R/etc/wsconsctl.conf" 2>/dev/null; then
+			ok "$p in /etc/wsconsctl.conf"
+		else
+			step "add $p to /etc/wsconsctl.conf (next boot)" \
+				rewrite "$R/etc/wsconsctl.conf" addline "$p"
+		fi
+	done
 
 	# Battery charge limit, where the machine's driver offers one.
 	if sysctl -n hw.battery.chargestop >/dev/null 2>&1; then

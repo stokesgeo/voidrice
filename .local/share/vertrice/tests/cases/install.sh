@@ -79,3 +79,28 @@ t_install_pf_sample() {
 	grep -qx 'block return in quick on ! lo0 proto tcp to port 6000:6010' "$sample" ||
 		fail "the default X11 block is gone"
 }
+
+# /etc/apm/suspend: a fake xidle in $T records the signal it gets. SIGUSR1
+# is what makes the real one start xlock; anything else would kill it.
+t_apm_suspend_locks() {
+	cat >"$T/xidle" <<'EOF'
+#!/bin/sh
+trap 'echo USR1 >"$0.got"; exit 0' USR1
+trap 'echo TERM >"$0.got"; exit 0' TERM
+while :; do sleep 0.1; done
+EOF
+	chmod +x "$T/xidle"
+	"$T/xidle" &
+	track $!
+	waitfor 2 "$VT_REAL_PGREP" -x xidle || fail "fake xidle never started"
+	VT_SLEEP=0 sh "$REPO/.local/share/openbsd/apm-suspend" || fail "exit status not 0"
+	logged '^pkill -USR1 -x xidle$'
+	waitfor 2 test -e "$T/xidle.got" || fail "xidle got no signal"
+	eq "signal xidle got" USR1 "$(cat "$T/xidle.got")"
+}
+
+t_apm_suspend_no_x() {
+	# No X session: nothing to lock, and suspend must still go ahead.
+	sh "$REPO/.local/share/openbsd/apm-suspend" || fail "exit status not 0 without xidle"
+	logged '^pkill -USR1 -x xidle$'
+}

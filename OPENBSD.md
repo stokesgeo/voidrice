@@ -494,9 +494,13 @@ src). "From memory" marks what was not read.
   battery block uses it). xbacklight is in base X as a fallback; whether
   the X220's inteldrm gives X a backlight property is not checked.
 - **Lid.** `machdep.lidaction`: 1 suspends (the default), 2 hibernates,
-  0 does nothing. The X220 needs no setting. Closing the lid does not lock
-  the screen; `/etc/apm/suspend`, which apmd runs before sleeping, is the
-  place for that (not done; from memory).
+  0 does nothing. The X220 needs no setting. The system stage installs
+  `.local/share/openbsd/apm-suspend` as `/etc/apm/suspend` and
+  `/etc/apm/hibernate`: apmd runs them as root before sleeping, and they
+  send xidle SIGUSR1, which makes it start xlock (checked in xidle's
+  source). Root sends a signal and nothing more. Whether a lid close
+  reaches apmd's hook, and not only zzz and Fn+F4, is for a lid test on
+  the machine: close it, open it, and the screen should be locked.
 - **Battery, for the installer.** apmd `-z percent` suspends when on
   battery and the charge falls below that percentage; `-Z percent`
   hibernates instead (needs swap at least the size of RAM; from memory).
@@ -509,7 +513,8 @@ src). "From memory" marks what was not read.
   before the first repeat, ms) and `keyboard.repeat.deln=20` (between
   repeats, ms; about X's rate of 50). Blanking: `display.screen_off` is the
   delay in ms before an idle console goes dark (default 10 minutes, from
-  memory). Font: Spleen is the kernel's own console font, 8x16 to 32x64 all
+  memory). The system stage writes both repeat lines, with Caps Lock as
+  Escape, to `/etc/wsconsctl.conf`. Font: Spleen is the kernel's own console font, 8x16 to 32x64 all
   built in on amd64; on the X220's 1366 px screen the kernel picks the
   12 px wide one. `wsconsctl display.font="Spleen 8x16"` gives a denser
   console (from memory that it takes the font's full name). wsfontload(8) is
@@ -1092,8 +1097,8 @@ from it (from memory).
 - **Change the passphrase:** `bioctl -P sd1`.
 - **Suspend (zzz, the lid).** RAM stays powered and holds the disk key. The
   encryption protects nothing while the laptop sleeps; the screen lock is
-  the only barrier, and closing the lid does not lock the screen yet
-  (proposed below).
+  the only barrier, so `/etc/apm/suspend` locks X before the machine
+  sleeps (see Lid, under X220).
 - **Hibernate (ZZZ).** RAM is written to the swap partition and the power
   goes off. Swap is inside the CRYPTO volume, so the image is encrypted
   with the disk key; at power-on boot(8) asks for the passphrase and
@@ -1142,12 +1147,6 @@ from it (from memory).
 
 ### Review findings not fixed (proposals)
 
-- **Lock before sleeping.** Closing the lid suspends with X unlocked. A
-  root-owned `/etc/apm/suspend` (and `/etc/apm/hibernate`) running
-  `pkill -USR1 xidle`, if xidle starts its locker on SIGUSR1 (from memory),
-  would lock first, and root would only send a signal, not reach into the
-  session. The highest worry removed per line in this review; not built
-  because the signal is not verified.
 - **ext overwrites files.** OpenBSD tar has no `-k` (checked: bin/pax
   tar_options), so `ext` in `$HOME` can overwrite a file of the same name
   (`.profile` in a tarball). Escaping the directory is not possible: tar
@@ -1182,8 +1181,10 @@ from it (from memory).
 - otp writes the scanned QR image to /tmp, which is on disk on OpenBSD
   (Linux used a RAM-backed runtime directory). `rm -P` overwrites the
   file, but on an SSD wear levelling can keep the old blocks.
-- xidle may also lock when the pointer rests in a screen corner (from memory
-  of its defaults). If that happens, its corner flags in xidle(1) turn it off.
+- xidle also locks when the pointer rests in a screen corner: always on,
+  northwest by default (read in xidle's source). Pushing the pointer into
+  the top-left corner locks the screen; `-no` on the xprofile line turns
+  that off.
 
 ## Open
 

@@ -65,6 +65,7 @@ try "ntpd is running (otp time)" pgrep -x ntpd
 try "hotplugd is running (USB notices)" pgrep -x hotplugd
 try "/etc/hotplug/attach is installed" test -x /etc/hotplug/attach
 try "xidle is installed (idle lock)" command -v xidle
+try "/etc/apm/suspend locks X first" eval 'grep -q "pkill -USR1 -x xidle" /etc/apm/suspend'
 try "openrsync is installed (rsync alias)" command -v openrsync
 try "xlock is installed (sysact lock)" command -v xlock
 try "cwm accepts ~/.config/cwm/cwmrc" cwm -n -c "${XDG_CONFIG_HOME:-$HOME/.config}/cwm/cwmrc"

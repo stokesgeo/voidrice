@@ -32,7 +32,9 @@ X session and window manager
   `sb-show` (Super+b) shows the status line as a notification.
 - xinitrc also serves xenodm (`~/.xsession`), starts the D-Bus session
   bus first, and starts ssh-agent only when none runs.
-- Idle lock with xidle and xlock from base. slock is gone.
+- Idle lock with xidle and xlock from base. slock is gone. The system
+  stage installs `/etc/apm/suspend` and `/etc/apm/hibernate`, which send
+  xidle SIGUSR1 so X is locked before the machine sleeps.
 - `nightlight` (Super+F4) warms the screen with sct.
 
 Sound

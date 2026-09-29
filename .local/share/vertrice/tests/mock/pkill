@@ -3,12 +3,16 @@
 # pkill(1) guard: logs the call, then signals only matching processes whose
 # command line names this case's scratch directory ($T). The real pkill
 # would also hit the same program in your running session (hotplug-watch
-# kills old watchers by pattern).
+# kills old watchers by pattern). A leading -SIGNAL is passed to kill; the
+# exit status is pkill's: 1 when nothing was signalled.
 
 echo "pkill $*" >>"$VT_STATE/log"
+sig=TERM
+case $1 in -HUP|-INT|-KILL|-TERM|-USR1|-USR2|-[0-9]*) sig=${1#-}; shift ;; esac
+st=1
 for pid in $("$VT_REAL_PGREP" "$@"); do
 	case $("$VT_REAL_PS" -o command= -p "$pid" 2>/dev/null) in
-	*"$T/"*) kill "$pid" ;;
+	*"$T/"*) kill -s "$sig" "$pid" && st=0 ;;
 	esac
 done
-exit 0
+exit $st
