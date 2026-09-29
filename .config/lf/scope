@@ -5,13 +5,33 @@
 set -C -f
 IFS="$(printf '%b_' '\n')"; IFS="${IFS%_}"
 
+# lf calls the previewer with: file, width, height, x, y (in cells).
 image() {
 	if [ -f "$1" ] && [ -n "$DISPLAY" ] && [ -z "$WAYLAND_DISPLAY" ] && command -V ueberzug >/dev/null 2>&1; then
 		printf '{"action": "add", "identifier": "PREVIEW", "x": "%s", "y": "%s", "width": "%s", "height": "%s", "scaler": "contain", "path": "%s"}\n' "$4" "$5" "$(($2-1))" "$(($3-1))" "$1" > "$FIFO_UEBERZUG"
-	else
+	elif command -v mediainfo >/dev/null 2>&1; then
 		mediainfo "$6"
+	else
+		# ueberzug is not packaged for OpenBSD and mediainfo is in no
+		# list: say so rather than leave the pane blank.
+		printf '%s\n\n%s\n' "${6##*/}" "(no image preview installed)"
 	fi
 }
+
+# Archives: listed with the tool ext uses for the same name, so previews
+# and extraction agree. tar, gzip and compress are base; bzip2, xz, zstd
+# and unzip are in pkglist, 7z in pkglist.extra. (atool, upstream's lister,
+# has no OpenBSD port.)
+case $1 in
+	*.tar.gz|*.tgz)		tar tzf "$1"; exit 1 ;;
+	*.tar.Z|*.taz)		tar tZf "$1"; exit 1 ;;
+	*.tar.bz2|*.tbz2|*.tbz)	bzip2 -dc -- "$1" | tar tf -; exit 1 ;;
+	*.tar.xz|*.txz)		xz -dc -- "$1" | tar tf -; exit 1 ;;
+	*.tar.zst|*.tzst)	zstd -dcq -- "$1" | tar tf -; exit 1 ;;
+	*.tar)			tar tf "$1"; exit 1 ;;
+	*.zip|*.jar)		unzip -l "$1"; exit 1 ;;	# lf gives full paths:
+	*.7z|*.rar|*.iso)	7z l "$1"; exit 1 ;;	# never a leading "-"
+esac
 
 # Note that the cache file name is a function of file information, meaning if
 # an image appears in multiple places across the machine, it will not have to
@@ -34,13 +54,15 @@ case "$(file -biL -- "$1" | cut -d';' -f1)" in
 		[ ! -f "$CACHE.jpg" ] && magick "$1[0]" "$CACHE.jpg"
 		image "$CACHE.jpg" "$2" "$3" "$4" "$5" "$1" ;;
 	image/*) image "$1" "$2" "$3" "$4" "$5" "$1" ;;
-	text/html) lynx -width="$4" -display_charset=utf-8 -dump "$1" ;;
+	# $2 is the width; upstream passed $4 (the pane's x position) here
+	# and to bat below.
+	text/html) lynx -width="$2" -display_charset=utf-8 -dump "$1" ;;
 	text/troff) man ./ "$1" | col -b ;;
 	# bat (not installed by default) colours the text; without it, the
 	# first screenful as it is ($3 is the preview's height in lines).
 	text/* | */xml | application/json | application/x-ndjson)
 		if command -v bat >/dev/null 2>&1; then
-			bat -p --theme ansi --terminal-width "$(($4-2))" -f "$1"
+			bat -p --theme ansi --terminal-width "$(($2-2))" -f "$1"
 		else
 			head -n "$3" -- "$1"
 		fi ;;
@@ -57,7 +79,7 @@ case "$(file -biL -- "$1" | cut -d';' -f1)" in
 		CACHE="${XDG_CACHE_HOME:-$HOME/.cache}/lf/thumb.$(stat -f '%N %i %HT %z %B %m' -- "$(readlink -f "$1")" | md5)" CACHE="${CACHE%% *}"
 		[ ! -f "$CACHE.jpg" ] && gnome-epub-thumbnailer "$1" "$CACHE.jpg"
 		image "$CACHE.jpg" "$2" "$3" "$4" "$5" "$1" ;;
-	application/*zip) atool --list -- "$1" ;;
+	application/zip) unzip -l "$1" ;;	# a zip without the name
 	*opendocument*) odt2txt "$1" ;;
 	application/pgp-encrypted) gpg -d -- "$1" ;;
 esac

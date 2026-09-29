@@ -190,3 +190,49 @@ t_fetch_scope_no_bat() {
 two
 three" "$("$VT_SH" "$REPO/.config/lf/scope" "$T/notes.txt" 80 3 0 0)"
 }
+
+# lf passes file, width, height, x, y. bat's width is the width ($2) less
+# two; upstream used $4, the x position.
+t_fetch_scope_bat_width() {
+	# scope runs under set -C; ksh then refuses ">/dev/null" when
+	# /dev/null is a regular file (seen on a broken Linux host), so bat
+	# would never be found. There, point the redirections at a scratch file.
+	scope=$REPO/.config/lf/scope
+	[ -c /dev/null ] || scope=$(derived .config/lf/scope scope "s|/dev/null|$T/null|g")
+	printf '#!/bin/sh\necho "bat $*" >>"$VT_STATE/log"\n' >"$T/bin/bat"
+	chmod +x "$T/bin/bat"
+	printf 'one\n' >"$T/notes.txt"
+	"$VT_SH" "$scope" "$T/notes.txt" 80 3 41 1 >"$T/out"
+	logged '^bat -p --theme ansi --terminal-width 78 -f .*/notes\.txt$'
+}
+
+# Archives list through the tool ext would use for the same name.
+t_fetch_scope_archives() {
+	for c in tar unzip bzip2 7z; do
+		printf '#!/bin/sh\necho "%s $*" >>"$VT_STATE/log"\n' "$c" >"$T/bin/$c"
+		chmod +x "$T/bin/$c"
+	done
+	for f in a.tar.gz b.tgz c.tar d.zip e.tar.bz2 f.7z; do : >"$T/$f"; done
+	for f in a.tar.gz b.tgz c.tar d.zip e.tar.bz2 f.7z; do
+		"$VT_SH" "$REPO/.config/lf/scope" "$T/$f" 80 20 41 1 >/dev/null
+	done
+	logged "^tar tzf $T/a\.tar\.gz$"
+	logged "^tar tzf $T/b\.tgz$"
+	logged "^tar tf $T/c\.tar$"
+	logged "^unzip -l $T/d\.zip$"
+	logged "^bzip2 -dc -- $T/e\.tar\.bz2$"
+	logged "^tar tf -$"
+	logged "^7z l $T/f\.7z$"
+	notlogged 'atool'
+}
+
+# No image previewer installed: a message, not a blank pane.
+t_fetch_scope_image_message() {
+	command -v mediainfo >/dev/null 2>&1 && skip "this host has mediainfo"
+	printf '#!/bin/sh\necho "image/png"\n' >"$T/bin/file"
+	chmod +x "$T/bin/file"
+	: >"$T/pic.png"
+	out=$("$VT_SH" "$REPO/.config/lf/scope" "$T/pic.png" 80 20 41 1)
+	has "names the file" "pic.png" "$out"
+	has "says why it is blank" "(no image preview installed)" "$out"
+}
