@@ -123,6 +123,15 @@ t_fetch_rssget() {
 	return 0
 }
 
+# rssadd takes a downloaded feed: the whole self link is added, exit 0.
+t_fetch_rssadd_file() {
+	mkdir -p "$XDG_CONFIG_HOME/newsboat"; : >"$XDG_CONFIG_HOME/newsboat/urls"
+	printf '<feed><link href="https://example.org/feed.xml" rel="self" type="application/atom+xml"/></feed>\n' >feed.xml
+	rssadd feed.xml; eq "exit status" 0 "$?"
+	eq "urls" "https://example.org/feed.xml" "$(cat "$XDG_CONFIG_HOME/newsboat/urls")"
+	logged '^notify-send RSS feed added\.$'
+}
+
 t_fetch_peertubetorrent() {
 	printf '#!/bin/sh\necho "transadd $*" >>"$VT_STATE/log"\n' >"$T/bin/transadd"
 	chmod +x "$T/bin/transadd"
