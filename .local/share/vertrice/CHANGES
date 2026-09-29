@@ -109,8 +109,9 @@ Shell and console
 
 - profile: LESSOPEN (OpenBSD's less ignores it), DICS and WGETRC gone,
   with wget/wgetrc. aliasrc: -v back on cp, mv, rm; YT gone.
-- ttymaps.kmap (Linux loadkeys) gone; OPENBSD.md gives the one
-  keyboard.map line for the other half of the Caps Lock swap.
+- ttymaps.kmap (Linux loadkeys) gone. Its Caps/Escape swap is not
+  carried: Caps Lock types Escape, Escape stays Escape, nothing types
+  Caps Lock.
 
 Editors
 
