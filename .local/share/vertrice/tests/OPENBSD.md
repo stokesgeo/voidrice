@@ -630,7 +630,10 @@ replaces it:
   session already running keeps the old guess until you restart it.
 - **Font.** IBM Plex Mono everywhere (the ibm-plex package): terminals,
   cwm menus, dmenu and dunst through fontconfig; Plex Sans and Serif for
-  the rest. IBM's own family, drawn for legibility (slashed zero, distinct
+  the rest. The dmenu package reads no Xresources (its ports patch sets
+  Terminus 8 and grey), so `~/.local/bin/wrap/dmenu`, first in PATH,
+  passes it Plex Mono and the palette `theme` last set (day, night or
+  wal); the caller's options come after and win. IBM's own family, drawn for legibility (slashed zero, distinct
   l 1 I). Noto Color Emoji fills in the emoji.
 - **Frames: fvwm's.** OpenBSD's fvwm (xenocara system.fvwmrc) draws 7-pixel
   frames in dark red and blue with grey menus. cwm does the same: 7 pixels,

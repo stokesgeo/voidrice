@@ -1,0 +1,19 @@
+#!/bin/sh
+
+# dmenu with the terminals' font and the current palette. OpenBSD's dmenu
+# package reads no Xresources, so this passes them as options: the palette
+# `theme` last set (day, night or wal), IBM Plex Mono as in xterm. The
+# profile puts this folder first in PATH. The caller's options come after
+# these, so theirs win.
+
+c=${XDG_CACHE_HOME:-$HOME/.cache}
+case $(cat "$c/theme" 2>/dev/null) in
+day) p=${XDG_CONFIG_HOME:-$HOME/.config}/x11/themes/day ;;
+night) p=${XDG_CONFIG_HOME:-$HOME/.config}/x11/themes/night ;;
+wal) p=$c/wal/colors.Xresources ;;
+esac
+get() { [ -n "$p" ] && sed -n "s/^\*\.$1:[[:space:]]*//p" "$p" 2>/dev/null | sed 1q; }
+bg=$(get background) fg=$(get foreground) sel=$(get color4)
+
+exec /usr/local/bin/dmenu -fn 'IBM Plex Mono:size=10' \
+	${bg:+-nb "$bg"} ${fg:+-nf "$fg"} ${sel:+-sb "$sel"} ${bg:+-sf "$bg"} "$@"
