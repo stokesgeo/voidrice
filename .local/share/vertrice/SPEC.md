@@ -322,7 +322,8 @@ means in the tree; untested means not yet run on the X220.
   "launchd for cron"). Kept: the ftp stand-in, choose, dmenuunicode.
   dmenuunicode is voidrice's again: an `xdotool` stand-in takes only
   `type TEXT` (pbcopy, then Cmd+V through System Events) and refuses
-  the rest. Done; untested on a Mac.
+  the rest. otp is voidrice's too: a `maim` stand-in turns its `maim -s
+  FILE` into `screencapture -i FILE`. Done; untested on a Mac.
 - **The Mac's bar blocks.** Agents'. `sb-refresh` runs `sketchybar
   --update` on Darwin, since sbar does not run there. Darwin branches:
   `sb-memory` (vm_stat's active, wired and compressed pages over
