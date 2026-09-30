@@ -29,7 +29,7 @@ set autoquit true
 # cmds/functions
 # open picks a program by MIME type; other files go to $OPENER.
 cmd open ${{
-    mime=$(file -bi "$(readlink -f $f)")
+    mime=$(file -b --mime-type "$(readlink -f $f)")	# the Mac's file -i means something else
     case ${mime%%;*} in
 	application/vnd.openxmlformats-officedocument.spreadsheetml.sheet) localc $fx ;;
 	image/vnd.djvu|application/vnd.djvu|application/pdf|application/postscript|application/epub*) detach zathura $fx >/dev/null 2>&1 ;;

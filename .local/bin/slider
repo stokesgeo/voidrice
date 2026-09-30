@@ -67,7 +67,7 @@ secs() { echo "$1" | awk -F: '{printf "%d\n", $1 * 3600 + $2 * 60 + $3}'; }
 
 if [ -n "${audio+x}" ]; then
 	# Check that the audio file looks like an actual audio file.
-	case "$(file -biL -- "$audio")" in
+	case "$(file -bL --mime-type -- "$audio")" in	# the Mac's file -i means something else
 		audio/*) ;;
 		*) echo "That doesn't look like an audio file."; exit 1 ;;
 	esac
