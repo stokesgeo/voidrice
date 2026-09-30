@@ -14,6 +14,22 @@ lock(){
 	sb-refresh
 }
 
+# The Mac: System Events and pmset(1) do these, with no doas. Lock is the
+# Lock Screen key, Ctrl+Cmd+Q.
+if [ "$(uname)" = Darwin ]; then
+	se() { osascript -e "tell application \"System Events\" to $1"; }
+	case "$(printf "🔒 lock\n🚪 log out\n🔃 reboot\n🖥️shutdown\n💤 sleep\n📺 display off" | dmenu -i -p 'Action: ')" in
+		'🔒 lock') se 'keystroke "q" using {control down, command down}' ;;
+		'🚪 log out') se 'log out' ;;
+		'🔃 reboot') se restart ;;
+		'🖥️shutdown') se 'shut down' ;;
+		'💤 sleep') pmset sleepnow ;;
+		'📺 display off') pmset displaysleepnow ;;
+		*) exit 1 ;;
+	esac
+	exit
+fi
+
 case "$(printf "🔒 lock\n🚪 leave $WM\n♻️ renew $WM\n🐻 hibernate\n🔃 reboot\n🖥️shutdown\n💤 sleep\n📺 display off" | dmenu -i -p 'Action: ')" in
 	'🔒 lock') lock ;;
 	"🚪 leave $WM") pkill -TERM -xn "$WM" ;;
