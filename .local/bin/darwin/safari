@@ -1,0 +1,6 @@
+#!/bin/sh
+
+# safari: $BROWSER on the Mac, Safari through open(1). One command name,
+# since the scripts run "$BROWSER" URL as one word.
+
+exec open -a Safari "$@"
