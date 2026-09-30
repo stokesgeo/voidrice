@@ -1,0 +1,23 @@
+# The optional rest, as pkglist.extra is on the X220:
+#	brew bundle --file=~/.local/share/darwin/Brewfile.extra
+#
+# Not in Homebrew: mutt-wizard and tremc (build them by hand), dictd and
+# GCIDE (Dictionary.app has a dictionary and a thesaurus). Not needed:
+# unclutter (macOS hides the pointer while you type), exfat-fuse (macOS
+# reads and writes exFAT).
+
+brew "neomutt"
+brew "isync"
+brew "msmtp"
+brew "newsboat"
+brew "pass"
+brew "pass-otp"
+brew "pinentry-mac"
+brew "zbar"
+brew "transmission-cli"
+brew "yt-dlp"
+brew "nq"
+brew "highlight"
+brew "imagemagick"
+brew "lowdown"
+brew "groff"
