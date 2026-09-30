@@ -44,7 +44,10 @@ while [ $# -gt 0 ]; do
 	shift
 done
 
+# The physical path: on the Mac $TMPDIR is under /var, a link to /private/var,
+# and scripts that resolve a directory must match what the cases expect.
 RUN=$(mktemp -d "${TMPDIR:-/tmp}/vertrice-tests.XXXXXX") || exit 2
+RUN=$(cd "$RUN" && pwd -P)
 trap '[ -n "$keep" ] || rm -rf "$RUN"' EXIT
 trap 'exit 130' INT TERM
 
@@ -66,6 +69,8 @@ if [ "$os" = OpenBSD ]; then
 else
 	oksh=${OKSH:-$(command -v oksh)}
 	bwk=${BWK_AWK:-$(command -v original-awk || command -v bwk-awk)}
+	# The Mac's awk is the one true awk.
+	[ "$os" = Darwin ] && bwk=${bwk:-/usr/bin/awk}
 	[ -x "$oksh" ] || { echo "run: need oksh: set OKSH" >&2; exit 2; }
 	[ -x "$bwk" ] || { echo "run: need BWK awk: set BWK_AWK" >&2; exit 2; }
 	shim=$RUN/shim
@@ -74,7 +79,9 @@ else
 	VT_KSH=$shim/ksh VT_SH=$shim/sh
 	CWM=${CWM:-$(command -v cwm)}
 fi
-export VT_KSH VT_SH CWM CWM_SRC REPO
+# VT_HOST: the system the suite runs on; uname in a case is the mock's.
+VT_HOST=$os
+export VT_KSH VT_SH CWM CWM_SRC REPO VT_HOST
 
 # One wrapper per script, so scripts that call each other by name (sbar runs
 # the blocks, sb-show runs sbar) find the repository's copy and run under

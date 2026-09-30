@@ -185,7 +185,7 @@ EOF
 # check the mib and answer a fixed path: the kernel is not tested.
 t_sd_proc_cwd_compiles() {
 	c=$REPO/.local/src/sd/proc-cwd.c
-	if [ "$(uname -s)" = OpenBSD ]; then
+	if [ "$VT_HOST" = OpenBSD ]; then
 		cp "$c" "$REPO/.local/src/sd/Makefile" "$T/" || fail "cannot copy"
 		make -C "$T" >/dev/null || fail "make failed"
 		eq "its own cwd" "$T" "$("$T/proc-cwd" $$)"

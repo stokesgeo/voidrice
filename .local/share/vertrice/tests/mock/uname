@@ -1,0 +1,6 @@
+#!/bin/sh
+
+# uname(1) mock: the cases emulate the X220, so the scripts' OpenBSD branches
+# run on any host. The Mac cases put their own uname in $T/bin.
+
+echo OpenBSD
