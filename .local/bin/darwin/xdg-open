@@ -1,0 +1,5 @@
+#!/bin/sh
+
+# xdg-open on the Mac: open(1), which picks the program as Finder would.
+
+exec open "$@"
