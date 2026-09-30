@@ -11,6 +11,8 @@ brew "isync"
 brew "msmtp"
 brew "newsboat"
 brew "pass"
+# passmenu, pass's own, needs bash 4; the Mac's is 3.2.
+brew "bash"
 brew "pass-otp"
 brew "pinentry-mac"
 brew "zbar"

@@ -432,11 +432,17 @@ t_darwin_popupgrade() {
 	eq "the count cleared" "" "$(cat "$T/updates")"
 }
 
+# pass's passmenu exits unless DISPLAY is set, and needs bash 4 (globstar):
+# Homebrew's, first in the profile's PATH, installed beside pass.
 t_darwin_passmenu() {
 	mac
-	argmock bash
+	printf '#!/bin/sh\necho "bash $DISPLAY $*" >>"$VT_STATE/log"\n' >"$T/bin/bash"
+	chmod +x "$T/bin/bash"
 	passmenu
-	logged '^bash\|/opt/homebrew/share/pass/contrib/dmenu/passmenu\|$'
+	logged '^bash [^ ]+ /opt/homebrew/share/pass/contrib/dmenu/passmenu$'
+	grep -qx 'brew "pass"' "$REPO/.local/share/darwin/Brewfile.extra" &&
+	grep -qx 'brew "bash"' "$REPO/.local/share/darwin/Brewfile.extra" ||
+		fail "Brewfile.extra must install bash with pass"
 }
 
 # Every stand-in can run, and none reaches for X.
