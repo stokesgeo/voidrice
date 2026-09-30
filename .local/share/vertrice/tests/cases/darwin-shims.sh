@@ -413,6 +413,19 @@ t_darwin_maimpick() {
 	notlogged 'maim |xdotool|xclip'
 }
 
+# xdotool type: pasted with Cmd+V; nothing else is taken.
+t_darwin_xdotool() {
+	mac
+	xdotool type 😀 || fail "type refused"
+	eq "copied" 😀 "$(cat "$VT_STATE/in.pbcopy")"
+	logged '^osascript\|-e\|tell application "System Events" to keystroke "v" using command down\|$'
+	: >"$VT_STATE/log"
+	xdotool key super+F5 2>/dev/null && fail "key taken"
+	xdotool type --clearmodifiers --file - </dev/null 2>/dev/null && fail "type's options taken"
+	notlogged .
+}
+
+# dmenuunicode is voidrice's: its xdotool type reaches the stand-in.
 t_darwin_dmenuunicode() {
 	mac
 	mkdir -p "$HOME/.local/share/larbs/chars"
@@ -421,7 +434,6 @@ t_darwin_dmenuunicode() {
 	dmenuunicode insert
 	eq "copied" 😀 "$(cat "$VT_STATE/in.pbcopy")"
 	logged '^osascript\|-e\|tell application "System Events" to keystroke "v" using command down\|$'
-	notlogged '^xdotool'
 }
 
 t_darwin_ifinstalled() {
@@ -486,7 +498,9 @@ t_darwin_passmenu() {
 t_darwin_shims_plain() {
 	for f in "$REPO"/.local/bin/darwin/*; do
 		[ -x "$f" ] || fail "${f##*/} is not executable"
-		grep -Eq 'xdotool|xprop|/usr/X11R6' "$f" && fail "${f##*/} calls X"
+		x='xdotool|xprop|/usr/X11R6'
+		[ "${f##*/}" = xdotool ] && x='xprop|/usr/X11R6'	# it stands in for it
+		grep -Eq "$x" "$f" && fail "${f##*/} calls X"
 	done
 	return 0
 }

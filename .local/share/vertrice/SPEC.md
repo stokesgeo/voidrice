@@ -320,7 +320,9 @@ means in the tree; untested means not yet run on the X220.
   a Mac has no Print key; no text entry, as Live Text reads any
   screenshot) and is in the Mac's list; newsup runs from launchd (see
   "launchd for cron"). Kept: the ftp stand-in, choose, dmenuunicode.
-  Done; untested on a Mac.
+  dmenuunicode is voidrice's again: an `xdotool` stand-in takes only
+  `type TEXT` (pbcopy, then Cmd+V through System Events) and refuses
+  the rest. Done; untested on a Mac.
 - **The Mac's bar blocks.** Agents'. `sb-refresh` runs `sketchybar
   --update` on Darwin, since sbar does not run there. Darwin branches:
   `sb-memory` (vm_stat's active, wired and compressed pages over
@@ -532,7 +534,7 @@ The stand-ins and Darwin branches are tested against mocks
 (`tests/cases/darwin-shims.sh`); not yet seen on a Mac: `choose -m -e`
 with an empty menu, and its exit status on Escape; the choose colours
 `-b` and `-c` the dmenu stand-in passes; osascript notifications on
-macOS 27; the System Events keystroke (dmenuunicode's Cmd+V), which
+macOS 27; the System Events keystroke (the xdotool stand-in's Cmd+V), which
 needs Accessibility for the program that sends it; `remind`'s
 AppleScript (`make new reminder` with no list, into the default one;
 `remind me date` as the alert; the Automation prompt for Reminders the
