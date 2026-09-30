@@ -16,4 +16,10 @@ while [ "$1" != -- ]; do
 	shift
 done
 shift
-exec choose -m -e "$@"
+
+# The palette `theme` last set, as wrap/dmenu passes it on the X220: the
+# accent behind the chosen line, the text colour for the matched letters.
+p=${XDG_CONFIG_HOME:-$HOME/.config}/x11/themes/$(cat "${XDG_CACHE_HOME:-$HOME/.cache}/theme" 2>/dev/null)
+get() { sed -n "s/^\*\.$1: #//p" "$p" 2>/dev/null; }
+sel=$(get color4) fg=$(get foreground)
+exec choose -m -e ${sel:+-b "$sel"} ${fg:+-c "$fg"} "$@"

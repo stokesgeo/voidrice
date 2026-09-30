@@ -59,6 +59,20 @@ b" "$(cat "$VT_STATE/menu.1")"
 	printf 'x\n' | dmenu; eq "Escape: exit 1" 1 "$?"
 }
 
+# The palette theme set: the accent behind the chosen line, the text
+# colour for matched letters, before the caller's options.
+t_darwin_dmenu_palette() {
+	mac
+	mkdir -p "$HOME/.config/x11" "$XDG_CACHE_HOME"
+	cp -R "$REPO/.config/x11/themes" "$HOME/.config/x11/"
+	echo night >"$XDG_CACHE_HOME/theme"
+	answers a
+	printf 'a\n' | dmenu -p Pick: >/dev/null
+	acc=$(sed -n 's/^\*\.color4: #//p' "$REPO/.config/x11/themes/night")
+	fg=$(sed -n 's/^\*\.foreground: #//p' "$REPO/.config/x11/themes/night")
+	logged "^choose\|-m\|-e\|-b\|$acc\|-c\|$fg\|-p\|Pick:\|\$"
+}
+
 t_darwin_xclip() {
 	mac
 	printf hello | xclip -selection clipboard
