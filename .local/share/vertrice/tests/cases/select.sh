@@ -73,6 +73,32 @@ t_select_mac_runs() {
 	done
 }
 
+# The home half, as vertrice-install's header gives it, cloning this
+# repository's last commit: each system gets its own list's files only.
+t_select_home_half() {
+	command -v git >/dev/null 2>&1 || skip "no git"
+	git -C "$REPO" rev-parse -q --verify HEAD >/dev/null 2>&1 || skip "not in a clone"
+	sed -n '/^# The home half/,/^$/s/^#	//p' "$REPO/.local/bin/vertrice-install" |
+		sed "s|https://github.com/stokesgeo/vertrice.git|$REPO|" >"$T/half"
+	[ "$(wc -l <"$T/half")" -ge 4 ] || fail "no commands in the header"
+	for os in OpenBSD Darwin; do
+		printf '#!/bin/sh\necho %s\n' "$os" >"$T/bin/uname"; chmod +x "$T/bin/uname"
+		rm -rf "$HOME"; mkdir -p "$HOME"
+		(cd "$HOME" && "$VT_SH" -e "$T/half") >"$T/out.$os" 2>&1 ||
+			fail "home half failed on $os: $(cat "$T/out.$os")"
+		[ -f "$HOME/.local/bin/vertrice-install" ] || fail "$os: no vertrice-install"
+		[ -f "$HOME/.local/share/man/man7/vertrice.7" ] || fail "$os: no man page"
+		[ -e "$HOME/README.md" ] && fail "$os: README.md checked out"
+		case $os in
+		OpenBSD) [ -f "$HOME/.config/cwm/cwmrc" ] || fail "OpenBSD: no cwmrc"
+			[ -e "$HOME/.config/aerospace" ] && fail "OpenBSD: aerospace checked out" ;;
+		Darwin) [ -f "$HOME/.config/aerospace/aerospace.toml" ] || fail "Darwin: no aerospace.toml"
+			[ -e "$HOME/.config/cwm" ] && fail "Darwin: cwm checked out" ;;
+		esac
+	done
+	return 0
+}
+
 # Every file is in a list; none is both repo-only and on a machine.
 t_select_every_file() {
 	sel
