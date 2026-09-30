@@ -9,9 +9,10 @@
 # points. Not launchd (brew services): the blocks, theme and their clicks
 # need the login profile's PATH and programs, which aerospace/run gives.
 #
-# Edit $blocks to choose and order the blocks, as in sbar.
+# Edit $blocks to choose and order the blocks, as in sbar. Not sb-cpu:
+# Apple silicon gives its temperature and clock only to root.
 
-blocks="sb-music sb-news sb-mailbox sb-updates sb-cpu sb-memory sb-volume sb-battery sb-internet sb-words sb-clock"
+blocks="sb-music sb-news sb-mailbox sb-updates sb-memory sb-volume sb-battery sb-internet sb-words sb-clock"
 
 sketchybar --bar position=bottom height=24 \
 	--default label.font="IBM Plex Mono:Regular:13.0" icon.drawing=off \

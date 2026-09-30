@@ -108,7 +108,8 @@ EOF
 }
 
 # The bar: along the bottom, as tall as the gap aerospace.toml leaves;
-# sbar's blocks in sbar's order, each drawn by block.
+# sbar's blocks in sbar's order, each drawn by block; all but sb-cpu, whose
+# temperature and clock Apple silicon keeps for root.
 t_darwin_desktop_bar() {
 	ln -s "$VT_MOCKS/_log" "$T/bin/sketchybar"
 	CONFIG_DIR=$REPO/.config/sketchybar "$VT_SH" "$REPO/.config/sketchybar/sketchybarrc" ||
@@ -116,7 +117,7 @@ t_darwin_desktop_bar() {
 	gap=$(sed -n 's/^gaps\.outer\.bottom = \([0-9]*\).*/\1/p' "$REPO/.config/aerospace/aerospace.toml")
 	[ -n "$gap" ] || fail "aerospace.toml leaves no gap"
 	logged "^sketchybar --bar position=bottom height=$gap "
-	want=$(sed -n 's/^blocks="\(.*\)"$/\1/p' "$REPO/.local/bin/statusbar/sbar")
+	want=$(sed -n 's/^blocks="\(.*\)"$/\1/p' "$REPO/.local/bin/statusbar/sbar" | sed 's/ sb-cpu / /')
 	# Right-hand items are added right to left.
 	got=$(sed -n 's/^sketchybar --add item \(sb-[a-z]*\) right .*/\1/p' "$VT_STATE/log" |
 		awk '{ l = $0 " " l } END { sub(/ $/, "", l); print l }')

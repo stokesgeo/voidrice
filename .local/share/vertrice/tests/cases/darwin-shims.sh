@@ -257,12 +257,119 @@ t_darwin_sysact() {
 🚪 log out
 🔃 reboot
 🖥️shutdown
-💤 sleep
-📺 display off" "$(cat "$VT_STATE/menu.1")"
+💤 sleep" "$(cat "$VT_STATE/menu.1")"
 	rm -f "$VT_STATE/choose.n"; answers '🔃 reboot'
 	sysact
 	logged '^osascript\|-e\|tell application "System Events" to restart\|$'
-	notlogged 'doas|xlock|sndioctl'
+	# Lock: the display sleeps; the install makes waking it ask.
+	rm -f "$VT_STATE/choose.n"; answers '🔒 lock'; : >"$VT_STATE/log"
+	sysact
+	logged '^pmset\|displaysleepnow\|$'
+	notlogged 'keystroke|doas|xlock|sndioctl'
+}
+
+# remind: Reminders, due at 09:00 on the day; the text as an argument.
+t_darwin_remind() {
+	mac
+	remind 2026-10-03 Return the '"library"' books || fail "remind failed"
+	logged '^osascript\|-e\|on run a\|'
+	logged '\|-e\|tell application "Reminders" to make new reminder with properties \{name:item 4 of a, remind me date:d\}\|-e\|end run\|2026\|10\|03\|Return the "library" books\|$'
+	logged '\|set time of d to 9 \* hours\|'
+	: >"$VT_STATE/log"
+	remind 'Oct 3' books 2>/dev/null; eq "not a date: exit 1" 1 "$?"
+	remind 2026-10-03 2>/dev/null; eq "no text: exit 1" 1 "$?"
+	notlogged osascript
+}
+
+# $BROWSER on the Mac is Safari, through open.
+t_darwin_browser() {
+	home_setup
+	mkdir -p "$HOME/.local/bin/darwin"
+	mac
+	eq "the browser" safari "$("$VT_SH" -c '. "$HOME/.profile"; echo "$BROWSER"')"
+	safari https://example.org/
+	logged '^open\|-a\|Safari\|https://example.org/\|$'
+}
+
+t_darwin_dict() {
+	mac
+	dict -d roget pity
+	logged '^open\|dict://pity\|$'
+}
+
+# The bar on the Mac is SketchyBar: sb-refresh asks it, and signals no sbar.
+t_darwin_sb_refresh() {
+	mac
+	argmock sketchybar
+	sb-refresh
+	logged '^sketchybar\|--update\|$'
+	notlogged '^pkill'
+}
+
+t_darwin_sb_memory() {
+	mac
+	setsysctl hw.memsize=17179869184
+	cat >"$T/bin/vm_stat" <<'EOF'
+#!/bin/sh
+cat <<'E'
+Mach Virtual Memory Statistics: (page size of 16384 bytes)
+Pages free:                                5000.
+Pages active:                            262144.
+Pages inactive:                          100000.
+Pages speculative:                         3000.
+Pages throttled:                              0.
+Pages wired down:                        131072.
+Pages purgeable:                           2000.
+Pages occupied by compressor:             65536.
+E
+EOF
+	chmod +x "$T/bin/vm_stat"
+	eq "active, wired and compressed of 16GiB" "🧠7.00GiB/16.00GiB" "$(sb-memory)"
+	notlogged '^top'
+}
+
+# osascript answers "VOLUME, MUTED" for the volume settings.
+t_darwin_sb_volume() {
+	mac
+	echo '55, false' | fx out.osascript
+	eq "volume" "🔉55%" "$(sb-volume)"
+	logged '^osascript\|-e\|set s to get volume settings\|-e\|\{output volume of s, output muted of s\}\|$'
+	echo '55, true' | fx out.osascript
+	eq "muted" "🔇" "$(sb-volume)"
+	: | fx out.osascript; : >"$VT_STATE/log"
+	BLOCK_BUTTON=4 sb-volume >/dev/null
+	logged '^osascript\|-e\|set s to get volume settings\|-e\|set volume output volume \(output volume of s\) \+ 1\|$'
+	BLOCK_BUTTON=2 sb-volume >/dev/null
+	logged '\|set volume output muted not output muted of s\|$'
+	notlogged sndioctl
+}
+
+# The default route's interface, and whether networksetup calls it Wi-Fi.
+t_darwin_sb_internet() {
+	mac
+	argmock route; argmock networksetup
+	printf 'Hardware Port: Ethernet\nDevice: en1\n\nHardware Port: Wi-Fi\nDevice: en0\n' | fx out.networksetup
+	eq "no route" "📡" "$(sb-internet)"
+	printf '   route to: default\ndestination: default\n  interface: en0\n' | fx out.route
+	eq "Wi-Fi" "📶" "$(sb-internet)"
+	logged '^route\|-n\|get\|default\|$'
+	printf '  interface: en1\n' | fx out.route
+	eq "wired" "🌐" "$(sb-internet)"
+	printf '  interface: utun4\n' | fx out.route
+	eq "a VPN takes all" "🔒" "$(sb-internet)"
+	notlogged '^ifconfig'
+}
+
+t_darwin_maimpick() {
+	mac
+	answers 'a selected area (copy)'
+	maimpick
+	logged '^screencapture\|-ic\|$'
+	eq "no text entry" 6 "$(grep -c '' "$VT_STATE/menu.1")"
+	rm -f "$VT_STATE/choose.n"; answers 'current window'
+	maimpick
+	logged '^screencapture\|-iW\|pic-window-[0-9-]*\.png\|$'
+	notlogged 'maim |xdotool|xclip'
 }
 
 t_darwin_dmenuunicode() {
