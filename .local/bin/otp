@@ -17,7 +17,7 @@ choice="$({ echo "🆕add" ; echo "🕙sync-time" ; find "$dir" -type f -iname '
 
 case $choice in
 	🆕add )
-		ifinstalled maim zbar xclip || exit 1
+		ifinstalled zbar xclip || exit 1
 
 		# mktemp(1) here has no --suffix, so make a private directory. rm -P
 		# overwrites the QR image before it unlinks it. The trap also removes the
@@ -29,7 +29,11 @@ case $choice in
 
 		notify-send "Scan the image." "Scan the OTP QR code."
 
-		maim -s "$temp" || exit 1
+		# An area picked with the mouse: the Mac's is screencapture -i.
+		case $(uname) in
+		Darwin) screencapture -i "$temp" ;;
+		*) ifinstalled maim && maim -s "$temp" ;;
+		esac || exit 1
 		info="$(zbarimg -q "$temp")"
 		info="${info#QR-Code:}"
 

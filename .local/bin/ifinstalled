@@ -5,10 +5,15 @@
 # it informs the user that they need that command to continue. This is used in
 # various other scripts for clarity's sake.
 #
-# Usage: ifinstalled PROGRAM... Each may be a command or an installed package.
+# Usage: ifinstalled PROGRAM... Each may be a command or an installed package:
+# pkg_info's on OpenBSD, Homebrew's on the Mac.
 
+case $(uname) in
+Darwin) pkg() { brew list "$1" >/dev/null 2>&1; } ;;
+*) pkg() { pkg_info -qe "$1-*"; } ;;
+esac
 for x in "$@"; do
-	if ! command -v "$x" >/dev/null 2>&1 && ! pkg_info -qe "$x-*"; then
+	if ! command -v "$x" >/dev/null 2>&1 && ! pkg "$x"; then
  		notify-send "📦 $x" "must be installed for this function." && exit 1 ;
 	fi
 done
