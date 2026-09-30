@@ -64,4 +64,5 @@ Codex in a box (`cdxb`). The dotfiles are a bare git repository with
 `$HOME` as its work tree; `config` is git pointed at it, and
 `config pull origin master` updates.
 
-Agents working on the repository start from `SPEC.md`, beside this file.
+Agents working on the repository start from `SPEC.md`, beside this file
+in the repository; the machines do not take it.
