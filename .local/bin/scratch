@@ -9,6 +9,22 @@ case $1 in
 	*) echo "usage: scratch term|calc" >&2; exit 1 ;;
 esac
 
+# The Mac: AeroSpace hides the window on a workspace of its own and brings
+# it back to the one in view. The name is the window's title (floatterm).
+if [ "$(uname)" = Darwin ]; then
+	win() { aerospace list-windows "$@" --format '%{window-id}%{tab}%{window-title}' |
+		awk -F '\t' -v n="$name" '$2 == n { print $1; exit }'; }
+	id=$(win --all)
+	if [ -z "$id" ]; then exec floatterm "$name" "$geo" $cmd
+	elif [ -n "$(win --workspace focused)" ]; then
+		aerospace move-node-to-workspace --window-id "$id" scratch
+	else
+		aerospace move-node-to-workspace --focus-follows-window --window-id "$id" \
+			"$(aerospace list-workspaces --focused)"
+	fi
+	exit
+fi
+
 id=$(xdotool search --classname "^$name\$" | head -n 1)
 if [ -z "$id" ]; then
 	exec floatterm "$name" "$geo" $cmd
