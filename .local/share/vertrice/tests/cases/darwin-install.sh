@@ -134,7 +134,8 @@ t_darwin_install_no_calendar() {
 t_darwin_install_newsup_agent() {
 	mkdir -p "$T/p"
 	ln -s "$VT_MOCKS/_log" "$T/p/newsup"
-	printf 'PATH=%s:$PATH\n' "$T/p" >"$HOME/.profile"
+	# Not the caller's PATH: the host may have newsboat.
+	printf 'PATH=%s:/usr/bin:/bin\n' "$T/p" >"$HOME/.profile"
 	"$VT_SH" -c "$(agentcmd vertrice.newsup)"
 	notlogged '^newsup'
 	ln -s "$VT_MOCKS/_log" "$T/p/newsboat"
