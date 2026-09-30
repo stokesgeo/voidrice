@@ -432,6 +432,18 @@ t_darwin_otp_add() {
 	eq "stored under its name" "otpauth://totp/x?secret=ABC" "$(cat "$T/store/github-otp" 2>/dev/null)"
 }
 
+# The Mac has no ntpctl: sync-time shows sntp's offset.
+t_darwin_otp_sync_time() {
+	otp_setup
+	mac
+	argmock sntp
+	echo '+0.012 +/- 0.004 time.apple.com 17.253.4.125' | fx out.sntp
+	answers 🕙sync-time
+	otp >/dev/null 2>&1
+	logged '^sntp\|'
+	logged '\|🕙 Time sync\|\+0.012 \+/- 0.004 time.apple.com 17.253.4.125\|$'
+}
+
 # /var/db/updates is $T/updates (derived, lib.sh); a terminal from with_tty.
 t_darwin_popupgrade() {
 	mac

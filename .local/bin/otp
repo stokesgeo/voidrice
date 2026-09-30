@@ -55,7 +55,12 @@ case $choice in
 		fi
 		;;
 	🕙sync-time )
-		notify-send -u low "🕙 Time sync" "$(ntpctl -s status)"
+		# The Mac has no ntpctl: sntp(1) gives the clock's offset instead.
+		case $(uname) in
+		Darwin) s=$(sntp -t 1 time.apple.com 2>&1) ;;
+		*) s=$(ntpctl -s status) ;;
+		esac
+		notify-send -u low "🕙 Time sync" "$s"
 		;;
 	*) pass otp -c ${choice}-otp ;;
 esac
