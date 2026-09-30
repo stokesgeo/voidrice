@@ -1,0 +1,46 @@
+#!/bin/sh
+
+# The Mac half of vertrice-install, which runs this on Darwin. It is the
+# commands themselves, as on the X220: read it, then run it as you, not
+# root, since Homebrew refuses root:
+#	sh ~/.local/bin/vertrice-install
+# sudo asks for your password where root is needed. It is safe to run again.
+#
+# Before it: the Command Line Tools (xcode-select --install) for git and
+# Homebrew, then Homebrew (https://brew.sh), then the clone in the header
+# of vertrice-install.
+
+cd "$(dirname "$0")" || exit
+PATH=/opt/homebrew/bin:$PATH		# Homebrew's place on Apple silicon
+brew bundle --file=Brewfile		# the optional rest: brew bundle --file=Brewfile.extra
+# oksh is the login shell, as ksh is on the X220; chsh takes only a shell
+# listed in /etc/shells.
+ksh=/opt/homebrew/bin/oksh
+grep -qx $ksh /etc/shells || echo $ksh | sudo tee -a /etc/shells >/dev/null
+[ "$SHELL" = $ksh ] || chsh -s $ksh
+# The bar counts /var/db/updates on both systems. Here the file is yours,
+# for the launchd agent that writes it.
+[ -e /var/db/updates ] || sudo install -o "$USER" -m 644 /dev/null /var/db/updates
+# launchd runs, as you, what cron and daily(8) run on the X220. Each agent
+# is unloaded first, so a second run loads the new copy.
+mkdir -p ~/Library/LaunchAgents
+for a in vertrice.calendar vertrice.updates; do
+	cp $a.plist ~/Library/LaunchAgents/
+	launchctl bootout gui/"$(id -u)"/$a 2>/dev/null
+	launchctl bootstrap gui/"$(id -u)" ~/Library/LaunchAgents/$a.plist
+done
+brew services start sketchybar
+# The Dock hides, so it does not cover the bar. The next two are from
+# AeroSpace's guide: Mission Control groups windows by app, and one Space
+# spans all displays, which AeroSpace handles better.
+defaults write com.apple.dock autohide -bool true
+defaults write com.apple.dock expose-group-apps -bool true
+defaults write com.apple.spaces spans-displays -bool true
+# Key repeat as remaps sets it on the X220 (xset r rate 300 50), in steps
+# of 15 ms: 300 ms, then one key each 30 ms.
+defaults write -g InitialKeyRepeat -int 20
+defaults write -g KeyRepeat -int 2
+killall Dock
+open -a AeroSpace
+echo "Done. In System Settings, Privacy & Security, allow AeroSpace (Accessibility)"
+echo "and Karabiner-Elements (its driver, Input Monitoring). Then log out and in."

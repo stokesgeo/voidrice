@@ -3,7 +3,9 @@
 vertrice is voidrice, Luke Smith's dotfiles for Linux, ported to OpenBSD
 and set up for a ThinkPad X220. It is one person's working machine,
 kept in a public repository with nothing personal in it. The reference
-is `man vertrice`; this page says what the thing is and why.
+is `man vertrice`; this page says what the thing is and why. The same
+files now install on a Mac as well, with a macOS desktop; this page is
+about the OpenBSD side, and `man vertrice` has the Mac.
 
 ## Why OpenBSD, and why a fork
 

@@ -1,16 +1,18 @@
-.\" vertrice(7): voidrice on OpenBSD for the ThinkPad X220.
+.\" vertrice(7): voidrice on OpenBSD for the ThinkPad X220, and on the Mac.
 .\" Licensed under the GNU GPL, version 3, as the rest of vertrice.
-.Dd $Mdocdate: September 29 2026 $
+.Dd $Mdocdate: September 30 2026 $
 .Dt VERTRICE 7
 .Os
 .Sh NAME
 .Nm vertrice
-.Nd voidrice dotfiles for OpenBSD on the ThinkPad X220
+.Nd voidrice dotfiles for OpenBSD on the ThinkPad X220, and for the Mac
 .Sh DESCRIPTION
 .Nm
 is voidrice, a set of dotfiles for Linux, ported to
 .Ox
 and set up for a ThinkPad X220.
+The same files install on a Mac with Apple silicon; see
+.Sx The Mac .
 It keeps the voidrice layout: scripts in
 .Pa ~/.local/bin ,
 configuration in
@@ -316,6 +318,8 @@ Monday.
 Codex in
 .Ic cdxb
 may add reminders there.
+On a Mac the same lines come as a notification; see
+.Sx The Mac .
 .Ss Dictionary
 .Ic dict Ar word
 shows the definitions from GCIDE and the Roget's Thesaurus (1911)
@@ -423,6 +427,8 @@ would install to
 counts it in the status line;
 .Ic sb-popupgrade
 installs the updates in a terminal.
+On a Mac a launchd agent writes the same file from
+.Ic brew outdated .
 .Ss Codex in a box
 .Ic cdxb
 runs Codex from your own terminal in a box made with
@@ -503,6 +509,103 @@ gives a running session one more path: quit that Codex and it resumes
 with the path.
 .Ic cdxb ls
 lists the running sessions.
+.Ss The Mac
+On a Mac with Apple silicon,
+.Nm
+keeps the same layout and scripts, with a macOS desktop in place of X:
+Ghostty is the terminal, AeroSpace the window manager, SketchyBar the
+status line along the bottom and
+.Ic choose
+the menu.
+Karabiner-Elements makes Caps Lock Escape when tapped and Hyper when
+held, and the keys are those of the cwmrc with Hyper in place of Super.
+Where the two systems differ, a file asks
+.Xr uname 1
+which one it is on; the files for the other system are never read.
+.Pp
+First install the Command Line Tools with
+.Ic xcode-select --install ,
+then Homebrew from
+.Lk https://brew.sh ,
+then clone the dotfiles as in
+.Sx Install .
+Run the system half as yourself, not as root:
+.Pp
+.Dl $ sh ~/.local/bin/vertrice-install
+.Pp
+On a Mac it runs
+.Pa ~/.local/share/darwin/install ,
+which asks for your password where it needs root, and:
+.Bl -dash
+.It
+installs the packages in
+.Pa Brewfile
+with
+.Ic brew bundle ;
+.It
+makes oksh, the portable
+.Ox
+ksh, the login shell, and lists it in
+.Pa /etc/shells ;
+.It
+makes
+.Pa /var/db/updates
+yours;
+.It
+copies two
+.Xr launchd 8
+agents to
+.Pa ~/Library/LaunchAgents
+and loads them:
+.Cm vertrice.calendar
+shows the reminders as a notification at login and at 09:00, and
+.Cm vertrice.updates
+writes what
+.Ic brew upgrade
+would install to
+.Pa /var/db/updates ,
+at login and every four hours;
+.It
+starts SketchyBar with
+.Ic brew services
+and opens AeroSpace;
+.It
+hides the Dock, groups windows by application in Mission Control, lets
+one Space span all displays, and sets the key repeat that
+.Ic remaps
+sets on the X220.
+.El
+.Pp
+Then, in System Settings, Privacy & Security, allow AeroSpace under
+Accessibility and Karabiner-Elements its driver and Input Monitoring,
+and log out and in.
+Running it again is safe.
+The optional packages are in a second list:
+.Pp
+.Dl $ brew bundle --file=$HOME/.local/share/darwin/Brewfile.extra
+.Pp
+Scripts keep calling dmenu, xclip, notify-send, xdg-open and setbg.
+On a Mac the profile puts
+.Pa ~/.local/bin/darwin
+first in
+.Ev PATH ,
+and the commands of the same names there hand the work to
+.Ic choose ,
+.Ic pbcopy ,
+.Ic osascript
+and
+.Ic open .
+.Pp
+Not on the Mac: the battery and CPU speed settings, which the X220
+needs and a MacBook does not; doas, pf and the other files the
+.Ox
+install writes to
+.Pa /etc ;
+backups with
+.Ic bk
+(use Time Machine); the dictionary (use Dictionary.app); and
+.Ic cdxb ,
+since Codex makes its own sandbox on macOS.
 .Sh FILES
 .Bl -tag -width Ds -compact
 .It Pa ~/.local/share/vertrice.git
@@ -514,8 +617,23 @@ The files it installs, and the package lists
 .Pa pkglist
 and
 .Pa pkglist.extra .
+.It Pa ~/.local/share/darwin/
+The Mac's system half
+.Pq Pa install ,
+its package lists
+.Pa Brewfile
+and
+.Pa Brewfile.extra ,
+and its launchd agents.
+.It Pa ~/.local/bin/darwin/
+The Mac's commands in place of dmenu, xclip, notify-send, xdg-open and
+setbg.
 .It Pa ~/.config/cwm/cwmrc
 The keys.
+.It Pa ~/.config/aerospace/aerospace.toml
+The keys on a Mac.
+.It Pa ~/.config/sketchybar/ , ~/.config/karabiner/karabiner.json , ~/.config/ghostty/config
+The Mac's status line, Caps Lock and terminal.
 .It Pa ~/.config/shell/profile
 .Ev WM ,
 .Ev TERMINAL
@@ -589,6 +707,7 @@ find this page:
 .Xr nq 1 ,
 .Xr obsdfreqd 1 ,
 .Xr spell 1 ,
+.Xr uname 1 ,
 .Xr video 1 ,
 .Xr xidle 1 ,
 .Xr pledge 2 ,
@@ -596,6 +715,7 @@ find this page:
 .Xr doas.conf 5 ,
 .Xr fbtab 5 ,
 .Xr fstab 5 ,
+.Xr launchd.plist 5 ,
 .Xr login.conf 5 ,
 .Xr pf.conf 5 ,
 .Xr wsconsctl.conf 5 ,
@@ -605,6 +725,7 @@ find this page:
 .Xr daily 8 ,
 .Xr dictd 8 ,
 .Xr dump 8 ,
+.Xr launchd 8 ,
 .Xr restore 8 ,
 .Xr syspatch 8 ,
 .Xr unwind 8
@@ -626,6 +747,8 @@ and
 on the backup disk, the update count's reading of
 .Ic pkg_add -u -n -v ,
 the dictionary build, the Codex box's walls and the TrackPoint scroll.
+Nothing has run on a Mac yet: the Mac install, its agents and its
+desktop are tested only against mocks.
 .Pp
 After the first boot, run
 .Pa ~/.local/share/vertrice/tests/check ,

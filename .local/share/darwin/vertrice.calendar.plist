@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- Reminders: the lines calendar(1) finds in ~/.calendar/calendar for
+     today and tomorrow, as a notice at login and at 09:00. On the X220,
+     daily(8) mails them. A Mac asleep at 09:00 gets them when it wakes. -->
+<plist version="1.0">
+<dict>
+	<key>Label</key>
+	<string>vertrice.calendar</string>
+	<key>ProgramArguments</key>
+	<array>
+		<string>/bin/sh</string>
+		<string>-c</string>
+		<string>r=$(calendar); [ -z "$r" ] || "$HOME/.local/bin/darwin/notify-send" Reminders "$r"</string>
+	</array>
+	<key>RunAtLoad</key>
+	<true/>
+	<key>StartCalendarInterval</key>
+	<dict>
+		<key>Hour</key>
+		<integer>9</integer>
+		<key>Minute</key>
+		<integer>0</integer>
+	</dict>
+</dict>
+</plist>
