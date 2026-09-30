@@ -29,7 +29,6 @@ for a in vertrice.calendar vertrice.updates; do
 	launchctl bootout gui/"$(id -u)"/$a 2>/dev/null
 	launchctl bootstrap gui/"$(id -u)" ~/Library/LaunchAgents/$a.plist
 done
-brew services start sketchybar
 # The Dock hides, so it does not cover the bar. The next two are from
 # AeroSpace's guide: Mission Control groups windows by app, and one Space
 # spans all displays, which AeroSpace handles better.
@@ -41,6 +40,7 @@ defaults write com.apple.spaces spans-displays -bool true
 defaults write -g InitialKeyRepeat -int 20
 defaults write -g KeyRepeat -int 2
 killall Dock
+# AeroSpace starts SketchyBar (aerospace.toml), under the login profile.
 open -a AeroSpace
 echo "Done. In System Settings, Privacy & Security, allow AeroSpace (Accessibility)"
 echo "and Karabiner-Elements (its driver, Input Monitoring). Then log out and in."
