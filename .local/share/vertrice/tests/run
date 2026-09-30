@@ -24,8 +24,10 @@ On Linux it needs OpenBSD's ksh and awk: set OKSH to a build of oksh
 (portable OpenBSD ksh) and BWK_AWK to the one true awk, or put oksh and
 original-awk on PATH. It links them as sh, ksh and awk in a directory put
 before the system's, so scripts run under the shell and awk they will have
-on the machine. Optional: CWM (a cwm binary) and CWM_SRC (cwm's source,
-for conf.c); on OpenBSD these default to base cwm and /usr/xenocara.
+on the machine. On the Mac, oksh is Homebrew's and its own awk is the one
+true awk; libarchive's bin on PATH runs the ext cases. Optional: CWM (a cwm
+binary) and CWM_SRC (cwm's source, for conf.c); on OpenBSD these default
+to base cwm and /usr/xenocara.
 EOF
 }
 
@@ -44,8 +46,10 @@ while [ $# -gt 0 ]; do
 	shift
 done
 
-# The physical path: on the Mac $TMPDIR is under /var, a link to /private/var,
-# and scripts that resolve a directory must match what the cases expect.
+# The physical path: on the Mac /tmp is a link to /private/tmp, and scripts
+# that resolve a directory must match what the cases expect. The Mac's own
+# $TMPDIR is too deep for the Unix sockets the cases make (104 bytes).
+[ "$(uname -s)" = Darwin ] && TMPDIR=/tmp
 RUN=$(mktemp -d "${TMPDIR:-/tmp}/vertrice-tests.XXXXXX") || exit 2
 RUN=$(cd "$RUN" && pwd -P)
 trap '[ -n "$keep" ] || rm -rf "$RUN"' EXIT
