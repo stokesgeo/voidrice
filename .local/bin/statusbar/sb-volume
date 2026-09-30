@@ -3,7 +3,8 @@
 # Prints the current volume or 🔇 if muted.
 # sndioctl(1): output.level runs from 0 to 1; output.mute is 0 or 1. On the
 # Mac, AppleScript's volume settings: output volume runs from 0 to 100,
-# output muted is true or false.
+# output muted is true or false; the clicks change it through AeroSpace,
+# as its keys do.
 
 case $BLOCK_BUTTON in
 	3) notify-send "📢 Volume module" "\- Shows volume 🔊, 🔇 if muted.
@@ -13,13 +14,12 @@ case $BLOCK_BUTTON in
 esac
 
 if [ "$(uname)" = Darwin ]; then
-	osa() { osascript -e 'set s to get volume settings' -e "$1"; }
 	case $BLOCK_BUTTON in
-		2) osa 'set volume output muted not output muted of s' ;;
-		4) osa 'set volume output volume (output volume of s) + 1' ;;
-		5) osa 'set volume output volume (output volume of s) - 1' ;;
+		2) aerospace volume mute-toggle ;;
+		4) aerospace volume up ;;
+		5) aerospace volume down ;;
 	esac
-	set -- $(osa '{output volume of s, output muted of s}' | tr -d ,)
+	set -- $(osascript -e 'set s to get volume settings' -e '{output volume of s, output muted of s}' | tr -d ,)
 	vol=$1 mute=$2
 else
 	case $BLOCK_BUTTON in

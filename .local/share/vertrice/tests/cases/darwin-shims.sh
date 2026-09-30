@@ -377,11 +377,12 @@ t_darwin_sb_volume() {
 	logged '^osascript\|-e\|set s to get volume settings\|-e\|\{output volume of s, output muted of s\}\|$'
 	echo '55, true' | fx out.osascript
 	eq "muted" "🔇" "$(sb-volume)"
-	: | fx out.osascript; : >"$VT_STATE/log"
-	BLOCK_BUTTON=4 sb-volume >/dev/null
-	logged '^osascript\|-e\|set s to get volume settings\|-e\|set volume output volume \(output volume of s\) \+ 1\|$'
-	BLOCK_BUTTON=2 sb-volume >/dev/null
-	logged '\|set volume output muted not output muted of s\|$'
+	# Clicks and scrolls: AeroSpace's volume, as the keys.
+	for c in 2:mute-toggle 4:up 5:down; do
+		: >"$VT_STATE/log"
+		BLOCK_BUTTON=${c%%:*} sb-volume >/dev/null
+		logged "^aerospace\\|volume\\|${c#*:}\\|\$"
+	done
 	notlogged sndioctl
 }
 
