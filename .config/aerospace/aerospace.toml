@@ -23,6 +23,12 @@ after-startup-command = ['exec-and-forget ~/.config/aerospace/run sketchybar']
 exec-on-workspace-change = ['/bin/sh', '-c', 'sketchybar --trigger aerospace_workspace_change']
 gaps.outer.bottom = 24
 
+# Windows that float, as under cwm: the scratchpads and writemode's full
+# screen. Ghostty has no instance name; floatterm sets the title.
+on-window-detected = [
+	{ if = 'test %{window-title} = spterm || test %{window-title} = spcalc || test %{window-title} = write', run = 'layout floating' },
+]
+
 [mode.main.binding]
 
 # --- windows: j k focus, q close, t tile, h l resize, S+hjkl move --------
@@ -70,7 +76,10 @@ cmd-alt-ctrl-pageDown = 'workspace --wrap-around next'
 
 # --- launchers: Return terminal, w web, e mail, r files, d apps ----------
 # BackSpace and S+q open the power menu (sysact). Shifted keys are variants.
+# S+Return and ' show or hide the scratch terminal and calculator.
 cmd-alt-ctrl-enter = 'exec-and-forget ~/.config/aerospace/run sd'
+cmd-alt-ctrl-shift-enter = 'exec-and-forget ~/.config/aerospace/run scratch term'
+cmd-alt-ctrl-quote = 'exec-and-forget ~/.config/aerospace/run scratch calc'
 cmd-alt-ctrl-d = '''exec-and-forget ~/.config/aerospace/run 'ls /Applications /System/Applications | sed -n "s/\.app$//p" | dmenu -i -p Open: | xargs -I{} open -a {}' '''
 cmd-alt-ctrl-shift-d = 'exec-and-forget ~/.config/aerospace/run passmenu'
 cmd-alt-ctrl-w = '''exec-and-forget ~/.config/aerospace/run '$BROWSER' '''

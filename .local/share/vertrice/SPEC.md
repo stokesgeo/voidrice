@@ -70,6 +70,14 @@ is to build that ux into my devices, as my default ux, and extend and
 specify it to my personal usage and intent over time." The OpenBSD port
 on the X220 is the first device, not the whole of it.
 
+Each device in its own idiom, the owner (2026-09-30): "adopting Mac
+tools like iCal is acceptable and even good. Env specific tool usage is
+not a negative thing, I want each version to be idiomatic." And: "Kbd +
+scriptable is the goal/ideal." Reading, the agents', not yet confirmed:
+a native tool is the idiomatic pick when it keeps the keyboard-driven,
+scriptable shortest path; a native app reachable only by mouse fails
+it.
+
 The school, from the owner's own instruction file: "Hardened Plaintext
 ... Poles: plaintext (comprehensible, composable, suckless /
 worse-is-better) x hardened (adversarial-by-design, assume-breach) —
@@ -220,8 +228,29 @@ means in the tree; untested means not yet run on the X220.
 - **One tree, the system picked by uname.** The orchestrating agent's
   shape (the Mac build brief, 2026-09-29): one repository and one `$HOME`
   layout for both; `uname` decides at run time, in as few places as
-  possible; the other system's files lie unread (the X220 never reads
-  `~/.config/aerospace`, the Mac never runs xinitrc). Being built.
+  possible; the other system's files are not checked out (see
+  "Selection"). Being built.
+- **Selection: each machine holds only the files it uses.** The owner
+  (2026-09-30): "Id prefer an install script like larbs that does
+  selection, so that every file on the system is purposeful to it."
+  Picked from agents' options: "Sparse checkout" and, for the files for
+  working on vertrice, "Keep them repo-only". Each system has one list of
+  git sparse-checkout patterns (non-cone, the .gitignore form), named for
+  `uname` beside its install: `.local/share/openbsd/sparse-checkout` and
+  `.local/share/darwin/sparse-checkout`. The home half in
+  `vertrice-install`'s header sets the list before the first checkout,
+  so only that system's files are ever written, and a pull stays a pull;
+  after a pull that changes a list, its line is run again. Both take
+  every shared file; the X220 leaves out the Mac's desktop and
+  `darwin/` directories, the Mac leaves out X, its programs and the
+  scripts that are X220 only (the list says which, and why).
+  `.local/share/vertrice/repo-only` names what no machine takes: README,
+  LICENSE, FUNDING.yml, this file and the suite. Of the docs, the
+  machines hold only `man vertrice` and OPENBSD.md; the X220 also holds
+  `tests/check` and `reading`. `tests/cases/select.sh` applies each list
+  to every tracked file with git itself and fails on a file of the other
+  system, a repo-only file on a machine, or a file in no list. Done;
+  untested on the machines.
 - **Shims, not forks.** The same brief: scripts keep calling dmenu,
   xclip, notify-send, xdg-open and setbg; on the Mac,
   `~/.local/bin/darwin/` holds same-named commands that hand the work to
@@ -238,8 +267,9 @@ means in the tree; untested means not yet run on the X220.
   `.local/bin/darwin`; the brief had said under `.local/share/vertrice`.
   `Brewfile` and `Brewfile.extra` split as `pkglist` and
   `pkglist.extra` do; macOS first, as base first on the X220 (git from
-  the Command Line Tools, bsdtar, pbcopy, screencapture, Preview, Night
-  Shift and Notification Center need nothing). All arm64-native, read
+  the Command Line Tools, pbcopy, screencapture, Preview, Night Shift and
+  Notification Center need nothing; macOS has bsdtar but not bsdcat, so
+  libarchive is in). All arm64-native, read
   from Homebrew's sources on 2026-09-30: each core formula has an
   `arm64_golden_gate` (macOS 27) bottle, but pass-otp (one bottle for
   all systems) and sketchybar (built from source on the machine); the
@@ -331,29 +361,30 @@ way, and where it lives.
 
 ### The Mac: each X220 mechanism and what stands in its place
 
-As the brief plans it. Items marked "planned" are the other build
-agents' files and were not in this tree when this was written: read the
-tree before trusting them.
+As the tree has it now.
 
 1. The X session and cwm -> the macOS login and AeroSpace,
-   `~/.config/aerospace/aerospace.toml`: cwmrc's keys with Hyper for
-   Super (planned). The profile's `startx` line fires only on
-   `/dev/ttyC0`, so a Mac never meets it.
-2. xterm -> Ghostty, `~/.config/ghostty/config` (planned); `theme` picks
-   day and night Ghostty themes that follow the system appearance
-   (planned).
+   `~/.config/aerospace/aerospace.toml`: cwmrc's keys with Caps Lock
+   held for Super. Keys run programs through `aerospace/run`, which
+   reads the login profile first. The scratchpads and writemode float,
+   matched by the title floatterm gives them. The profile's `startx`
+   line fires only on `/dev/ttyC0`, so a Mac never meets it.
+2. xterm -> Ghostty, `~/.config/ghostty/config`, through the
+   `~/.local/bin/darwin/ghostty` stand-in (`open -na`); `theme` writes
+   day and night Ghostty themes, and Ghostty follows the system
+   appearance between them.
 3. The vbar xterm running `sbar -t` -> SketchyBar along the bottom,
    `~/.config/sketchybar/`, its items running the same `sb-*` blocks
-   and passing the mouse button as they expect (planned). Started by
-   `brew services`.
-4. dmenu -> choose, through `~/.local/bin/darwin/dmenu` (planned).
+   and passing the mouse button as they expect. AeroSpace starts it
+   through `run`, so the blocks get the profile's PATH.
+4. dmenu -> choose, through `~/.local/bin/darwin/dmenu`, in the palette
+   `theme` last set.
 5. `remaps` (xcape: Caps tapped is Escape, held is Super) -> Karabiner-
    Elements, `~/.config/karabiner/karabiner.json`: tapped is Escape,
-   held is Hyper (planned). The key repeat is a `defaults` line in the
-   install.
+   held is Super. The key repeat is a `defaults` line in the install.
 6. xclip, notify-send and dunst, xdg-open, setbg -> same-named commands
    in `~/.local/bin/darwin/` over pbcopy and pbpaste, osascript and
-   Notification Center, open, and the desktop picture (planned).
+   Notification Center, open, and the desktop picture.
 7. ksh -> oksh, the portable OpenBSD ksh, as the login shell; the same
    `~/.profile` and kshrc.
 8. pkg_add and `pkglist` -> `brew bundle` and `Brewfile`
@@ -366,10 +397,11 @@ tree before trusting them.
     notification.
 11. apm, apmd and obsdfreqd -> nothing: macOS manages power, and the
     owner ruled the battery work X220 only. `sb-battery` may read
-    `pmset -g batt` to show the charge (planned).
-12. sd's `proc-cwd` -> `lsof -a -p PID -d cwd -Fn` (planned).
+    `pmset -g batt` to show the charge.
+12. sd's `proc-cwd` -> `lsof -a -p PID -d cwd -Fn`.
 13. doas -> sudo, in the install only. Scripts that need root on the
-    X220 (mounter, bk, dmenuwifi, rectoggle) are X220 only (planned).
+    X220 (mounter, bk, dmenuwifi, rectoggle) are X220 only; every script
+    that is, and why, is in `.local/share/darwin/sparse-checkout`.
 14. xidle and xlock -> the macOS lock screen; nothing built.
 15. dump and `bk` -> Time Machine; `bk` is X220 only.
 16. `cdxb` -> nothing: Codex sandboxes itself on macOS (Seatbelt).
@@ -401,9 +433,35 @@ brew by its full path for that reason); whether macOS 27 still ships
 agent shows nothing, silently); the `defaults` keys under macOS 27
 (`expose-group-apps`, `spans-displays`, `KeyRepeat` 2 below the
 Settings slider); AeroSpace, which is not notarized (its cask strips
-the quarantine flag), under macOS 27's Gatekeeper. The shims, the
-desktop configs and `theme` on the Mac are the other build agents' and
-carry their own list.
+the quarantine flag), under macOS 27's Gatekeeper.
+
+The stand-ins and Darwin branches are tested against mocks
+(`tests/cases/darwin-shims.sh`); not yet seen on a Mac: `choose -m -e`
+with an empty menu, and its exit status on Escape; the choose colours
+`-b` and `-c` the dmenu stand-in passes; osascript notifications on
+macOS 27; the System Events keystrokes (sysact's lock, dmenuunicode's
+Cmd+V), which need Accessibility for the program that sends them;
+`open -na Ghostty.app` with `--working-directory`, `--title`, the
+window size, `--fullscreen=non-native` and `-e`, and whether `sd`
+picks the wrong window when one Ghostty has several; the AeroSpace CLI
+(`list-windows --format`, `move-node-to-workspace --window-id`,
+`--focus-follows-window`); `lsof -Fn`; the `pmset -g batt` format, and a
+Mac with no battery; the desktop picture's AppleScript; `file
+--mime-type`; Homebrew's paths for pass and libarchive; `nc -N`, `mktemp
+-p` and `xargs -r` in macOS's own tools.
+
+The desktop is tested against mocks (`tests/cases/darwin-desktop.sh`);
+not yet seen on a Mac: `on-window-detected` matching the scratchpads'
+and writemode's titles (AeroSpace warns that some windows set their
+title after they appear); `quote` as the key name for Super+'; that
+`exec-on-workspace-change` finds sketchybar on AeroSpace's own PATH
+(it adds /opt/homebrew/bin unless the config sets `[exec]`).
+
+Selection is tested with git in the suite (`tests/cases/select.sh`);
+not yet run with the Command Line Tools' git on macOS 27 or the
+package's git on OpenBSD: `sparse-checkout set --no-cone --stdin`
+against a bare repository given `--work-tree`, before the first
+checkout.
 
 ## Open
 

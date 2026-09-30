@@ -1,0 +1,57 @@
+# The files of the repository the Mac takes, as git sparse-checkout
+# patterns (the .gitignore form: a later line wins, ! leaves out). The
+# home half of vertrice-install sets them before the first checkout, so
+# only these are ever written to $HOME. The X220's list is
+# ../openbsd/sparse-checkout; what no machine takes, ../vertrice/repo-only.
+
+/.profile
+/.calendar/
+
+# All but X, its programs, and what macOS does itself: Preview for
+# zathura and nsxiv, Safari for qutebrowser, Notification Center for
+# dunst, open(1) for the mimeapps.list and its .desktop files. theme
+# reads the palettes in x11/themes.
+/.config/
+!/.config/cdxb/
+!/.config/cwm/
+!/.config/dunst/
+!/.config/fontconfig/
+!/.config/mimeapps.list
+!/.config/nsxiv/
+!/.config/qutebrowser/
+!/.config/user-dirs.dirs
+!/.config/wal/
+!/.config/x11/
+/.config/x11/themes/
+!/.config/zathura/
+
+# All but the scripts that are X220 only: X, OpenBSD's disks, Wi-Fi,
+# audio and camera switches, backups, the dictionary and the Codex box.
+# macOS has its own display settings, screenshots, screen recording,
+# Night Shift and keyboard settings.
+/.local/bin/
+!/.local/bin/wrap/
+!/.local/bin/bk
+!/.local/bin/cdxb
+!/.local/bin/cron/README.md
+!/.local/bin/displayselect
+!/.local/bin/dmenurecord
+!/.local/bin/dmenuwifi
+!/.local/bin/hotplug-watch
+!/.local/bin/maimpick
+!/.local/bin/mounter
+!/.local/bin/nightlight
+!/.local/bin/rectoggle
+!/.local/bin/remaps
+!/.local/bin/unmounter
+!/.local/bin/vertrice-dict
+!/.local/bin/xdg-terminal-exec
+!/.local/bin/statusbar/sb-brightness
+!/.local/bin/statusbar/sb-cpubars
+!/.local/bin/statusbar/sb-kbselect
+
+/.local/share/
+!/.local/share/applications/
+!/.local/share/openbsd/
+!/.local/share/vertrice/
+/.local/share/vertrice/OPENBSD.md

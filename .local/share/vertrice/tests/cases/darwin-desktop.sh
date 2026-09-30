@@ -149,7 +149,7 @@ t_darwin_desktop_keys() {
 	for k in $keys; do
 		k=${k#cmd-alt-ctrl-}; k=${k#shift-}
 		case $k in
-		[a-z0-9]|f[1-9]|f1[0-2]|minus|equal|period|comma|backslash|semicolon|backtick|leftSquareBracket|rightSquareBracket|space|enter|backspace|tab|pageUp|pageDown) ;;
+		[a-z0-9]|f[1-9]|f1[0-2]|minus|equal|period|comma|backslash|semicolon|quote|backtick|leftSquareBracket|rightSquareBracket|space|enter|backspace|tab|pageUp|pageDown) ;;
 		*) fail "unknown key $k" ;;
 		esac
 	done
@@ -165,6 +165,13 @@ t_darwin_desktop_keys() {
 			fail "run names $s, which is not in .local/bin"
 	done
 	[ -x "$REPO/.config/aerospace/run" ] || fail "run is not executable"
+	# The windows cwm leaves floating float here too, by the title
+	# floatterm and writemode give them.
+	for t in spterm spcalc write; do
+		grep -q "^	{ if = '.*test %{window-title} = $t[ ']" "$a" || fail "$t does not float"
+	done
+	has "scratch term" "floatterm \"\$name\"" "$(cat "$REPO/.local/bin/scratch")"
+	has "writemode's title" "--title=write " "$(cat "$REPO/.local/bin/writemode")"
 	k=$REPO/.config/karabiner/karabiner.json
 	if command -v python3 >/dev/null 2>&1; then
 		python3 -m json.tool "$k" >/dev/null || fail "karabiner.json is not JSON"

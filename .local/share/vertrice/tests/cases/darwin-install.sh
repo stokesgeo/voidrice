@@ -43,7 +43,7 @@ t_darwin_install_steps() {
 		logged "^launchctl bootout gui/$uid/$a\$"
 		logged "^launchctl bootstrap gui/$uid $la/$a.plist\$"
 	done
-	logged '^brew services start sketchybar$'
+	notlogged '^brew services'	# AeroSpace starts the bar
 	logged '^defaults write com.apple.dock autohide -bool true$'
 	logged '^defaults write -g InitialKeyRepeat -int 20$'
 	logged '^open -a AeroSpace$'

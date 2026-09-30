@@ -7,10 +7,15 @@
 # It is safe to run again, except for the two appends at the end.
 #
 # The home half comes first, as you, once root has run pkg_add git. It puts
-# this script and the files it installs in your home:
+# this script and the files it installs in your home. The third line, before
+# anything is written, limits the checkout to this system's files: the list
+# in ~/.local/share/openbsd, or darwin on a Mac. After a pull that changes
+# the list, run the second and third lines again.
 #	git clone --bare https://github.com/stokesgeo/vertrice.git ~/.local/share/vertrice.git
-#	git --git-dir=$HOME/.local/share/vertrice.git --work-tree=$HOME checkout -f
-#	git --git-dir=$HOME/.local/share/vertrice.git config status.showUntrackedFiles no
+#	cd ~/.local/share/vertrice.git
+#	git show HEAD:.local/share/$(uname | tr A-Z a-z)/sparse-checkout | git --work-tree=$HOME sparse-checkout set --no-cone --stdin
+#	git --work-tree=$HOME checkout -f
+#	git config status.showUntrackedFiles no
 
 # A Mac has its own list, run as you, not root.
 [ "$(uname)" = Darwin ] && exec sh "$(dirname "$0")/../share/darwin/install"

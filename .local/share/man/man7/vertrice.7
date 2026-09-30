@@ -37,11 +37,27 @@ Then, as the user:
 .Bd -literal -offset indent
 $ git clone --bare https://github.com/stokesgeo/vertrice.git \e
     ~/.local/share/vertrice.git
-$ git --git-dir=$HOME/.local/share/vertrice.git \e
-    --work-tree=$HOME checkout -f
-$ git --git-dir=$HOME/.local/share/vertrice.git \e
-    config status.showUntrackedFiles no
+$ cd ~/.local/share/vertrice.git
+$ git show HEAD:.local/share/$(uname | tr A-Z a-z)/sparse-checkout |
+    git --work-tree=$HOME sparse-checkout set --no-cone --stdin
+$ git --work-tree=$HOME checkout -f
+$ git config status.showUntrackedFiles no
 .Ed
+.Pp
+The third command selects this system's files before any is written:
+.Xr git-sparse-checkout 1
+takes the patterns in
+.Pa ~/.local/share/openbsd/sparse-checkout ,
+or
+.Pa ~/.local/share/darwin/sparse-checkout
+on a Mac, and the checkout and every later pull write only the files
+they name.
+Files for the other system, and those for working on
+.Nm
+itself (the README, the spec and the test suite), stay in the
+repository.
+After a pull that changes the list, run the second and third commands
+again.
 .Pp
 The checkout replaces the
 .Pa .profile
@@ -521,7 +537,9 @@ Karabiner-Elements makes Caps Lock Escape when tapped and Hyper when
 held, and the keys are those of the cwmrc with Hyper in place of Super.
 Where the two systems differ, a file asks
 .Xr uname 1
-which one it is on; the files for the other system are never read.
+which one it is on; the files for the other system are not checked out
+(see
+.Sx Install ) .
 .Pp
 First install the Command Line Tools with
 .Ic xcode-select --install ,
@@ -566,9 +584,7 @@ would install to
 .Pa /var/db/updates ,
 at login and every four hours;
 .It
-starts SketchyBar with
-.Ic brew services
-and opens AeroSpace;
+opens AeroSpace, which starts SketchyBar;
 .It
 hides the Dock, groups windows by application in Mission Control, lets
 one Space span all displays, and sets the key repeat that
@@ -613,10 +629,13 @@ The bare repository.
 .It Pa ~/.local/bin/vertrice-install
 The system half of the install.
 .It Pa ~/.local/share/openbsd/
-The files it installs, and the package lists
+The files it installs, the package lists
 .Pa pkglist
 and
-.Pa pkglist.extra .
+.Pa pkglist.extra ,
+and
+.Pa sparse-checkout ,
+the X220's files.
 .It Pa ~/.local/share/darwin/
 The Mac's system half
 .Pq Pa install ,
@@ -624,7 +643,9 @@ its package lists
 .Pa Brewfile
 and
 .Pa Brewfile.extra ,
-and its launchd agents.
+its launchd agents, and
+.Pa sparse-checkout ,
+the Mac's files.
 .It Pa ~/.local/bin/darwin/
 The Mac's commands in place of dmenu, xclip, notify-send, xdg-open and
 setbg.
@@ -655,15 +676,10 @@ searches the standard path first, then
 .Pa ~/.local/share/man .
 .It Pa ~/.local/share/vertrice/reading
 Small base programs worth reading: the manual first, then the source.
-.It Pa ~/.local/share/vertrice/tests/
-The regression suite
-.Pq Pa run
-and the check on the machine
-.Pq Pa check .
+.It Pa ~/.local/share/vertrice/tests/check
+The check to run once on the X220.
 .It Pa ~/.local/share/vertrice/OPENBSD.md
 What vertrice is and why, in short.
-.It Pa ~/.local/share/vertrice/SPEC.md
-For agents: the spec, the decisions and the port, mechanism by mechanism.
 .It Pa /var/db/updates
 Waiting updates, one to a line.
 .It Pa /etc/dumpdates
@@ -702,6 +718,7 @@ find this page:
 .Xr cwm 1 ,
 .Xr dict 1 ,
 .Xr doas 1 ,
+.Xr git-sparse-checkout 1 ,
 .Xr ksh 1 ,
 .Xr mail 1 ,
 .Xr nq 1 ,
