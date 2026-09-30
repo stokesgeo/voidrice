@@ -1,5 +1,5 @@
 # The optional rest, as pkglist.extra is on the X220:
-#	brew bundle --file=~/.local/share/darwin/Brewfile.extra
+#	brew bundle --file=$HOME/.local/share/darwin/Brewfile.extra
 #
 # Not in Homebrew: mutt-wizard and tremc (build them by hand), dictd and
 # GCIDE (Dictionary.app has a dictionary and a thesaurus). Not needed:
