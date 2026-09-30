@@ -25,8 +25,7 @@ sketchybar --add event aerospace_workspace_change \
 
 # Right-hand items are placed from the right edge inwards, so the list is
 # added last block first, to read left to right as in sbar.
-for b in $blocks; do r="$b $r"; done
-for b in $r; do
+for b in $(printf '%s\n' $blocks | tail -r); do
 	sketchybar --add item "$b" right \
 		--set "$b" script="$CONFIG_DIR/block" update_freq=5 \
 		--subscribe "$b" mouse.clicked mouse.scrolled

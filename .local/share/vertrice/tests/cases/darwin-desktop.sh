@@ -113,6 +113,11 @@ EOF
 # temperature and clock Apple silicon keeps for root.
 t_darwin_desktop_bar() {
 	ln -s "$VT_MOCKS/_log" "$T/bin/sketchybar"
+	# tail -r, as the BSDs have it, where GNU tail lacks it (Linux).
+	if ! tail -r </dev/null >/dev/null 2>&1; then
+		printf '#!/bin/sh\n[ "$1" = -r ] || exit 2\nawk "{ l[NR] = \\$0 } END { for (i = NR; i; i--) print l[i] }"\n' >"$T/bin/tail"
+		chmod +x "$T/bin/tail"
+	fi
 	CONFIG_DIR=$REPO/.config/sketchybar "$VT_SH" "$REPO/.config/sketchybar/sketchybarrc" ||
 		fail "sketchybarrc failed"
 	gap=$(sed -n 's/^gaps\.outer\.bottom = \([0-9]*\).*/\1/p' "$REPO/.config/aerospace/aerospace.toml")
