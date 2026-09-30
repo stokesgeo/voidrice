@@ -20,6 +20,7 @@
 #	waitfor SECS CMD...	retry CMD every 0.1 s until it succeeds
 #	track PID	stop this background process when the case ends
 #	with_tty CMD...	run CMD with a terminal on stdin (mounter, unmounter)
+#	pty CMDLINE	run the shell command line CMDLINE in a pseudo-terminal
 #	derived SRC NAME SED	run a script with root-owned paths rewritten
 
 fail() { printf 'FAIL: %s\n' "$*"; exit 1; }
@@ -77,19 +78,28 @@ waitfor() {
 	return 1
 }
 
+# pty CMDLINE: run the shell command line CMDLINE under script(1), in a
+# pseudo-terminal, stdin and stdout passed through. util-linux script wants
+# -q and -e; OpenBSD's script has -c only (assumed: OpenBSD script(1) -c,
+# not yet run on the machine); the Mac's takes the command after the file,
+# and types ^D into the terminal when its stdin ends.
+pty() {
+	if script --version 2>/dev/null | grep -q util-linux; then
+		script -qec "$1" /dev/null
+	elif [ "$VT_HOST" = Darwin ]; then
+		script -q /dev/null /bin/sh -c "$1"
+	else
+		script -c "$1" /dev/null
+	fi
+}
+
 # with_tty CMD...: mounter and unmounter reopen themselves in a terminal
-# when stdin is not one. script(1) gives the command a pseudo-terminal.
-# util-linux script wants -q and -e; OpenBSD's script has -c only (assumed:
-# OpenBSD script(1) -c, not yet run on the machine). The command's output
-# goes to $T/tty.out; its exit status is not relied on.
+# when stdin is not one. The command's output goes to $T/tty.out; its exit
+# status is not relied on.
 with_tty() {
 	command -v script >/dev/null 2>&1 || skip "no script(1) to provide a terminal"
 	for _a; do printf "'%s' " "$(printf '%s' "$_a" | sed "s/'/'\\\\''/g")"; done >"$T/.ttycmd"
-	if script --version 2>/dev/null | grep -q util-linux; then
-		script -qec "$VT_SH $T/.ttycmd" /dev/null </dev/null >"$T/tty.out" 2>&1
-	else
-		script -c "$VT_SH $T/.ttycmd" /dev/null </dev/null >"$T/tty.out" 2>&1
-	fi
+	pty "$VT_SH $T/.ttycmd" </dev/null >"$T/tty.out" 2>&1
 }
 
 # derived SRC NAME SEDSCRIPT: a few scripts write to paths only root may use

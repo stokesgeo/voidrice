@@ -45,13 +45,8 @@ tty_in() {
 	command -v script >/dev/null 2>&1 || skip "no script(1) to provide a terminal"
 	_in=$1; shift
 	for _a; do printf "'%s' " "$(printf '%s' "$_a" | sed "s/'/'\\\\''/g")"; done >"$T/.ttycmd"
-	if script --version 2>/dev/null | grep -q util-linux; then
-		( "$VT_REAL_SLEEP" 2; printf '%s\n' "$_in"; "$VT_REAL_SLEEP" 3 ) |
-			script -qec "$VT_SH $T/.ttycmd" /dev/null >"$T/tty.out" 2>&1
-	else
-		( "$VT_REAL_SLEEP" 2; printf '%s\n' "$_in"; "$VT_REAL_SLEEP" 3 ) |
-			script -c "$VT_SH $T/.ttycmd" /dev/null >"$T/tty.out" 2>&1
-	fi
+	( "$VT_REAL_SLEEP" 2; printf '%s\n' "$_in"; "$VT_REAL_SLEEP" 3 ) |
+		pty "$VT_SH $T/.ttycmd" >"$T/tty.out" 2>&1
 }
 
 # wall DESC LINE / nowall DESC LINE: the last box had (not) this wall.
