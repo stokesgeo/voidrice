@@ -125,7 +125,8 @@ means in the tree; untested means not yet run on the X220.
 - **Reminders: calendar(1), mailed by daily(8).** The owner: "calendar
   is a good idea (with agent wiring as well)". `~/.calendar/calendar`;
   the nightly `calendar -a` at 01:30 mails the lines; the Codex box
-  may write there (grants) and its AGENTS.md says how. Done.
+  may write there (grants) and its AGENTS.md says how. The X220's; the
+  Mac uses Reminders (see "Reminders on the Mac"). Done.
 - **Root's mail to the owner.** "root mail seems reasonable".
   `/etc/mail/aliases`, unless root has an alias. Done.
 - **Git is Codex's job, in the box.** "I, by default, don't want to
@@ -277,19 +278,56 @@ means in the tree; untested means not yet run on the X220.
   codex cask is an aarch64 build. oksh is the login shell. Browsers:
   Homebrew disabled its qutebrowser and chromium casks on 2026-09-01
   (they fail Gatekeeper), so Safari. Done; untested on a Mac.
-- **launchd for cron and daily(8).** Agents'. Two user agents: the
-  reminders (`calendar` at login and at 09:00, as a notification, where
-  daily(8) mails them on the X220) and the update count (`brew outdated`
-  into `/var/db/updates` at login and every four hours, where root's
-  crontab writes it on the X220). The file is made the user's once, so
-  `sb-updates` reads one path on both systems. Not carried: root's mail
-  (nothing on the Mac mails it), the dump reminder (no dump; Time
-  Machine), `newsup` (the user's own crontab, which macOS still has).
-  Done; untested on a Mac.
+- **launchd for cron.** Agents'. Two user agents: the update count
+  (`brew outdated` into `/var/db/updates` at login and every four hours,
+  where root's crontab writes it on the X220) and `newsup` every 30
+  minutes (`vertrice.newsup`, as the crontab line in `cron/README.md`;
+  it runs only once newsboat, from `Brewfile.extra`, is there). The
+  update file is made the user's once, so `sb-updates` reads one path on
+  both systems. Not carried: root's mail (nothing on the Mac mails it),
+  the dump reminder (Time Machine). The reminders agent went with
+  "Reminders on the Mac" below. Done; untested on a Mac.
 - **macOS settings.** Agents'. The Dock hides (the bar is along the
   bottom); Mission Control groups windows by app and one Space spans all
   displays, both from AeroSpace's guide; key repeat as `remaps` sets it.
   Done; untested on a Mac.
+- **Reminders on the Mac.** Picked from agents' options (2026-09-30):
+  "Reminders". The calendar(1) agent went; `remind YYYY-MM-DD TEXT`
+  (`~/.local/bin/darwin/remind`) adds a reminder through osascript, due
+  at 09:00 that day, and Reminders shows it. It is the Mac's form of the
+  X220's verb (a line in `~/.calendar/calendar`), for the owner and for
+  agents. `~/.calendar` is X220 only; the X220 keeps calendar(1)
+  unchanged. Open: no agent instruction file on the Mac names `remind`
+  (the X220's is the Codex box's AGENTS.md); `man vertrice` does. Done;
+  untested on a Mac.
+- **The browser on the Mac.** Picked (2026-09-30): "Safari". `BROWSER`
+  is `safari` on Darwin, a stand-in in `~/.local/bin/darwin` that runs
+  `open -a Safari`: the scripts run `"$BROWSER"` as one word. The
+  qutebrowser config stays X220 only. Done; untested on a Mac.
+- **Backups on the Mac.** Picked (2026-09-30): "Time Machine alone".
+  Nothing in vertrice; `bk` stays X220 only. Done.
+- **Lock on the Mac.** Picked (2026-09-30): "pmset displaysleepnow".
+  sysact's lock runs it; display off, now the same thing, left the Mac's
+  menu. The install sets "require password immediately" with
+  `sysadminctl -screenLock immediate -password -` (it asks for the
+  password), unless `-screenLock status` already says immediate. Done;
+  untested on a Mac.
+- **The Mac's other stand-ins.** Agents' recommendations, filtered by
+  the owner's idiom words: `dict` opens `dict://WORD` (Dictionary.app);
+  maimpick has a Darwin branch on `screencapture -i` (Super+Shift+s, as
+  a Mac has no Print key; no text entry, as Live Text reads any
+  screenshot) and is in the Mac's list; newsup runs from launchd (see
+  "launchd for cron"). Kept: the ftp stand-in, choose, dmenuunicode.
+  Done; untested on a Mac.
+- **The Mac's bar blocks.** Agents'. `sb-refresh` runs `sketchybar
+  --update` on Darwin, since sbar does not run there. Darwin branches:
+  `sb-memory` (vm_stat's active, wired and compressed pages over
+  `hw.memsize`), `sb-volume` (AppleScript's volume settings, clicks
+  included), `sb-internet` (the default route's interface from route(8),
+  Wi-Fi named by networksetup(8); no signal strength). `sb-cpu` is off
+  the Mac's bar and out of its list: Apple silicon gives the
+  temperature and clock only to root (powermetrics). Done; untested on a
+  Mac.
 - **Luke's leftovers.** Kept as they are: setbg's dwm lines, the st
   lines in xresources, `tutorialvids`, Luke's site in `linkhandler`.
   `sb-help-icon` opens `man vertrice`. Done.
@@ -376,7 +414,10 @@ As the tree has it now.
 3. The vbar xterm running `sbar -t` -> SketchyBar along the bottom,
    `~/.config/sketchybar/`, its items running the same `sb-*` blocks
    and passing the mouse button as they expect. AeroSpace starts it
-   through `run`, so the blocks get the profile's PATH.
+   through `run`, so the blocks get the profile's PATH; `sb-refresh`
+   runs `sketchybar --update`. The CPU block is left off (no
+   temperature or clock without root); memory, volume and the network
+   have Darwin branches.
 4. dmenu -> choose, through `~/.local/bin/darwin/dmenu`, in the palette
    `theme` last set.
 5. `remaps` (xcape: Caps tapped is Escape, held is Super) -> Karabiner-
@@ -391,10 +432,11 @@ As the tree has it now.
    (`.local/share/darwin/`); the X220's installer hands over on `uname`.
 9. Root's crontab line for the update count -> the launchd agent
    `vertrice.updates` writing `brew outdated` to the same
-   `/var/db/updates`.
-10. daily(8) mailing `calendar -a` -> the launchd agent
-    `vertrice.calendar`: `calendar` as the user, shown as a
-    notification.
+   `/var/db/updates`; the user's crontab line for `newsup` -> the
+   agent `vertrice.newsup`.
+10. calendar(1) and daily(8) mailing `calendar -a` -> Reminders:
+    `remind YYYY-MM-DD TEXT` adds one through osascript, and Reminders
+    shows it.
 11. apm, apmd and obsdfreqd -> nothing: macOS manages power, and the
     owner ruled the battery work X220 only. `sb-battery` may read
     `pmset -g batt` to show the charge.
@@ -402,12 +444,19 @@ As the tree has it now.
 13. doas -> sudo, in the install only. Scripts that need root on the
     X220 (mounter, bk, dmenuwifi, rectoggle) are X220 only; every script
     that is, and why, is in `.local/share/darwin/sparse-checkout`.
-14. xidle and xlock -> the macOS lock screen; nothing built.
-15. dump and `bk` -> Time Machine; `bk` is X220 only.
+14. xidle and xlock -> `pmset displaysleepnow` for sysact's lock, with
+    the password asked at once (`sysadminctl -screenLock immediate`, in
+    the install); the idle lock is macOS's own.
+15. dump and `bk` -> Time Machine alone; `bk` is X220 only.
 16. `cdxb` -> nothing: Codex sandboxes itself on macOS (Seatbelt).
     Left out of the Mac install.
-17. dictd with GCIDE and Roget -> Dictionary.app; `dict` and `roget`
-    are X220 only.
+17. dictd with GCIDE and Roget -> Dictionary.app: `dict WORD` opens
+    `dict://WORD` there (so K in nvim does too); `roget` and
+    `vertrice-dict` are X220 only.
+18. qutebrowser -> Safari: `BROWSER=safari`, a stand-in over `open -a
+    Safari`.
+19. maim and xdotool in maimpick -> `screencapture -i`, `-iW` for a
+    window, `-c` to copy.
 
 ## Untested on the machine
 
@@ -428,9 +477,10 @@ and the Karabiner package's password prompt; `chsh` to oksh and the
 profile and kshrc under it; `sudo install -o` making
 `/var/db/updates` the user's; `launchctl bootout` and `bootstrap` in
 `gui/UID`, and the agents' `HOME` and `PATH` (the updates agent names
-brew by its full path for that reason); whether macOS 27 still ships
-`calendar(1)` and its `~/.calendar/calendar` (without it the reminders
-agent shows nothing, silently); the `defaults` keys under macOS 27
+brew by its full path for that reason); the newsup agent sourcing
+`~/.profile` under macOS's /bin/sh; `sysadminctl -screenLock status`
+(its wording, and that it writes to stderr) and `-screenLock immediate
+-password -` run as the user, not root; the `defaults` keys under macOS 27
 (`expose-group-apps`, `spans-displays`, `KeyRepeat` 2 below the
 Settings slider); AeroSpace, which is not notarized (its cask strips
 the quarantine flag), under macOS 27's Gatekeeper.
@@ -439,8 +489,16 @@ The stand-ins and Darwin branches are tested against mocks
 (`tests/cases/darwin-shims.sh`); not yet seen on a Mac: `choose -m -e`
 with an empty menu, and its exit status on Escape; the choose colours
 `-b` and `-c` the dmenu stand-in passes; osascript notifications on
-macOS 27; the System Events keystrokes (sysact's lock, dmenuunicode's
-Cmd+V), which need Accessibility for the program that sends them;
+macOS 27; the System Events keystroke (dmenuunicode's Cmd+V), which
+needs Accessibility for the program that sends it; `remind`'s
+AppleScript (`make new reminder` with no list, into the default one;
+`remind me date` as the alert; the Automation prompt for Reminders the
+first time); `open -a Safari` and `open dict://WORD`;
+`screencapture -iW` and `-ic`; `sketchybar --update` from a block; the
+Darwin blocks against a real Mac: `vm_stat`'s wording and page size,
+the AppleScript `get volume settings` answer (and "missing value" on an
+output with no volume), `route -n get default` and
+`networksetup -listallhardwareports` (the "Wi-Fi" port name);
 `open -na Ghostty.app` with `--working-directory`, `--title`, the
 window size, `--fullscreen=non-native` and `-e`, and whether `sd`
 picks the wrong window when one Ghostty has several; the AeroSpace CLI
@@ -453,7 +511,9 @@ Mac with no battery; the desktop picture's AppleScript; `file
 The desktop is tested against mocks (`tests/cases/darwin-desktop.sh`);
 not yet seen on a Mac: `on-window-detected` matching the scratchpads'
 and writemode's titles (AeroSpace warns that some windows set their
-title after they appear); `quote` as the key name for Super+'; that
+title after they appear); `quote` as the key name for Super+'; the
+directory AeroSpace starts commands in (`run` now goes home first, so
+maimpick saves and a bare terminal opens there, as under cwm); that
 `exec-on-workspace-change` finds sketchybar on AeroSpace's own PATH
 (it adds /opt/homebrew/bin unless the config sets `[exec]`).
 
