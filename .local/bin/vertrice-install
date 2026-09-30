@@ -10,7 +10,7 @@
 # this script and the files it installs in your home. The third line, before
 # anything is written, limits the checkout to this system's files: the list
 # in ~/.local/share/openbsd, or darwin on a Mac. After a pull that changes
-# the list, run that line again.
+# the list, run the second and third lines again.
 #	git clone --bare https://github.com/stokesgeo/vertrice.git ~/.local/share/vertrice.git
 #	cd ~/.local/share/vertrice.git
 #	git show HEAD:.local/share/$(uname | tr A-Z a-z)/sparse-checkout | git --work-tree=$HOME sparse-checkout set --no-cone --stdin
