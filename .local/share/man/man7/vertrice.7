@@ -384,6 +384,11 @@ Read a dump back with
 .It Ic spellcheck Ar file
 .Xr spell 1 ,
 each flagged word shown in its line.
+On a Mac,
+.Ic spell
+is a command in
+.Pa ~/.local/bin/darwin
+that asks aspell.
 Your own words go in
 .Pa ~/.local/share/spell/words ,
 sorted with
@@ -570,11 +575,14 @@ makes
 .Pa /var/db/updates
 yours;
 .It
-copies two
+copies three
 .Xr launchd 8
 agents to
 .Pa ~/Library/LaunchAgents
 and loads them:
+.Cm vertrice.mpd
+starts mpd at login with
+.Pa ~/.config/mpd/mpd.conf ,
 .Cm vertrice.updates
 writes what
 .Ic brew upgrade
@@ -675,14 +683,21 @@ its launchd agents, and
 .Pa sparse-checkout ,
 the Mac's files.
 .It Pa ~/.local/bin/darwin/
-The Mac's commands in place of dmenu, xclip, notify-send, xdg-open and
-setbg.
+The Mac's commands in place of dmenu, xclip, notify-send, xdg-open,
+setbg and spell.
 .It Pa ~/.config/cwm/cwmrc
 The keys.
 .It Pa ~/.config/aerospace/aerospace.toml
 The keys on a Mac.
 .It Pa ~/.config/sketchybar/ , ~/.config/karabiner/karabiner.json , ~/.config/ghostty/config
 The Mac's status line, Caps Lock and terminal.
+.It Pa ~/.config/mpd/mpd.conf
+mpd's settings on both systems.
+It includes the sound output from
+.Pa sndio.conf
+on the X220 and
+.Pa osx.conf
+on a Mac, beside it; each system has only its own.
 .It Pa ~/.config/shell/profile
 .Ev WM ,
 .Ev TERMINAL
@@ -793,7 +808,9 @@ and
 .Xr restore 8
 on the backup disk, the update count's reading of
 .Ic pkg_add -u -n -v ,
-the dictionary build, the Codex box's walls and the TrackPoint scroll.
+the dictionary build, mpd's sound output from the included
+.Pa sndio.conf ,
+the Codex box's walls and the TrackPoint scroll.
 Nothing has run on a Mac yet: the Mac install, its agents and its
 desktop are tested only against mocks.
 .Pp

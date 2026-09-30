@@ -29,6 +29,9 @@ brew "neovim"
 brew "lf"
 brew "fzf"
 brew "diction"
+# spell(1), which macOS lacks: darwin/spell runs aspell, whose formula
+# installs its English dictionaries with it.
+brew "aspell"
 brew "mpv"
 brew "mpd"
 brew "mpc"

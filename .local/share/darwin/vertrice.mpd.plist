@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- mpd from login, as xprofile starts it on the X220. It is named its
+     settings, ~/.config/mpd/mpd.conf: mpd on macOS looks only in
+     ~/Library/Application Support, ~/.mpdconf and ~/.mpd. It stays in the
+     foreground, as launchd wants, and is Interactive, as Homebrew's own
+     service for mpd is, so sound is not throttled. -->
+<plist version="1.0">
+<dict>
+	<key>Label</key>
+	<string>vertrice.mpd</string>
+	<key>ProgramArguments</key>
+	<array>
+		<string>/bin/sh</string>
+		<string>-c</string>
+		<string>exec /opt/homebrew/bin/mpd --no-daemon "$HOME/.config/mpd/mpd.conf"</string>
+	</array>
+	<key>RunAtLoad</key>
+	<true/>
+	<key>ProcessType</key>
+	<string>Interactive</string>
+</dict>
+</plist>

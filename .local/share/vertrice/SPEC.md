@@ -328,6 +328,42 @@ means in the tree; untested means not yet run on the X220.
   the Mac's bar and out of its list: Apple silicon gives the
   temperature and clock only to root (powermetrics). Done; untested on a
   Mac.
+- **Spelling on the Mac: aspell behind a spell stand-in.** Agents'.
+  macOS has no spell(1), so `~/.local/bin/darwin/spell` runs `aspell -d
+  en_US list`, which reads text and prints the misspelled words (aspell(1):
+  "Produce a list of misspelled words from standard input"), leaves out
+  the words of each `+list` case-blind, as spell's `+local_file` does,
+  and prints the rest sorted, once each. `spellcheck` and `proof` stay
+  one script for both systems; the X220 keeps base spell, as "Spelling
+  and dictionary" has it. aspell, not hunspell: Homebrew's aspell formula
+  installs its dictionaries with it, English (`aspell6-en-2020.12.07`)
+  among them, and its own test runs `aspell list -d en_US`; Homebrew's
+  hunspell ships none ("Homebrew itself provides no dictionaries for
+  Hunspell"). Both read from Homebrew's formulae on 2026-09-30; aspell
+  has an `arm64_golden_gate` bottle. Done; untested on a Mac.
+- **mpd on both systems: one mpd.conf, the output per system.**
+  Agents'. `.config/mpd/mpd.conf` is shared and ends its sound output
+  in `include_optional "sndio.conf"` and `include_optional "osx.conf"`;
+  `sndio.conf` (the X220's sndio block, as it was) and `osx.conf`
+  (CoreAudio, mpd's `osx` output) sit beside it, and each machine's
+  sparse-checkout list leaves out the other's, so no `uname` is needed.
+  mpd.conf(5): the path is relative to the including file, and
+  include_optional skips a file that is not there. Both directives came
+  in mpd 0.21 (2018; not in 0.20.23's `ConfigFile.cxx`, in 0.21's
+  `File.cxx`); Homebrew's mpd is 0.24.15, whose formula test checks for
+  the osx output, and OpenBSD's port is 0.24 (0.24.15 in the ports tree,
+  0.24.5 in a packaged release). The X220 reads the same outputs in the
+  same order. On the Mac, mpd does not read `~/.config` (it looks in
+  `~/Library/Application Support/mpd`, `~/.mpdconf` and `~/.mpd`; its
+  `src/fs/XDG.hxx` turns XDG paths off on Apple), so the launchd agent
+  `vertrice.mpd` names the file: `mpd --no-daemon
+  ~/.config/mpd/mpd.conf` at login, `ProcessType` Interactive as in
+  Homebrew's own service. An agent of ours, not `brew services`: that
+  service runs mpd with no file named, and the install already starts
+  its other programs itself. sb-music, sb-mpdup and ncmpcpp need
+  nothing more: mpc and ncmpcpp reach mpd on localhost, and Homebrew's
+  ncmpcpp is built with the visualizer, which reads `/tmp/mpd.fifo`.
+  Done; untested on a Mac.
 - **Luke's leftovers.** Kept as they are: setbg's dwm lines, the st
   lines in xresources, `tutorialvids`, Luke's site in `linkhandler`.
   `sb-help-icon` opens `man vertrice`. Done.
@@ -457,6 +493,11 @@ As the tree has it now.
     Safari`.
 19. maim and xdotool in maimpick -> `screencapture -i`, `-iW` for a
     window, `-c` to copy.
+20. base spell(1) -> aspell, through the `~/.local/bin/darwin/spell`
+    stand-in; `spellcheck` is the same script.
+21. mpd started from xprofile, playing to sndiod -> the launchd agent
+    `vertrice.mpd`, playing through CoreAudio (`.config/mpd/osx.conf`);
+    the volume is macOS's.
 
 ## Untested on the machine
 
@@ -517,6 +558,19 @@ maimpick saves and a bare terminal opens there, as under cwm); that
 `exec-on-workspace-change` finds sketchybar on AeroSpace's own PATH
 (it adds /opt/homebrew/bin unless the config sets `[exec]`).
 
+Spelling and mpd are tested against mocks (`tests/cases/darwin-spell.sh`,
+`tests/cases/darwin-mpd.sh`); not yet seen on a Mac: aspell's list of
+a real text (what it makes of contractions, curly apostrophes and
+Markdown in its default url mode, where spell(1) runs deroff); the
+English dictionary under `-d en_US` from the bottle; mpd 0.24 reading
+`include_optional` with a relative path, which the suite only mimics,
+here and on the X220; the `osx` output on the default device, and
+whether it follows a change of device in System Settings; the agent's
+start at login, and whether macOS asks before mpd, started by launchd,
+reads `~/Music` (Files and Folders); mpd's database in
+`~/Library/Caches/mpd`, where it goes when mpd.conf names none; the
+playlists directory, which nothing makes, on either system.
+
 Selection is tested with git in the suite (`tests/cases/select.sh`);
 not yet run with the Command Line Tools' git on macOS 27 or the
 package's git on OpenBSD: `sparse-checkout set --no-cone --stdin`
@@ -530,9 +584,6 @@ checkout.
   pledge/unveil sandbox, which would retire cdxb.
 - The Mac: the test round on macOS 27. Picked and being built: see "The
   Mac build" and the entries after it.
-- mpd on the Mac: `.config/mpd/mpd.conf` outputs to sndio, which
-  Homebrew's mpd does not build; mpd there wants an `osx` output, and
-  the install does not start mpd until the config says how.
 - Apple's `container` tool (github.com/apple/container): Linux
   containers, each in its own light virtual machine, on Apple silicon
   from macOS 26. New ground for agent sandboxes on the Mac, a stronger

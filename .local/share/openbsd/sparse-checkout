@@ -9,11 +9,12 @@
 /.xsession
 /.calendar/
 
-# All but the Mac's desktop.
+# All but the Mac's desktop and its sound output for mpd.
 /.config/
 !/.config/aerospace/
 !/.config/ghostty/
 !/.config/karabiner/
+!/.config/mpd/osx.conf
 !/.config/sketchybar/
 
 /.local/bin/
