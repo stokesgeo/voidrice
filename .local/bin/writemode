@@ -5,5 +5,7 @@
 mkdir -p ~/writing && cd ~/writing || exit
 f=${1:-$(proof -l)}
 if [ -n "$f" ]; then set -- -c 'silent! Goyo' "$f"; else set -- .; fi
-# xterm, even with TERMINAL=st: st has no -fullscreen.
+# xterm, even with TERMINAL=st: st has no -fullscreen. On the Mac, Ghostty's
+# non-native full screen, which stays on the AeroSpace workspace.
+[ "$TERMINAL" = ghostty ] && exec ghostty --title=write --fullscreen=non-native -e nvim "$@"
 exec xterm -name write -fullscreen -e nvim "$@"

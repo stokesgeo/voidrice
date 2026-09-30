@@ -2,11 +2,16 @@
 
 # floatterm NAME SIZE [COMMAND ...]: a terminal window named NAME (the
 # instance cwmrc and xdotool match), SIZE columns x rows. st and xterm spell
-# the options apart; st when $TERMINAL is st, else xterm.
+# the options apart; st when $TERMINAL is st, else xterm. Ghostty, the
+# Mac's, has no instance name: NAME is its window's fixed title, which
+# AeroSpace and scratch match instead.
 
 name=$1 size=$2
 shift 2
 [ $# -gt 0 ] && set -- -e "$@"
-if [ "$TERMINAL" = st ]; then exec st -n "$name" -g "$size" "$@"
-else exec xterm -name "$name" -geometry "$size" "$@"
-fi
+case $TERMINAL in
+st) exec st -n "$name" -g "$size" "$@" ;;
+ghostty) exec ghostty --title="$name" --window-width="${size%x*}" \
+	--window-height="${size#*x}" "$@" ;;
+*) exec xterm -name "$name" -geometry "$size" "$@" ;;
+esac
