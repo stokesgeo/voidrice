@@ -13,6 +13,16 @@ t_sb_battery() {
 	eq "no battery: no output" "" "$out"
 }
 
+# The scroll wheel sets the backlight, and the help says so.
+t_sb_battery_clicks() {
+	BLOCK_BUTTON=4 sb-battery >/dev/null
+	logged '^wsconsctl display.brightness\+=10$'
+	BLOCK_BUTTON=5 sb-battery >/dev/null
+	logged '^wsconsctl display.brightness-=10$'
+	BLOCK_BUTTON=3 sb-battery >/dev/null
+	logged '^- Scroll to change the backlight\.$'
+}
+
 t_sb_brightness() {
 	eq "level" "💡70%" "$(sb-brightness)"
 	eq "fraction dropped" "💡5%" "$(WSCONS_BRIGHTNESS=5.49% sb-brightness)"

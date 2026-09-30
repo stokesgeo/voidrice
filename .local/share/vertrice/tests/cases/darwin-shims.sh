@@ -255,6 +255,19 @@ t_darwin_sb_battery() {
 	notlogged '^apm'
 }
 
+# The scroll wheel sets the X220's backlight; on the Mac it does nothing,
+# and the help does not offer it.
+t_darwin_sb_battery_clicks() {
+	mac
+	printf "Now drawing from 'AC Power'\n -InternalBattery-0 (id=4653155)\t55%%; charging; 1:02 remaining present: true\n" | fx out.pmset
+	BLOCK_BUTTON=4 sb-battery >/dev/null
+	BLOCK_BUTTON=5 sb-battery >/dev/null
+	notlogged wsconsctl
+	BLOCK_BUTTON=3 sb-battery >/dev/null
+	logged '^osascript\|.*\|🔋 Battery module\|'
+	notlogged backlight
+}
+
 t_darwin_setbg() {
 	mac
 	# A PNG's signature and header are all file(1) needs.
