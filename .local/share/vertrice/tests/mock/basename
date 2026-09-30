@@ -1,0 +1,18 @@
+#!/bin/sh
+
+# basename(1) mock: OpenBSD's takes no options and one name, with an
+# optional suffix (usr.bin/basename/basename.c: getopt "", argc 1 or 2).
+# GNU's and the Mac's take -a and more, so a script leaning on those
+# would pass on either host and fail on the X220.
+
+[ "$1" = -- ] && shift
+case $1 in -?*)
+	echo "basename: unknown option -- ${1#-}" >&2
+	echo "usage: basename string [suffix]" >&2
+	exit 1 ;;
+esac
+[ $# -eq 1 ] || [ $# -eq 2 ] || {
+	echo "usage: basename string [suffix]" >&2
+	exit 1
+}
+exec "$VT_REAL_BASENAME" "$@"

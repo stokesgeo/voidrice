@@ -229,3 +229,19 @@ t_xinitrc_session_env() {
 	got=$(env -i HOME="$HOME" "$VT_SH" -c ". '$f'; echo \"\$DBUS_SESSION_BUS_ADDRESS \$DISPLAY\"")
 	eq "a cron job gets the session" "unix:path=/tmp/dbus-AbC,guid=123 :0" "$got"
 }
+
+# lf's bulkrename: the selection, by name, in $EDITOR. A file left out of
+# the selection stays out of the list.
+t_lf_bulkrename() {
+	printf '#!/bin/sh\nexit 0\n' >"$T/bin/lf"; chmod +x "$T/bin/lf"
+	printf '#!/bin/sh\nprintf "x\\nc\\n" >"$1"\n' >"$T/ed"; chmod +x "$T/ed"
+	body=$(sed -n '/^cmd bulkrename \${{$/,/^}}$/p' "$REPO/.config/lf/lfrc" | sed '1d;$d')
+	[ -n "$body" ] || fail "no bulkrename command in lfrc"
+	mkdir "$T/d" && cd "$T/d" || fail "no dir"
+	: >"a b"; : >c; : >z
+	fs="$T/d/a b
+$T/d/c" EDITOR=$T/ed id=1 "$VT_SH" -eu -c "IFS='
+'; $body" || fail "bulkrename failed"
+	[ -e x ] && [ ! -e "a b" ] || fail "a b not renamed: $(ls)"
+	[ -e c ] && [ -e z ] || fail "c or z moved: $(ls)"
+}
