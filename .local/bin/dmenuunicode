@@ -14,6 +14,9 @@ chosen="${chosen%% *}"
 
 # If you run this command with an argument, it will automatically insert the
 # character. Otherwise, show a message that the emoji has been copied.
+# The Mac has no xdotool: there the character is pasted with Cmd+V.
+[ -n "$1" ] && [ "$(uname)" = Darwin ] && { printf %s "$chosen" | pbcopy
+	exec osascript -e 'tell application "System Events" to keystroke "v" using command down' ;}
 [ -n "$1" ] && { xdotool type "$chosen"; exit ;}
 
 printf %s "$chosen" | xclip -selection clipboard
