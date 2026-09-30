@@ -1,0 +1,41 @@
+#!/bin/sh
+
+# sketchybarrc: the Mac's bar, along the bottom as sbar is under cwm.
+# Each status block is an item named after it, drawn by ./block; the left
+# end shows the focused workspace. `theme` sets the colours, now and
+# whenever macOS turns light or dark.
+#
+# AeroSpace starts it (aerospace.toml) and keeps windows off its 24
+# points. Not launchd (brew services): the blocks, theme and their clicks
+# need the login profile's PATH and programs, which aerospace/run gives.
+#
+# Edit $blocks to choose and order the blocks, as in sbar.
+
+blocks="sb-music sb-news sb-mailbox sb-updates sb-cpu sb-memory sb-volume sb-battery sb-internet sb-words sb-clock"
+
+sketchybar --bar position=bottom height=24 \
+	--default label.font="IBM Plex Mono:Regular:13.0" icon.drawing=off \
+	padding_left=4 padding_right=4
+
+sketchybar --add event aerospace_workspace_change \
+	--add item workspace left \
+	--set workspace script='sketchybar --set "$NAME" label="$(aerospace list-workspaces --focused)"' \
+	--subscribe workspace aerospace_workspace_change
+
+# Right-hand items are placed from the right edge inwards, so the list is
+# added last block first, to read left to right as in sbar.
+for b in $blocks; do r="$b $r"; done
+for b in $r; do
+	sketchybar --add item "$b" right \
+		--set "$b" script="$CONFIG_DIR/block" update_freq=5 \
+		--subscribe "$b" mouse.clicked mouse.scrolled
+done
+sketchybar --subscribe sb-volume volume_change \
+	--subscribe sb-battery power_source_change system_woke
+
+# macOS posts this notice when it turns light or dark.
+sketchybar --add event appearance AppleInterfaceThemeChangedNotification \
+	--add item theme left --set theme drawing=off script='theme auto' \
+	--subscribe theme appearance
+
+sketchybar --update

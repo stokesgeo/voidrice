@@ -1,0 +1,116 @@
+# aerospace.toml: the Mac's window manager, with cwmrc's key map. AeroSpace
+# reads this file; Super+F5 rereads it. Super+F1 lists every key.
+#
+# Super is Caps Lock held (karabiner.json): command, option and control at
+# once, written cmd-alt-ctrl below. With Shift it is Hyper, all four.
+# Pattern, as in cwmrc: Super+key acts; Super+Shift+key is its bigger or
+# opposite form. cwmrc's Super+Control keys have no layer here, as Caps
+# already holds control. Windows tile; Super+Space floats one.
+#
+# Left unbound, as macOS keeps them for its diagnostics: Hyper+period,
+# Hyper+comma and Hyper+w (cwmrc: mpc repeat, seek to 0%, chromium).
+#
+# Keys run programs through ./run, which reads the login profile first:
+# AeroSpace starts from macOS, not from a login shell.
+
+config-version = 2
+start-at-login = true
+
+# The bar: SketchyBar along the bottom (sketchybar/sketchybarrc), told of
+# each workspace change. Windows leave its 24 points free, as cwmrc's gap
+# leaves sbar's 22 pixels.
+after-startup-command = ['exec-and-forget ~/.config/aerospace/run sketchybar']
+exec-on-workspace-change = ['/bin/sh', '-c', 'sketchybar --trigger aerospace_workspace_change']
+gaps.outer.bottom = 24
+
+[mode.main.binding]
+
+# --- windows: j k focus, q close, t tile, h l resize, S+hjkl move --------
+cmd-alt-ctrl-j = 'focus --wrap-around dfs-next'
+cmd-alt-ctrl-k = 'focus --wrap-around dfs-prev'
+cmd-alt-ctrl-q = 'close'
+cmd-alt-ctrl-t = 'layout h_tiles'			# side by side, as cwm's vtile
+cmd-alt-ctrl-shift-t = 'layout v_tiles'		# one above the other, as htile
+cmd-alt-ctrl-space = 'layout floating tiling'	# float or tile the window
+cmd-alt-ctrl-f = 'fullscreen --no-outer-gaps'	# over the bar too
+cmd-alt-ctrl-shift-u = 'fullscreen'			# fill the screen, bar kept
+cmd-alt-ctrl-h = 'resize smart -100'
+cmd-alt-ctrl-l = 'resize smart +100'
+cmd-alt-ctrl-shift-h = 'move left'
+cmd-alt-ctrl-shift-j = 'move down'
+cmd-alt-ctrl-shift-k = 'move up'
+cmd-alt-ctrl-shift-l = 'move right'
+
+# --- workspaces: 1-9 show one, S+1-9 send the window there ---------------
+# Tab and \ go to the last one; g ; PgUp PgDn cycle.
+cmd-alt-ctrl-1 = 'workspace 1'
+cmd-alt-ctrl-2 = 'workspace 2'
+cmd-alt-ctrl-3 = 'workspace 3'
+cmd-alt-ctrl-4 = 'workspace 4'
+cmd-alt-ctrl-5 = 'workspace 5'
+cmd-alt-ctrl-6 = 'workspace 6'
+cmd-alt-ctrl-7 = 'workspace 7'
+cmd-alt-ctrl-8 = 'workspace 8'
+cmd-alt-ctrl-9 = 'workspace 9'
+cmd-alt-ctrl-shift-1 = 'move-node-to-workspace 1'
+cmd-alt-ctrl-shift-2 = 'move-node-to-workspace 2'
+cmd-alt-ctrl-shift-3 = 'move-node-to-workspace 3'
+cmd-alt-ctrl-shift-4 = 'move-node-to-workspace 4'
+cmd-alt-ctrl-shift-5 = 'move-node-to-workspace 5'
+cmd-alt-ctrl-shift-6 = 'move-node-to-workspace 6'
+cmd-alt-ctrl-shift-7 = 'move-node-to-workspace 7'
+cmd-alt-ctrl-shift-8 = 'move-node-to-workspace 8'
+cmd-alt-ctrl-shift-9 = 'move-node-to-workspace 9'
+cmd-alt-ctrl-tab = 'workspace-back-and-forth'
+cmd-alt-ctrl-backslash = 'workspace-back-and-forth'
+cmd-alt-ctrl-g = 'workspace --wrap-around prev'
+cmd-alt-ctrl-semicolon = 'workspace --wrap-around next'
+cmd-alt-ctrl-pageUp = 'workspace --wrap-around prev'
+cmd-alt-ctrl-pageDown = 'workspace --wrap-around next'
+
+# --- launchers: Return terminal, w web, e mail, r files, d apps ----------
+# BackSpace and S+q open the power menu (sysact). Shifted keys are variants.
+cmd-alt-ctrl-enter = 'exec-and-forget ~/.config/aerospace/run sd'
+cmd-alt-ctrl-d = '''exec-and-forget ~/.config/aerospace/run 'ls /Applications /System/Applications | sed -n "s/\.app$//p" | dmenu -i -p Open: | xargs -I{} open -a {}' '''
+cmd-alt-ctrl-shift-d = 'exec-and-forget ~/.config/aerospace/run passmenu'
+cmd-alt-ctrl-w = '''exec-and-forget ~/.config/aerospace/run '$BROWSER' '''
+cmd-alt-ctrl-e = '''exec-and-forget ~/.config/aerospace/run '$TERMINAL -e neomutt; sb-refresh' '''
+cmd-alt-ctrl-shift-e = '''exec-and-forget ~/.config/aerospace/run '$TERMINAL -e abook' '''
+cmd-alt-ctrl-r = '''exec-and-forget ~/.config/aerospace/run '$TERMINAL -e lfub' '''
+cmd-alt-ctrl-shift-r = '''exec-and-forget ~/.config/aerospace/run '$TERMINAL -e top' '''
+cmd-alt-ctrl-c = '''exec-and-forget ~/.config/aerospace/run '$TERMINAL -e profanity' '''
+cmd-alt-ctrl-n = '''exec-and-forget ~/.config/aerospace/run '$TERMINAL -e nvim -c VimwikiIndex' '''
+cmd-alt-ctrl-shift-n = '''exec-and-forget ~/.config/aerospace/run '$TERMINAL -e newsboat; sb-refresh' '''
+cmd-alt-ctrl-m = '''exec-and-forget ~/.config/aerospace/run '$TERMINAL -e ncmpcpp' '''
+cmd-alt-ctrl-b = 'exec-and-forget ~/.config/aerospace/run sb-show'
+cmd-alt-ctrl-backtick = 'exec-and-forget ~/.config/aerospace/run dmenuunicode'
+cmd-alt-ctrl-backspace = 'exec-and-forget ~/.config/aerospace/run sysact'
+cmd-alt-ctrl-shift-q = 'exec-and-forget ~/.config/aerospace/run sysact'
+cmd-alt-ctrl-shift-backspace = 'exec-and-forget ~/.config/aerospace/run sysact'
+
+# --- music and volume: p pause, [ ] seek, , . track, - = volume, S+m mute ---
+# mpd plays; macOS sets the volume, and the bar hears the change.
+cmd-alt-ctrl-p = 'exec-and-forget ~/.config/aerospace/run mpc toggle'
+cmd-alt-ctrl-shift-p = '''exec-and-forget ~/.config/aerospace/run 'mpc pause; pauseallmpv' '''
+cmd-alt-ctrl-leftSquareBracket = 'exec-and-forget ~/.config/aerospace/run mpc seek -10'
+cmd-alt-ctrl-shift-leftSquareBracket = 'exec-and-forget ~/.config/aerospace/run mpc seek -60'
+cmd-alt-ctrl-rightSquareBracket = 'exec-and-forget ~/.config/aerospace/run mpc seek +10'
+cmd-alt-ctrl-shift-rightSquareBracket = 'exec-and-forget ~/.config/aerospace/run mpc seek +60'
+cmd-alt-ctrl-comma = 'exec-and-forget ~/.config/aerospace/run mpc prev'
+cmd-alt-ctrl-period = 'exec-and-forget ~/.config/aerospace/run mpc next'
+cmd-alt-ctrl-minus = 'volume down'
+cmd-alt-ctrl-shift-minus = 'volume down; volume down; volume down'
+cmd-alt-ctrl-equal = 'volume up'
+cmd-alt-ctrl-shift-equal = 'volume up; volume up; volume up'
+cmd-alt-ctrl-shift-m = 'volume mute-toggle'
+
+# --- function keys: help, theme, torrents --------------------------------
+# macOS has its own displays, Night Shift, mounting, Wi-Fi, camera and
+# screenshots (command+shift+5), so cwmrc's keys for those stay unbound.
+cmd-alt-ctrl-f1 = '''exec-and-forget ~/.config/aerospace/run 'grep "^cmd-" ~/.config/aerospace/aerospace.toml | dmenu -i -l 40 -p Keys:' '''
+cmd-alt-ctrl-shift-f1 = 'exec-and-forget ~/.config/aerospace/run manpick'
+cmd-alt-ctrl-f2 = 'exec-and-forget ~/.config/aerospace/run tutorialvids'
+cmd-alt-ctrl-f5 = 'reload-config'
+cmd-alt-ctrl-f6 = 'exec-and-forget ~/.config/aerospace/run torwrap'
+cmd-alt-ctrl-f7 = 'exec-and-forget ~/.config/aerospace/run td-toggle'
+cmd-alt-ctrl-f8 = 'exec-and-forget ~/.config/aerospace/run theme toggle'	# light / dark

@@ -1,0 +1,9 @@
+# Ghostty, the Mac's terminal. xterm's font; the day palette while macOS
+# is light and the night one while it is dark. `theme` writes both into
+# themes/ from x11/themes, so the palettes live in one place.
+
+font-family = IBM Plex Mono
+theme = light:vertrice-day,dark:vertrice-night
+
+# Hosts reached by ssh (the X220) have no xterm-ghostty terminfo entry.
+term = xterm-256color
