@@ -327,8 +327,9 @@ means in the tree; untested means not yet run on the X220.
 - **The Mac's bar blocks.** Agents'. `sb-refresh` runs `sketchybar
   --update` on Darwin, since sbar does not run there. Darwin branches:
   `sb-memory` (vm_stat's active, wired and compressed pages over
-  `hw.memsize`), `sb-volume` (AppleScript's volume settings, clicks
-  included), `sb-internet` (the default route's interface from route(8),
+  `hw.memsize`), `sb-volume` (read from AppleScript's volume settings;
+  clicks and scrolls go to `aerospace volume`, as the keys do; nothing
+  shown for an output with no volume), `sb-internet` (the default route's interface from route(8),
   Wi-Fi named by networksetup(8); no signal strength). `sb-cpu` is off
   the Mac's bar and out of its list: Apple silicon gives the
   temperature and clock only to root (powermetrics). Done; untested on a

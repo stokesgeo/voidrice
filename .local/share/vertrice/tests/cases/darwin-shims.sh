@@ -386,6 +386,16 @@ t_darwin_sb_volume() {
 	notlogged sndioctl
 }
 
+# An output with no volume to set (HDMI, some interfaces): AppleScript
+# answers "missing value" (assumed, not seen), and the block shows nothing.
+t_darwin_sb_volume_none() {
+	mac
+	echo 'missing value, missing value' | fx out.osascript
+	out=$(sb-volume); rc=$?
+	eq "nothing shown" "" "$out"
+	eq "exit 1, as sb-battery with no battery" 1 "$rc"
+}
+
 # The default route's interface, and whether networksetup calls it Wi-Fi.
 t_darwin_sb_internet() {
 	mac

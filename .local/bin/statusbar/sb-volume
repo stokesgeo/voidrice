@@ -21,6 +21,8 @@ if [ "$(uname)" = Darwin ]; then
 	esac
 	set -- $(osascript -e 'set s to get volume settings' -e '{output volume of s, output muted of s}' | tr -d ,)
 	vol=$1 mute=$2
+	# An output with no volume to set answers "missing value": show nothing.
+	case $vol in ''|*[!0-9]*) exit 1 ;; esac
 else
 	case $BLOCK_BUTTON in
 		2) sndioctl -q output.mute=! ;;
