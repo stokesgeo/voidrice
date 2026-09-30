@@ -283,6 +283,20 @@ two
 three" "$("$VT_SH" "$scope" "$T/notes.txt" 80 3 0 0)"
 }
 
+# A man page's source: rendered, as mandoc does it. OpenBSD's man reads its
+# arguments as names to search for, never as files (usr.bin/mandoc/main.c).
+t_fetch_scope_troff() {
+	command -v mandoc >/dev/null 2>&1 || skip "no mandoc"
+	scope=$(scope_path)
+	printf '#!/bin/sh\necho "text/troff; charset=us-ascii"\n' >"$T/bin/file"
+	chmod +x "$T/bin/file"
+	# man as OpenBSD's: the host's may read a path as a file.
+	printf '#!/bin/sh\nfor a; do echo "man: No entry for $a in the manual." >&2; done\nexit 1\n' >"$T/bin/man"
+	chmod +x "$T/bin/man"
+	printf '.Dd $Mdocdate$\n.Dt VTX 1\n.Os\n.Sh NAME\n.Nm vtx\n.Nd a test page\n' >"$T/vtx.1"
+	has "the page rendered" "vtx - a test page" "$("$VT_SH" "$scope" "$T/vtx.1" 80 30 0 0 2>&1)"
+}
+
 # With highlight: coloured (ANSI), plain for an unknown syntax, cut to
 # the pane's height ($3). lf passes file, width, height, x, y.
 t_fetch_scope_highlight() {
