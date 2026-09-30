@@ -17,6 +17,23 @@ case $BLOCK_BUTTON in
 	6) detach "$TERMINAL" -e "$EDITOR" "$0" ;;
 esac
 
+# The Mac: the way out is the interface of the default route (route(8));
+# networksetup(8) names the Wi-Fi one; a VPN that takes all traffic is a
+# tunnel. No signal strength: since the airport tool went (macOS 14.4),
+# what is left is slow (system_profiler) or root's (wdutil). Wi-Fi off
+# shows as 📡.
+if [ "$(uname)" = Darwin ]; then
+	out=$(route -n get default 2>/dev/null | awk '$1 == "interface:" { print $2 }')
+	wifi=$(networksetup -listallhardwareports | awk '/^Hardware Port: Wi-Fi$/ { getline; print $2 }')
+	case $out in
+		'') echo 📡 ;;
+		"$wifi") echo 📶 ;;
+		utun*|ipsec*|ppp*) echo 🔒 ;;
+		*) echo 🌐 ;;
+	esac
+	exit
+fi
+
 ifconfig -a | awk '
 	/^[a-z]/ {
 		ifc = $1; sub(/:$/, "", ifc)

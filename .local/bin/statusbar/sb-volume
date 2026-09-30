@@ -1,21 +1,37 @@
 #!/bin/sh
 
 # Prints the current volume or 🔇 if muted.
-# sndioctl(1): output.level runs from 0 to 1; output.mute is 0 or 1.
+# sndioctl(1): output.level runs from 0 to 1; output.mute is 0 or 1. On the
+# Mac, AppleScript's volume settings: output volume runs from 0 to 100,
+# output muted is true or false.
 
 case $BLOCK_BUTTON in
-	2) sndioctl -q output.mute=! ;;
-	4) sndioctl -q output.level=+0.01 ;;
-	5) sndioctl -q output.level=-0.01 ;;
 	3) notify-send "📢 Volume module" "\- Shows volume 🔊, 🔇 if muted.
 - Middle click to mute.
 - Scroll to change." ;;
 	6) detach "$TERMINAL" -e "$EDITOR" "$0" ;;
 esac
 
-[ "$(sndioctl -n output.mute)" = 1 ] && { printf "🔇\n"; exit ;}
+if [ "$(uname)" = Darwin ]; then
+	osa() { osascript -e 'set s to get volume settings' -e "$1"; }
+	case $BLOCK_BUTTON in
+		2) osa 'set volume output muted not output muted of s' ;;
+		4) osa 'set volume output volume (output volume of s) + 1' ;;
+		5) osa 'set volume output volume (output volume of s) - 1' ;;
+	esac
+	set -- $(osa '{output volume of s, output muted of s}' | tr -d ,)
+	vol=$1 mute=$2
+else
+	case $BLOCK_BUTTON in
+		2) sndioctl -q output.mute=! ;;
+		4) sndioctl -q output.level=+0.01 ;;
+		5) sndioctl -q output.level=-0.01 ;;
+	esac
+	vol=$(sndioctl -n output.level | awk '{printf "%.0f", $1 * 100}')
+	mute=$(sndioctl -n output.mute)
+fi
 
-vol=$(sndioctl -n output.level | awk '{printf "%.0f", $1 * 100}')
+case $mute in 1|true) printf "🔇\n"; exit ;; esac
 
 # A true test expands to 1, so case 1 takes the first test that holds.
 case 1 in

@@ -1,0 +1,13 @@
+# The files of the repository no machine takes: they are for working on
+# vertrice, not for using it. The same pattern form as
+# ../openbsd/sparse-checkout and ../darwin/sparse-checkout, which leave
+# these out. tests/cases/select.sh checks that every file is in one of
+# the three lists.
+
+/README.md
+/LICENSE
+/FUNDING.yml
+/.local/share/vertrice/SPEC.md
+/.local/share/vertrice/repo-only
+/.local/share/vertrice/tests/
+!/.local/share/vertrice/tests/check

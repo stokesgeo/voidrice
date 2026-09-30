@@ -20,6 +20,8 @@ voidrice's layout (scripts in `~/.local/bin`, configs in `~/.config`,
 dmenu for every menu, one status line) on OpenBSD base: ksh, cwm, xterm,
 doas, sndio, apm, dump. A package is added only for a feature base does
 not have. The dotfiles are a bare repository whose work tree is `$HOME`.
+The Mac is the second device: the same tree, with a macOS desktop (see
+"The Mac build" and the entries after it).
 
 The owner, on the whole fork:
 
@@ -68,6 +70,14 @@ is to build that ux into my devices, as my default ux, and extend and
 specify it to my personal usage and intent over time." The OpenBSD port
 on the X220 is the first device, not the whole of it.
 
+Each device in its own idiom, the owner (2026-09-30): "adopting Mac
+tools like iCal is acceptable and even good. Env specific tool usage is
+not a negative thing, I want each version to be idiomatic." And: "Kbd +
+scriptable is the goal/ideal." Reading, the agents', not yet confirmed:
+a native tool is the idiomatic pick when it keeps the keyboard-driven,
+scriptable shortest path; a native app reachable only by mouse fails
+it.
+
 The school, from the owner's own instruction file: "Hardened Plaintext
 ... Poles: plaintext (comprehensible, composable, suckless /
 worse-is-better) x hardened (adversarial-by-design, assume-breach) —
@@ -115,7 +125,8 @@ means in the tree; untested means not yet run on the X220.
 - **Reminders: calendar(1), mailed by daily(8).** The owner: "calendar
   is a good idea (with agent wiring as well)". `~/.calendar/calendar`;
   the nightly `calendar -a` at 01:30 mails the lines; the Codex box
-  may write there (grants) and its AGENTS.md says how. Done.
+  may write there (grants) and its AGENTS.md says how. The X220's; the
+  Mac uses Reminders (see "Reminders on the Mac"). Done.
 - **Root's mail to the owner.** "root mail seems reasonable".
   `/etc/mail/aliases`, unless root has an alias. Done.
 - **Git is Codex's job, in the box.** "I, by default, don't want to
@@ -202,8 +213,121 @@ means in the tree; untested means not yet run on the X220.
   such would be a future concern." Then: "I'd definitely want Mac
   native." Rules out running the X desktop under XQuartz on the Mac: the
   Mac gets its own window manager, bar and menu, carrying the same UX
-  (see "What vertrice is for"). A test round there comes first. Nothing
-  is built for the Mac yet.
+  (see "What vertrice is for"). A test round there comes first. The
+  build is the next entries.
+- **The Mac build.** The owner (2026-09-29): "Terminal default on Mac
+  is ghostty". Picked from agents' options: AeroSpace (tiler),
+  SketchyBar (bar), choose (picker), Caps as Hyper through Karabiner
+  (modifier). On power: "The battery admin is x220 specific (obsdfreqd
+  and such exist because the x220 is old and has terrible battery life,
+  the MacBook as is is perfectly fine for regular portable work." On the
+  repository: "I want the repo to be ready to install on x220 or Mac
+  after the Mac specific build, so portability and sanity in that domain
+  is a key expectation/requirement." Target macOS 27: "I want to make
+  the most of 27 once installed, so keep that in mind with the Mac
+  version work." Being built; untested on a Mac.
+- **One tree, the system picked by uname.** The orchestrating agent's
+  shape (the Mac build brief, 2026-09-29): one repository and one `$HOME`
+  layout for both; `uname` decides at run time, in as few places as
+  possible; the other system's files are not checked out (see
+  "Selection"). Being built.
+- **Selection: each machine holds only the files it uses.** The owner
+  (2026-09-30): "Id prefer an install script like larbs that does
+  selection, so that every file on the system is purposeful to it."
+  Picked from agents' options: "Sparse checkout" and, for the files for
+  working on vertrice, "Keep them repo-only". Each system has one list of
+  git sparse-checkout patterns (non-cone, the .gitignore form), named for
+  `uname` beside its install: `.local/share/openbsd/sparse-checkout` and
+  `.local/share/darwin/sparse-checkout`. The home half in
+  `vertrice-install`'s header sets the list before the first checkout,
+  so only that system's files are ever written, and a pull stays a pull;
+  after a pull that changes a list, its line is run again. Both take
+  every shared file; the X220 leaves out the Mac's desktop and
+  `darwin/` directories, the Mac leaves out X, its programs and the
+  scripts that are X220 only (the list says which, and why).
+  `.local/share/vertrice/repo-only` names what no machine takes: README,
+  LICENSE, FUNDING.yml, this file and the suite. Of the docs, the
+  machines hold only `man vertrice` and OPENBSD.md; the X220 also holds
+  `tests/check` and `reading`. `tests/cases/select.sh` applies each list
+  to every tracked file with git itself and fails on a file of the other
+  system, a repo-only file on a machine, or a file in no list. Done;
+  untested on the machines.
+- **Shims, not forks.** The same brief: scripts keep calling dmenu,
+  xclip, notify-send, xdg-open and setbg; on the Mac,
+  `~/.local/bin/darwin/` holds same-named commands that hand the work to
+  choose, pbcopy and pbpaste, osascript and open, and the profile puts it
+  first in PATH on Darwin only. What a shim cannot cover gets a short
+  Darwin branch in the script, or is X220 only. Being built (the shims,
+  the profile and the branches are one agent's work, the desktop configs
+  another's); the names here are the brief's, not yet read from the tree.
+- **The Mac install: Brewfile and a command list.** Agents'. One line
+  at the top of `vertrice-install` hands a Mac over to
+  `~/.local/share/darwin/install`, run as the user (Homebrew refuses
+  root; sudo only for `/etc/shells` and `/var/db/updates`). The
+  directory is named for `uname`, beside `.local/share/openbsd` and
+  `.local/bin/darwin`; the brief had said under `.local/share/vertrice`.
+  `Brewfile` and `Brewfile.extra` split as `pkglist` and
+  `pkglist.extra` do; macOS first, as base first on the X220 (git from
+  the Command Line Tools, pbcopy, screencapture, Preview, Night Shift and
+  Notification Center need nothing; macOS has bsdtar but not bsdcat, so
+  libarchive is in). All arm64-native, read
+  from Homebrew's sources on 2026-09-30: each core formula has an
+  `arm64_golden_gate` (macOS 27) bottle, but pass-otp (one bottle for
+  all systems) and sketchybar (built from source on the machine); the
+  Ghostty, Karabiner-Elements and AeroSpace apps are universal, the
+  codex cask is an aarch64 build. oksh is the login shell. Browsers:
+  Homebrew disabled its qutebrowser and chromium casks on 2026-09-01
+  (they fail Gatekeeper), so Safari. Done; untested on a Mac.
+- **launchd for cron.** Agents'. Two user agents: the update count
+  (`brew outdated` into `/var/db/updates` at login and every four hours,
+  where root's crontab writes it on the X220) and `newsup` every 30
+  minutes (`vertrice.newsup`, as the crontab line in `cron/README.md`;
+  it runs only once newsboat, from `Brewfile.extra`, is there). The
+  update file is made the user's once, so `sb-updates` reads one path on
+  both systems. Not carried: root's mail (nothing on the Mac mails it),
+  the dump reminder (Time Machine). The reminders agent went with
+  "Reminders on the Mac" below. Done; untested on a Mac.
+- **macOS settings.** Agents'. The Dock hides (the bar is along the
+  bottom); Mission Control groups windows by app and one Space spans all
+  displays, both from AeroSpace's guide; key repeat as `remaps` sets it.
+  Done; untested on a Mac.
+- **Reminders on the Mac.** Picked from agents' options (2026-09-30):
+  "Reminders". The calendar(1) agent went; `remind YYYY-MM-DD TEXT`
+  (`~/.local/bin/darwin/remind`) adds a reminder through osascript, due
+  at 09:00 that day, and Reminders shows it. It is the Mac's form of the
+  X220's verb (a line in `~/.calendar/calendar`), for the owner and for
+  agents. `~/.calendar` is X220 only; the X220 keeps calendar(1)
+  unchanged. Open: no agent instruction file on the Mac names `remind`
+  (the X220's is the Codex box's AGENTS.md); `man vertrice` does. Done;
+  untested on a Mac.
+- **The browser on the Mac.** Picked (2026-09-30): "Safari". `BROWSER`
+  is `safari` on Darwin, a stand-in in `~/.local/bin/darwin` that runs
+  `open -a Safari`: the scripts run `"$BROWSER"` as one word. The
+  qutebrowser config stays X220 only. Done; untested on a Mac.
+- **Backups on the Mac.** Picked (2026-09-30): "Time Machine alone".
+  Nothing in vertrice; `bk` stays X220 only. Done.
+- **Lock on the Mac.** Picked (2026-09-30): "pmset displaysleepnow".
+  sysact's lock runs it; display off, now the same thing, left the Mac's
+  menu. The install sets "require password immediately" with
+  `sysadminctl -screenLock immediate -password -` (it asks for the
+  password), unless `-screenLock status` already says immediate. Done;
+  untested on a Mac.
+- **The Mac's other stand-ins.** Agents' recommendations, filtered by
+  the owner's idiom words: `dict` opens `dict://WORD` (Dictionary.app);
+  maimpick has a Darwin branch on `screencapture -i` (Super+Shift+s, as
+  a Mac has no Print key; no text entry, as Live Text reads any
+  screenshot) and is in the Mac's list; newsup runs from launchd (see
+  "launchd for cron"). Kept: the ftp stand-in, choose, dmenuunicode.
+  Done; untested on a Mac.
+- **The Mac's bar blocks.** Agents'. `sb-refresh` runs `sketchybar
+  --update` on Darwin, since sbar does not run there. Darwin branches:
+  `sb-memory` (vm_stat's active, wired and compressed pages over
+  `hw.memsize`), `sb-volume` (AppleScript's volume settings, clicks
+  included), `sb-internet` (the default route's interface from route(8),
+  Wi-Fi named by networksetup(8); no signal strength). `sb-cpu` is off
+  the Mac's bar and out of its list: Apple silicon gives the
+  temperature and clock only to root (powermetrics). Done; untested on a
+  Mac.
 - **Luke's leftovers.** Kept as they are: setbg's dwm lines, the st
   lines in xresources, `tutorialvids`, Luke's site in `linkhandler`.
   `sb-help-icon` opens `man vertrice`. Done.
@@ -273,6 +397,67 @@ way, and where it lives.
 17. vi: nvi is the fallback that always works. `NEXINIT` in the profile
     points it at `.config/vi/exrc`; nvim reads neither. Root gets vi.
 
+### The Mac: each X220 mechanism and what stands in its place
+
+As the tree has it now.
+
+1. The X session and cwm -> the macOS login and AeroSpace,
+   `~/.config/aerospace/aerospace.toml`: cwmrc's keys with Caps Lock
+   held for Super. Keys run programs through `aerospace/run`, which
+   reads the login profile first. The scratchpads and writemode float,
+   matched by the title floatterm gives them. The profile's `startx`
+   line fires only on `/dev/ttyC0`, so a Mac never meets it.
+2. xterm -> Ghostty, `~/.config/ghostty/config`, through the
+   `~/.local/bin/darwin/ghostty` stand-in (`open -na`); `theme` writes
+   day and night Ghostty themes, and Ghostty follows the system
+   appearance between them.
+3. The vbar xterm running `sbar -t` -> SketchyBar along the bottom,
+   `~/.config/sketchybar/`, its items running the same `sb-*` blocks
+   and passing the mouse button as they expect. AeroSpace starts it
+   through `run`, so the blocks get the profile's PATH; `sb-refresh`
+   runs `sketchybar --update`. The CPU block is left off (no
+   temperature or clock without root); memory, volume and the network
+   have Darwin branches.
+4. dmenu -> choose, through `~/.local/bin/darwin/dmenu`, in the palette
+   `theme` last set.
+5. `remaps` (xcape: Caps tapped is Escape, held is Super) -> Karabiner-
+   Elements, `~/.config/karabiner/karabiner.json`: tapped is Escape,
+   held is Super. The key repeat is a `defaults` line in the install.
+6. xclip, notify-send and dunst, xdg-open, setbg -> same-named commands
+   in `~/.local/bin/darwin/` over pbcopy and pbpaste, osascript and
+   Notification Center, open, and the desktop picture.
+7. ksh -> oksh, the portable OpenBSD ksh, as the login shell; the same
+   `~/.profile` and kshrc.
+8. pkg_add and `pkglist` -> `brew bundle` and `Brewfile`
+   (`.local/share/darwin/`); the X220's installer hands over on `uname`.
+9. Root's crontab line for the update count -> the launchd agent
+   `vertrice.updates` writing `brew outdated` to the same
+   `/var/db/updates`; the user's crontab line for `newsup` -> the
+   agent `vertrice.newsup`.
+10. calendar(1) and daily(8) mailing `calendar -a` -> Reminders:
+    `remind YYYY-MM-DD TEXT` adds one through osascript, and Reminders
+    shows it.
+11. apm, apmd and obsdfreqd -> nothing: macOS manages power, and the
+    owner ruled the battery work X220 only. `sb-battery` may read
+    `pmset -g batt` to show the charge.
+12. sd's `proc-cwd` -> `lsof -a -p PID -d cwd -Fn`.
+13. doas -> sudo, in the install only. Scripts that need root on the
+    X220 (mounter, bk, dmenuwifi, rectoggle) are X220 only; every script
+    that is, and why, is in `.local/share/darwin/sparse-checkout`.
+14. xidle and xlock -> `pmset displaysleepnow` for sysact's lock, with
+    the password asked at once (`sysadminctl -screenLock immediate`, in
+    the install); the idle lock is macOS's own.
+15. dump and `bk` -> Time Machine alone; `bk` is X220 only.
+16. `cdxb` -> nothing: Codex sandboxes itself on macOS (Seatbelt).
+    Left out of the Mac install.
+17. dictd with GCIDE and Roget -> Dictionary.app: `dict WORD` opens
+    `dict://WORD` there (so K in nvim does too); `roget` and
+    `vertrice-dict` are X220 only.
+18. qutebrowser -> Safari: `BROWSER=safari`, a stand-in over `open -a
+    Safari`.
+19. maim and xdotool in maimpick -> `screencapture -i`, `-iW` for a
+    window, `-c` to copy.
+
 ## Untested on the machine
 
 vertrice(7) CAVEATS lists what has not run on an X220, and
@@ -285,13 +470,73 @@ lf's opener against OpenBSD file(1)'s MIME database (try an mp3, mp4,
 epub and an empty file); otp's QR image in /tmp on an SSD (`rm -P`
 cannot beat wear levelling); `hotplug-watch` with a real attach.
 
+Nothing has run on a Mac. The Mac install is tested against mocks
+(`tests/cases/darwin-install.sh`); not yet seen on macOS 27: `brew
+bundle` with this Brewfile, including the source build of sketchybar
+and the Karabiner package's password prompt; `chsh` to oksh and the
+profile and kshrc under it; `sudo install -o` making
+`/var/db/updates` the user's; `launchctl bootout` and `bootstrap` in
+`gui/UID`, and the agents' `HOME` and `PATH` (the updates agent names
+brew by its full path for that reason); the newsup agent sourcing
+`~/.profile` under macOS's /bin/sh; `sysadminctl -screenLock status`
+(its wording, and that it writes to stderr) and `-screenLock immediate
+-password -` run as the user, not root; the `defaults` keys under macOS 27
+(`expose-group-apps`, `spans-displays`, `KeyRepeat` 2 below the
+Settings slider); AeroSpace, which is not notarized (its cask strips
+the quarantine flag), under macOS 27's Gatekeeper.
+
+The stand-ins and Darwin branches are tested against mocks
+(`tests/cases/darwin-shims.sh`); not yet seen on a Mac: `choose -m -e`
+with an empty menu, and its exit status on Escape; the choose colours
+`-b` and `-c` the dmenu stand-in passes; osascript notifications on
+macOS 27; the System Events keystroke (dmenuunicode's Cmd+V), which
+needs Accessibility for the program that sends it; `remind`'s
+AppleScript (`make new reminder` with no list, into the default one;
+`remind me date` as the alert; the Automation prompt for Reminders the
+first time); `open -a Safari` and `open dict://WORD`;
+`screencapture -iW` and `-ic`; `sketchybar --update` from a block; the
+Darwin blocks against a real Mac: `vm_stat`'s wording and page size,
+the AppleScript `get volume settings` answer (and "missing value" on an
+output with no volume), `route -n get default` and
+`networksetup -listallhardwareports` (the "Wi-Fi" port name);
+`open -na Ghostty.app` with `--working-directory`, `--title`, the
+window size, `--fullscreen=non-native` and `-e`, and whether `sd`
+picks the wrong window when one Ghostty has several; the AeroSpace CLI
+(`list-windows --format`, `move-node-to-workspace --window-id`,
+`--focus-follows-window`); `lsof -Fn`; the `pmset -g batt` format, and a
+Mac with no battery; the desktop picture's AppleScript; `file
+--mime-type`; Homebrew's paths for pass and libarchive; `nc -N`, `mktemp
+-p` and `xargs -r` in macOS's own tools.
+
+The desktop is tested against mocks (`tests/cases/darwin-desktop.sh`);
+not yet seen on a Mac: `on-window-detected` matching the scratchpads'
+and writemode's titles (AeroSpace warns that some windows set their
+title after they appear); `quote` as the key name for Super+'; the
+directory AeroSpace starts commands in (`run` now goes home first, so
+maimpick saves and a bare terminal opens there, as under cwm); that
+`exec-on-workspace-change` finds sketchybar on AeroSpace's own PATH
+(it adds /opt/homebrew/bin unless the config sets `[exec]`).
+
+Selection is tested with git in the suite (`tests/cases/select.sh`);
+not yet run with the Command Line Tools' git on macOS 27 or the
+package's git on OpenBSD: `sparse-checkout set --no-cone --stdin`
+against a bare repository given `--work-tree`, before the first
+checkout.
+
 ## Open
 
 - The window manager and terminal (see "ksh, cwm and xterm for now").
 - The Codex box: a separate Unix user; whether upstream Codex gains a
   pledge/unveil sandbox, which would retire cdxb.
-- The Mac: the test round, then which native window manager, bar and
-  menu carry the UX there, and how the repository holds two devices.
+- The Mac: the test round on macOS 27. Picked and being built: see "The
+  Mac build" and the entries after it.
+- mpd on the Mac: `.config/mpd/mpd.conf` outputs to sndio, which
+  Homebrew's mpd does not build; mpd there wants an `osx` output, and
+  the install does not start mpd until the config says how.
+- Apple's `container` tool (github.com/apple/container): Linux
+  containers, each in its own light virtual machine, on Apple silicon
+  from macOS 26. New ground for agent sandboxes on the Mac, a stronger
+  wall than cdxb's unveil box. Noted only; nothing is built on it.
 - The device after the Mac: "my jailbreak of the remarkable paper pro
   with keyboard. eink linux with a somewhat narrow package repo." And:
   "on the rmpp we'd probably want much of the ux in things like tmux and

@@ -1,0 +1,18 @@
+#!/bin/sh
+
+# ftp on the Mac, which has none: OpenBSD ftp(1)'s fetch, as the scripts
+# call it, done by curl(1). -o FILE ("-" for stdout), else the URL's own
+# file name; -w connect timeout; -U user agent; -M and -V (quiet) are
+# curl's -s. Like ftp: follow redirects, fail on an HTTP error.
+
+out= secs= agent=
+while getopts MVo:U:w: f; do
+	case $f in
+	o) out=$OPTARG ;;
+	U) agent=$OPTARG ;;
+	w) secs=$OPTARG ;;
+	esac
+done
+shift $((OPTIND - 1))
+if [ -n "$out" ]; then set -- -o "$out" "$@"; else set -- -O "$@"; fi
+exec curl -fsSL ${secs:+--connect-timeout "$secs"} ${agent:+-A "$agent"} "$@"

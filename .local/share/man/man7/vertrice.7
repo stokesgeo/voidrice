@@ -1,16 +1,18 @@
-.\" vertrice(7): voidrice on OpenBSD for the ThinkPad X220.
+.\" vertrice(7): voidrice on OpenBSD for the ThinkPad X220, and on the Mac.
 .\" Licensed under the GNU GPL, version 3, as the rest of vertrice.
-.Dd $Mdocdate: September 29 2026 $
+.Dd $Mdocdate: September 30 2026 $
 .Dt VERTRICE 7
 .Os
 .Sh NAME
 .Nm vertrice
-.Nd voidrice dotfiles for OpenBSD on the ThinkPad X220
+.Nd voidrice dotfiles for OpenBSD on the ThinkPad X220, and for the Mac
 .Sh DESCRIPTION
 .Nm
 is voidrice, a set of dotfiles for Linux, ported to
 .Ox
 and set up for a ThinkPad X220.
+The same files install on a Mac with Apple silicon; see
+.Sx The Mac .
 It keeps the voidrice layout: scripts in
 .Pa ~/.local/bin ,
 configuration in
@@ -35,11 +37,27 @@ Then, as the user:
 .Bd -literal -offset indent
 $ git clone --bare https://github.com/stokesgeo/vertrice.git \e
     ~/.local/share/vertrice.git
-$ git --git-dir=$HOME/.local/share/vertrice.git \e
-    --work-tree=$HOME checkout -f
-$ git --git-dir=$HOME/.local/share/vertrice.git \e
-    config status.showUntrackedFiles no
+$ cd ~/.local/share/vertrice.git
+$ git show HEAD:.local/share/$(uname | tr A-Z a-z)/sparse-checkout |
+    git --work-tree=$HOME sparse-checkout set --no-cone --stdin
+$ git --work-tree=$HOME checkout -f
+$ git config status.showUntrackedFiles no
 .Ed
+.Pp
+The third command selects this system's files before any is written:
+.Xr git-sparse-checkout 1
+takes the patterns in
+.Pa ~/.local/share/openbsd/sparse-checkout ,
+or
+.Pa ~/.local/share/darwin/sparse-checkout
+on a Mac, and the checkout and every later pull write only the files
+they name.
+Files for the other system, and those for working on
+.Nm
+itself (the README, the spec and the test suite), stay in the
+repository.
+After a pull that changes the list, run the second and third commands
+again.
 .Pp
 The checkout replaces the
 .Pa .profile
@@ -316,6 +334,8 @@ Monday.
 Codex in
 .Ic cdxb
 may add reminders there.
+A Mac uses Reminders instead; see
+.Sx The Mac .
 .Ss Dictionary
 .Ic dict Ar word
 shows the definitions from GCIDE and the Roget's Thesaurus (1911)
@@ -423,6 +443,8 @@ would install to
 counts it in the status line;
 .Ic sb-popupgrade
 installs the updates in a terminal.
+On a Mac a launchd agent writes the same file from
+.Ic brew outdated .
 .Ss Codex in a box
 .Ic cdxb
 runs Codex from your own terminal in a box made with
@@ -503,6 +525,131 @@ gives a running session one more path: quit that Codex and it resumes
 with the path.
 .Ic cdxb ls
 lists the running sessions.
+.Ss The Mac
+On a Mac with Apple silicon,
+.Nm
+keeps the same layout and scripts, with a macOS desktop in place of X:
+Ghostty is the terminal, AeroSpace the window manager, SketchyBar the
+status line along the bottom and
+.Ic choose
+the menu.
+Karabiner-Elements makes Caps Lock Escape when tapped and Hyper when
+held, and the keys are those of the cwmrc with Hyper in place of Super.
+Where the two systems differ, a file asks
+.Xr uname 1
+which one it is on; the files for the other system are not checked out
+(see
+.Sx Install ) .
+.Pp
+First install the Command Line Tools with
+.Ic xcode-select --install ,
+then Homebrew from
+.Lk https://brew.sh ,
+then clone the dotfiles as in
+.Sx Install .
+Run the system half as yourself, not as root:
+.Pp
+.Dl $ sh ~/.local/bin/vertrice-install
+.Pp
+On a Mac it runs
+.Pa ~/.local/share/darwin/install ,
+which asks for your password where it needs root, and:
+.Bl -dash
+.It
+installs the packages in
+.Pa Brewfile
+with
+.Ic brew bundle ;
+.It
+makes oksh, the portable
+.Ox
+ksh, the login shell, and lists it in
+.Pa /etc/shells ;
+.It
+makes
+.Pa /var/db/updates
+yours;
+.It
+copies two
+.Xr launchd 8
+agents to
+.Pa ~/Library/LaunchAgents
+and loads them:
+.Cm vertrice.updates
+writes what
+.Ic brew upgrade
+would install to
+.Pa /var/db/updates ,
+at login and every four hours, and
+.Cm vertrice.newsup
+runs
+.Ic newsup
+every 30 minutes once newsboat is installed;
+.It
+makes the screen ask for your password as soon as the display sleeps,
+with
+.Xr sysadminctl 8 ,
+which asks for it once;
+.It
+opens AeroSpace, which starts SketchyBar;
+.It
+hides the Dock, groups windows by application in Mission Control, lets
+one Space span all displays, and sets the key repeat that
+.Ic remaps
+sets on the X220.
+.El
+.Pp
+Then, in System Settings, Privacy & Security, allow AeroSpace under
+Accessibility and Karabiner-Elements its driver and Input Monitoring,
+and log out and in.
+Running it again is safe.
+The optional packages are in a second list:
+.Pp
+.Dl $ brew bundle --file=$HOME/.local/share/darwin/Brewfile.extra
+.Pp
+Scripts keep calling dmenu, xclip, notify-send, xdg-open and setbg.
+On a Mac the profile puts
+.Pa ~/.local/bin/darwin
+first in
+.Ev PATH ,
+and the commands of the same names there hand the work to
+.Ic choose ,
+.Ic pbcopy ,
+.Ic osascript
+and
+.Ic open .
+.Ev BROWSER
+is
+.Ic safari ,
+which opens Safari;
+.Ic dict Ar word
+opens the word in Dictionary.app.
+.Ic sysact Ns 's
+lock puts the display to sleep.
+.Ic maimpick
+(Shift+s with Caps Lock held) takes screenshots with
+.Xr screencapture 1 .
+.Pp
+Reminders go in Reminders, not
+.Pa ~/.calendar/calendar :
+.Pp
+.Dl $ remind 2026-10-03 Return the library books
+.Pp
+adds one, due at 09:00 on that day, for Reminders to show then.
+Agents add reminders the same way.
+.Pp
+Not on the Mac: the battery and CPU speed settings, which the X220
+needs and a MacBook does not; doas, pf and the other files the
+.Ox
+install writes to
+.Pa /etc ;
+backups with
+.Ic bk
+(Time Machine does them, alone); the dictionary server (Dictionary.app
+has both books); the CPU block of the status line, since Apple silicon
+gives its temperature and clock only to root; and
+.Ic cdxb ,
+since Codex makes its own sandbox on macOS.
 .Sh FILES
 .Bl -tag -width Ds -compact
 .It Pa ~/.local/share/vertrice.git
@@ -510,19 +657,39 @@ The bare repository.
 .It Pa ~/.local/bin/vertrice-install
 The system half of the install.
 .It Pa ~/.local/share/openbsd/
-The files it installs, and the package lists
+The files it installs, the package lists
 .Pa pkglist
 and
-.Pa pkglist.extra .
+.Pa pkglist.extra ,
+and
+.Pa sparse-checkout ,
+the X220's files.
+.It Pa ~/.local/share/darwin/
+The Mac's system half
+.Pq Pa install ,
+its package lists
+.Pa Brewfile
+and
+.Pa Brewfile.extra ,
+its launchd agents, and
+.Pa sparse-checkout ,
+the Mac's files.
+.It Pa ~/.local/bin/darwin/
+The Mac's commands in place of dmenu, xclip, notify-send, xdg-open and
+setbg.
 .It Pa ~/.config/cwm/cwmrc
 The keys.
+.It Pa ~/.config/aerospace/aerospace.toml
+The keys on a Mac.
+.It Pa ~/.config/sketchybar/ , ~/.config/karabiner/karabiner.json , ~/.config/ghostty/config
+The Mac's status line, Caps Lock and terminal.
 .It Pa ~/.config/shell/profile
 .Ev WM ,
 .Ev TERMINAL
 and
 .Ev MANPATH .
 .It Pa ~/.calendar/calendar
-Reminders.
+Reminders, on the X220.
 .It Pa ~/.config/cdxb/grants , ~/.config/cdxb/deny
 What the Codex box may use, and what it hides.
 .It Pa ~/.config/cdxb/github-token
@@ -537,15 +704,10 @@ searches the standard path first, then
 .Pa ~/.local/share/man .
 .It Pa ~/.local/share/vertrice/reading
 Small base programs worth reading: the manual first, then the source.
-.It Pa ~/.local/share/vertrice/tests/
-The regression suite
-.Pq Pa run
-and the check on the machine
-.Pq Pa check .
+.It Pa ~/.local/share/vertrice/tests/check
+The check to run once on the X220.
 .It Pa ~/.local/share/vertrice/OPENBSD.md
 What vertrice is and why, in short.
-.It Pa ~/.local/share/vertrice/SPEC.md
-For agents: the spec, the decisions and the port, mechanism by mechanism.
 .It Pa /var/db/updates
 Waiting updates, one to a line.
 .It Pa /etc/dumpdates
@@ -584,11 +746,14 @@ find this page:
 .Xr cwm 1 ,
 .Xr dict 1 ,
 .Xr doas 1 ,
+.Xr git-sparse-checkout 1 ,
 .Xr ksh 1 ,
 .Xr mail 1 ,
 .Xr nq 1 ,
 .Xr obsdfreqd 1 ,
+.Xr screencapture 1 ,
 .Xr spell 1 ,
+.Xr uname 1 ,
 .Xr video 1 ,
 .Xr xidle 1 ,
 .Xr pledge 2 ,
@@ -596,6 +761,7 @@ find this page:
 .Xr doas.conf 5 ,
 .Xr fbtab 5 ,
 .Xr fstab 5 ,
+.Xr launchd.plist 5 ,
 .Xr login.conf 5 ,
 .Xr pf.conf 5 ,
 .Xr wsconsctl.conf 5 ,
@@ -605,7 +771,9 @@ find this page:
 .Xr daily 8 ,
 .Xr dictd 8 ,
 .Xr dump 8 ,
+.Xr launchd 8 ,
 .Xr restore 8 ,
+.Xr sysadminctl 8 ,
 .Xr syspatch 8 ,
 .Xr unwind 8
 .Pp
@@ -626,6 +794,8 @@ and
 on the backup disk, the update count's reading of
 .Ic pkg_add -u -n -v ,
 the dictionary build, the Codex box's walls and the TrackPoint scroll.
+Nothing has run on a Mac yet: the Mac install, its agents and its
+desktop are tested only against mocks.
 .Pp
 After the first boot, run
 .Pa ~/.local/share/vertrice/tests/check ,

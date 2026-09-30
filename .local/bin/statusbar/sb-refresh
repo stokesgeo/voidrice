@@ -1,6 +1,9 @@
 #!/bin/sh
 
 # sb-refresh: redraw the bar now. SIGUSR1 ends sbar's 5 second wait,
-# under dwm (sbar) and under cwm (sbar -t, in the bar's xterm).
+# under dwm (sbar) and under cwm (sbar -t, in the bar's xterm). The Mac's
+# bar is SketchyBar, whose --update runs every block again: so a block
+# may call this after a click or a fetch, never on each run, or it loops.
 
+[ "$(uname)" = Darwin ] && exec sketchybar --update
 pkill -USR1 -f 'statusbar/sbar( -t)?$'

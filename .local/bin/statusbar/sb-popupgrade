@@ -8,9 +8,15 @@
 
 printf "Beginning upgrade.\n"
 
-doas syspatch
-doas pkg_add -u
-doas rm -f /var/db/updates	# clears sb-updates; root's cron counts again within four hours
+# The Mac: Homebrew's packages; macOS itself updates from System Settings.
+# There /var/db/updates is yours, and a launchd agent counts again.
+if [ "$(uname)" = Darwin ]; then
+	brew update && brew upgrade && : >/var/db/updates
+else
+	doas syspatch
+	doas pkg_add -u
+	doas rm -f /var/db/updates	# clears sb-updates; root's cron counts again within four hours
+fi
 
 sb-refresh
 

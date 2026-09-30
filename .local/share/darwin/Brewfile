@@ -1,0 +1,41 @@
+# The Mac's packages, for brew bundle; install, beside this file, runs it.
+# macOS first: a package is here only for a feature the system lacks.
+# Each one runs natively on Apple silicon, as macOS 27 wants: it is the
+# last release with full Rosetta. The optional rest is in Brewfile.extra.
+#
+# Not here, because macOS has it: git (the Command Line Tools),
+# pbcopy for xclip, screencapture for maim, Night Shift for sct,
+# Notification Center for dunst, Preview for zathura and nsxiv, Safari for
+# the browser. Homebrew disabled its qutebrowser and chromium casks on
+# 2026-09-01: they fail Gatekeeper.
+
+tap "felixkratz/formulae"
+tap "nikitabobko/tap"
+
+# The desktop. They stand where xterm, cwm, the bar, dmenu and remaps
+# stand on the X220.
+cask "ghostty"
+cask "nikitabobko/tap/aerospace"
+brew "felixkratz/formulae/sketchybar"
+brew "choose-gui"
+cask "karabiner-elements"
+cask "font-ibm-plex-mono"
+
+# OpenBSD's ksh, the X220's shell; install makes it the login shell.
+brew "oksh"
+
+# As in pkglist.
+brew "neovim"
+brew "lf"
+brew "fzf"
+brew "diction"
+brew "mpv"
+brew "mpd"
+brew "mpc"
+brew "ncmpcpp"
+brew "ffmpeg"
+brew "entr"
+# ext's bsdcat: macOS has bsdtar only. Kept out of Homebrew's bin, so the
+# profile names its own.
+brew "libarchive"
+cask "codex"

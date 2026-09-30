@@ -1,0 +1,10 @@
+#!/bin/sh
+
+# xwallpaper on the Mac, as setbg calls it (--zoom FILE): the picture on
+# every desktop, through System Events. macOS fills the screen by default.
+
+[ "$1" = --zoom ] && shift
+f=$(readlink -f "$1") || exit 1
+exec osascript -e 'on run a' \
+	-e 'tell application "System Events" to tell every desktop to set picture to (item 1 of a)' \
+	-e 'end run' "$f"

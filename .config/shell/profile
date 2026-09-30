@@ -5,8 +5,17 @@
 # (~/.profile links to this file.)
 
 # Add all directories in `~/.local/bin` to $PATH, after the system's; but
-# ~/.local/bin/wrap goes first: its dmenu wraps the system one.
-export PATH="$HOME/.local/bin/wrap:$PATH:$(find ~/.local/bin -name wrap -prune -o -type d -print | paste -sd ':' -)"
+# one goes first. On the Mac it is ~/.local/bin/darwin, whose small
+# commands stand in for X ones (dmenu, xclip, notify-send); elsewhere
+# ~/.local/bin/wrap, whose dmenu wraps the system one. Neither is on the
+# other's PATH. The Mac's packages are Homebrew's, in /opt/homebrew;
+# libarchive's (bsdtar, bsdcat) are kept out of its bin, so named apart.
+case $(uname) in
+Darwin)	first=darwin PATH="/opt/homebrew/bin:/opt/homebrew/sbin:/opt/homebrew/opt/libarchive/bin:$PATH" ;;
+*)	first=wrap ;;
+esac
+export PATH="$HOME/.local/bin/$first:$PATH:$(find ~/.local/bin \( -name wrap -o -name darwin \) -prune -o -type d -print | paste -sd ':' -)"
+unset first
 
 # Default programs. The key bindings and scripts read these names: change a
 # program here, not in each script. WM="dwm" makes xinitrc start dwm, not cwm.
@@ -15,6 +24,7 @@ export EDITOR="nvim"
 export TERMINAL="xterm"
 export TERMINAL_PROG="xterm"
 export BROWSER="qutebrowser"
+[ "$(uname)" = Darwin ] && TERMINAL="ghostty" TERMINAL_PROG="ghostty" BROWSER="safari"
 
 # Change the default crypto/weather monitor sites.
 # export CRYPTOURL="rate.sx"

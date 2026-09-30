@@ -10,6 +10,10 @@ base does not have.
 It tracks the latest OpenBSD release or -current. It has been tested
 against mocked OpenBSD commands, not yet on an X220.
 
+The same repository installs on a Mac with Apple silicon: Ghostty,
+AeroSpace with the same keys, SketchyBar running the same status blocks,
+and choose for the menus. See "The Mac" in `man vertrice`.
+
 ## Install
 
 As root on a fresh system:
@@ -19,8 +23,14 @@ As root on a fresh system:
 As your user:
 
     git clone --bare https://github.com/stokesgeo/vertrice.git ~/.local/share/vertrice.git
-    git --git-dir=$HOME/.local/share/vertrice.git --work-tree=$HOME checkout -f
-    git --git-dir=$HOME/.local/share/vertrice.git config status.showUntrackedFiles no
+    cd ~/.local/share/vertrice.git
+    git show HEAD:.local/share/$(uname | tr A-Z a-z)/sparse-checkout | git --work-tree=$HOME sparse-checkout set --no-cone --stdin
+    git --work-tree=$HOME checkout -f
+    git config status.showUntrackedFiles no
+
+The third line picks this system's files, so each machine holds only
+what it uses. This README, the spec and the test suite stay in the
+repository.
 
 Then read `~/.local/bin/vertrice-install`, the system half, and run it as
 root. The first time there is no doas rule yet: `su -`, then
@@ -35,7 +45,8 @@ then the dictionary:
     doas sh ~/.local/bin/vertrice-dict
 
 Update with `config pull origin master`. After an update that changes
-`~/.local/share/openbsd`, run the installer again.
+`~/.local/share/openbsd`, run the installer again; if it changes
+`sparse-checkout` there, run the second and third lines above again.
 
 ## Documentation
 
@@ -44,7 +55,8 @@ changes in `/etc`, the session, the keys, the machine settings, the tools
 and the Codex box. Super+F1 lists the keys from `~/.config/cwm/cwmrc`.
 
 On the X220, after the first boot, run `~/.local/share/vertrice/tests/check`
-once, inside X. `~/.local/share/vertrice/tests/run` is the regression suite.
+once, inside X. The regression suite, `.local/share/vertrice/tests/run`,
+runs from a clone of the repository.
 
 What vertrice is and why, in short: [OPENBSD.md](.local/share/vertrice/OPENBSD.md).
 For agents, the spec and the decisions: [SPEC.md](.local/share/vertrice/SPEC.md).

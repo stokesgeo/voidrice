@@ -20,7 +20,7 @@ trueloc="$(readlink -f "$1")" &&
 if [ -d "$trueloc" ]; then	# No file(1) inode/directory type or shuf(1) here: test -d, sort -R.
 	ln -sf "$(find "$trueloc" -type f \( -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.png' -o -iname '*.gif' \) | sort -R | head -n 1)" "$bgloc" && [ -z "$silent" ] && notify-send -i "$bgloc" "Random Wallpaper chosen."
 else
-	case "$(file -bi "$trueloc")" in
+	case "$(file -b --mime-type "$trueloc")" in	# the Mac's file -i means something else
 		image/* ) ln -sf "$trueloc" "$bgloc" && [ -z "$silent" ] && notify-send -i "$bgloc" "Changing wallpaper..." ;;
 		*) [ -z "$silent" ] && notify-send "🖼️ Error" "Not a valid image or directory." ; exit 1;;
 	esac

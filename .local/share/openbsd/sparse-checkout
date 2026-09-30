@@ -1,0 +1,30 @@
+# The files of the repository the X220 takes, as git sparse-checkout
+# patterns (the .gitignore form: a later line wins, ! leaves out). The
+# home half of vertrice-install sets them before the first checkout, so
+# only these are ever written to $HOME. The Mac's list is
+# ../darwin/sparse-checkout; what no machine takes, ../vertrice/repo-only.
+
+/.profile
+/.xprofile
+/.xsession
+/.calendar/
+
+# All but the Mac's desktop.
+/.config/
+!/.config/aerospace/
+!/.config/ghostty/
+!/.config/karabiner/
+!/.config/sketchybar/
+
+/.local/bin/
+!/.local/bin/darwin/
+
+/.local/share/
+!/.local/share/darwin/
+!/.local/share/vertrice/
+/.local/share/vertrice/OPENBSD.md
+/.local/share/vertrice/reading
+/.local/share/vertrice/tests/check
+
+# The C helpers: the Codex box and sd's proc-cwd.
+/.local/src/
