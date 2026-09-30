@@ -4,8 +4,10 @@
 # In use is the "act" figure on top(1)'s Memory line, e.g. "Real: 450M/1466M
 # act/tot"; the total is hw.physmem. OpenBSD has no free(1).
 
+# The hogs: the Mac's ps gives comm as the program's path, spaces and all,
+# so the figure comes first, and the name is what follows the last slash.
 case $BLOCK_BUTTON in
-	1) notify-send "🧠 Memory hogs" "$(ps -Ao comm= -o %mem= | awk '{cmd[$1]+=$2} END {for (i in cmd) print i, cmd[i]}' | sort -nrk2 | head)" ;;
+	1) notify-send "🧠 Memory hogs" "$(ps -Ao %mem= -o comm= | awk '{m = $1; sub(/^ *[^ ]+ +/, ""); sub(/.*\//, ""); cmd[$0] += m} END {for (i in cmd) print cmd[i], i}' | sort -nr | head)" ;;
 	2) detach "$TERMINAL" -e top ;;
 	3) notify-send "🧠 Memory module" "\- Shows Memory Used/Total.
 - Click to show memory hogs.

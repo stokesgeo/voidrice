@@ -85,6 +85,28 @@ t_sb_memory() {
 	eq "gigabytes" "🧠2.00GiB/7.77GiB" "$(MEM_ACT=2G sb-memory)"
 }
 
+# The hogs on a click: ps's %mem and comm, summed per program, the
+# biggest first. hogs_ps writes a ps that answers from $VT_STATE/procs.mem
+# ("MEM<tab>COMM" lines) in the order the -o options ask.
+hogs_ps() {
+	cat >"$T/bin/ps" <<'EOF'
+#!/bin/sh
+case $* in
+*'%mem= -o comm='*) tr '\t' ' ' <"$VT_STATE/procs.mem" ;;
+*'comm= -o %mem='*) awk -F '\t' '{ print $2, $1 }' "$VT_STATE/procs.mem" ;;
+*) exec "$VT_REAL_PS" "$@" ;;
+esac
+EOF
+	chmod +x "$T/bin/ps"
+}
+t_sb_memory_hogs() {
+	hogs_ps
+	printf '1.5\tfirefox\n2\tfirefox\n0.5\txterm\n' | fx procs.mem
+	BLOCK_BUTTON=1 sb-memory >/dev/null
+	logged '^notify-send 🧠 Memory hogs 3.5 firefox$'
+	logged '^0.5 xterm$'
+}
+
 t_sb_nettraf() {
 	eq "first run: nothing to compare" "🔻   0B 🔺   0B" "$(sb-nettraf)"
 	eq "cache holds the totals, loopback left out" "1000000 20000" "$(cat "$XDG_CACHE_HOME/nettraf")"

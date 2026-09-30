@@ -344,6 +344,18 @@ EOF
 	notlogged '^top'
 }
 
+# ps on the Mac gives comm as the program's path, spaces and all
+# (hogs_ps, blocks.sh).
+t_darwin_sb_memory_hogs() {
+	mac
+	hogs_ps
+	c='/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
+	printf '3\t%s\n2\t%s\n1.5\t/usr/sbin/mDNSResponder\n' "$c" "$c" | fx procs.mem
+	BLOCK_BUTTON=1 sb-memory >/dev/null
+	logged '\|🧠 Memory hogs\|5 Google Chrome$'
+	logged '^1.5 mDNSResponder\|$'
+}
+
 # osascript answers "VOLUME, MUTED" for the volume settings.
 t_darwin_sb_volume() {
 	mac
