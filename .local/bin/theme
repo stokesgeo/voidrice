@@ -73,8 +73,8 @@ apply() {
 		esac
 	done < "$p"
 	# Every tty of mine (OpenBSD ptys are named tty[pqrs]*) gets the new colours.
-	for t in $(ps -U "$(id -u)" -o tty= | sort -u | grep -E '^[pqrs]'); do
-		[ -w "/dev/tty$t" ] && printf "$seq" > "/dev/tty$t" 2>/dev/null
+	for t in $(ps -U "$(id -u)" -o tty= | sort -u | grep -E '^tty[pqrs]'); do
+		[ -w "/dev/$t" ] && printf "$seq" > "/dev/$t" 2>/dev/null
 	done
 	# dunst and zathura: wal's own files, else the palette's colours.
 	mkdir -p "$conf/dunst/dunstrc.d" "$conf/zathura"
