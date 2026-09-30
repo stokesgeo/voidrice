@@ -31,7 +31,7 @@
 # keyboard settings. sb-cpu and sb-cpubars read what Apple silicon does
 # not give without root: the temperature, the clock and per-core ticks.
 /.local/bin/
-!/.local/bin/wrap/
+!/.local/bin/openbsd/
 !/.local/bin/bk
 !/.local/bin/cdxb
 !/.local/bin/cron/README.md

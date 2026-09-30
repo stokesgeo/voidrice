@@ -2,9 +2,9 @@
 
 # dmenu with the terminals' font and the current palette. OpenBSD's dmenu
 # package reads no Xresources, so this passes them as options: the palette
-# `theme` last set (day, night or wal), IBM Plex Mono as in xterm. The
-# profile puts this folder first in PATH. The caller's options come after
-# these, so theirs win.
+# `theme` last set (day, night or wal), IBM Plex Mono as in xterm. On
+# OpenBSD the profile puts this folder first in PATH. The caller's options
+# come after these, so theirs win.
 
 c=${XDG_CACHE_HOME:-$HOME/.cache}
 case $(cat "$c/theme" 2>/dev/null) in

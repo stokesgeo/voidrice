@@ -179,9 +179,11 @@ means in the tree; untested means not yet run on the X220.
   Super+b shows the line as a notice when a window covers it. Clicks
   never reach a block. Done; untested.
 - **dmenu through a wrapper.** Agents' (c0230f3): the ports dmenu reads
-  no Xresources. `~/.local/bin/wrap/dmenu`, first in PATH, passes IBM
+  no Xresources. `~/.local/bin/openbsd/dmenu`, first in PATH, passes IBM
   Plex Mono and the palette `theme` last set; the caller's options come
-  after and win. Done.
+  after and win. The folder was `wrap/`; it is named for `uname`, as the
+  Mac's `darwin/` is, so the profile picks the first folder in PATH with
+  one `uname`. Done.
 - **No compositor.** Agents' (9ee25f2): xterm has no alpha, so xcompmgr
   only cost work; run it by hand for st. Done.
 - **sd through proc-cwd.** The owner picked "Write the C helper" (7f5231a): no /proc, so a 49-line C
@@ -410,7 +412,7 @@ way, and where it lives.
     fstab by DUID first, every mount `nosuid,nodev`, the system disk
     never offered, only offered lines accepted. `unmounter` locks the
     volume again.
-12. Luke's dmenu build -> the ports dmenu behind `wrap/dmenu` (item
+12. Luke's dmenu build -> the ports dmenu behind `openbsd/dmenu` (item
     "dmenu through a wrapper" above).
 13. pacman checks in cron -> one root crontab line writing
     `/var/db/updates` (`syspatch -c`, `pkg_add -u -n -v`); `sb-updates`

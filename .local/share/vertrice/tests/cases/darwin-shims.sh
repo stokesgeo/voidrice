@@ -216,10 +216,9 @@ t_darwin_profile() {
 	out=$("$VT_SH" -c '. "$HOME/.profile"; printf "%s\n" "$PATH" "$TERMINAL"' 2>&1) ||
 		fail "profile failed: $out"
 	path=$(printf '%s\n' "$out" | sed -n 1p)
-	case $path in "$HOME/.local/bin/darwin:/opt/homebrew/bin:/opt/homebrew/sbin:"*) ;;
-	*) fail "darwin, then Homebrew, must come first: $path" ;; esac
-	hasnt "no wrap on the Mac" "/.local/bin/wrap" "$path"
-	has "libarchive's bsdcat, for ext" ":/opt/homebrew/opt/libarchive/bin:" "$path"
+	case $path in "$HOME/.local/bin/darwin:/opt/homebrew/bin:/opt/homebrew/opt/libarchive/bin:"*) ;;
+	*) fail "darwin, then Homebrew and libarchive's bsdcat (ext), must come first: $path" ;; esac
+	hasnt "no openbsd on the Mac" "/.local/bin/openbsd" "$path"
 	eq "darwin once" 1 "$(printf '%s\n' "$path" | tr ':' '\n' | grep -c '/\.local/bin/darwin$')"
 	has "statusbar on PATH" ":$HOME/.local/bin/statusbar" "$path"
 	eq "the terminal" ghostty "$(printf '%s\n' "$out" | sed -n 2p)"
