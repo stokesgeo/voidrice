@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- The feeds: newsup every 30 minutes, as the crontab line in
+     ~/.local/bin/cron/README.md runs it on the X220. It needs the login
+     profile's PATH, and newsboat, which is in Brewfile.extra: without it,
+     nothing runs. -->
+<plist version="1.0">
+<dict>
+	<key>Label</key>
+	<string>vertrice.newsup</string>
+	<key>ProgramArguments</key>
+	<array>
+		<string>/bin/sh</string>
+		<string>-c</string>
+		<string>. "$HOME/.profile" >/dev/null 2>&amp;1; command -v newsboat >/dev/null &amp;&amp; newsup</string>
+	</array>
+	<key>StartInterval</key>
+	<integer>1800</integer>
+</dict>
+</plist>

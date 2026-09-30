@@ -1,0 +1,9 @@
+#!/bin/sh
+
+# dict on the Mac: the word in Dictionary.app, whose dict: links open it
+# there, as `dict word` and K in nvim show it from dictd on the X220.
+# One word; dictd's options (-d roget) are dropped: the app has both.
+
+while getopts d: o; do :; done
+shift $((OPTIND - 1))
+exec open "dict://$1"

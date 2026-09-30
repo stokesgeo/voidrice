@@ -3,7 +3,9 @@
 # run COMMAND...: run COMMAND, a line of shell, after the login profile.
 # aerospace.toml's keys and the bar start programs through this: macOS
 # starts AeroSpace, not a login shell, so without it they would lack the
-# profile's PATH and default programs ($TERMINAL, $BROWSER).
+# profile's PATH and default programs ($TERMINAL, $BROWSER). They start in
+# your home, as cwm's do: a new terminal opens there, maimpick saves there.
 
 . "$HOME/.profile" >/dev/null 2>&1
+cd || exit
 eval "$*"

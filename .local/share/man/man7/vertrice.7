@@ -334,7 +334,7 @@ Monday.
 Codex in
 .Ic cdxb
 may add reminders there.
-On a Mac the same lines come as a notification; see
+A Mac uses Reminders instead; see
 .Sx The Mac .
 .Ss Dictionary
 .Ic dict Ar word
@@ -575,14 +575,21 @@ copies two
 agents to
 .Pa ~/Library/LaunchAgents
 and loads them:
-.Cm vertrice.calendar
-shows the reminders as a notification at login and at 09:00, and
 .Cm vertrice.updates
 writes what
 .Ic brew upgrade
 would install to
 .Pa /var/db/updates ,
-at login and every four hours;
+at login and every four hours, and
+.Cm vertrice.newsup
+runs
+.Ic newsup
+every 30 minutes once newsboat is installed;
+.It
+makes the screen ask for your password as soon as the display sleeps,
+with
+.Xr sysadminctl 8 ,
+which asks for it once;
 .It
 opens AeroSpace, which starts SketchyBar;
 .It
@@ -611,6 +618,25 @@ and the commands of the same names there hand the work to
 .Ic osascript
 and
 .Ic open .
+.Ev BROWSER
+is
+.Ic safari ,
+which opens Safari;
+.Ic dict Ar word
+opens the word in Dictionary.app.
+.Ic sysact Ns 's
+lock puts the display to sleep.
+.Ic maimpick
+(Shift+s with Caps Lock held) takes screenshots with
+.Xr screencapture 1 .
+.Pp
+Reminders go in Reminders, not
+.Pa ~/.calendar/calendar :
+.Pp
+.Dl $ remind 2026-10-03 Return the library books
+.Pp
+adds one, due at 09:00 on that day, for Reminders to show then.
+Agents add reminders the same way.
 .Pp
 Not on the Mac: the battery and CPU speed settings, which the X220
 needs and a MacBook does not; doas, pf and the other files the
@@ -619,7 +645,9 @@ install writes to
 .Pa /etc ;
 backups with
 .Ic bk
-(use Time Machine); the dictionary (use Dictionary.app); and
+(Time Machine does them, alone); the dictionary server (Dictionary.app
+has both books); the CPU block of the status line, since Apple silicon
+gives its temperature and clock only to root; and
 .Ic cdxb ,
 since Codex makes its own sandbox on macOS.
 .Sh FILES
@@ -661,7 +689,7 @@ The Mac's status line, Caps Lock and terminal.
 and
 .Ev MANPATH .
 .It Pa ~/.calendar/calendar
-Reminders.
+Reminders, on the X220.
 .It Pa ~/.config/cdxb/grants , ~/.config/cdxb/deny
 What the Codex box may use, and what it hides.
 .It Pa ~/.config/cdxb/github-token
@@ -723,6 +751,7 @@ find this page:
 .Xr mail 1 ,
 .Xr nq 1 ,
 .Xr obsdfreqd 1 ,
+.Xr screencapture 1 ,
 .Xr spell 1 ,
 .Xr uname 1 ,
 .Xr video 1 ,
@@ -744,6 +773,7 @@ find this page:
 .Xr dump 8 ,
 .Xr launchd 8 ,
 .Xr restore 8 ,
+.Xr sysadminctl 8 ,
 .Xr syspatch 8 ,
 .Xr unwind 8
 .Pp

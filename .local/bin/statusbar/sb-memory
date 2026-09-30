@@ -13,6 +13,17 @@ case $BLOCK_BUTTON in
 	6) detach "$TERMINAL" -e "$EDITOR" "$0" ;;
 esac
 
+# The Mac: in use is what Activity Monitor calls Memory Used, near enough,
+# from vm_stat(1)'s pages: active, wired and held by the compressor. The
+# total is hw.memsize.
+if [ "$(uname)" = Darwin ]; then
+	vm_stat | awk -v phys="$(sysctl -n hw.memsize)" '
+		/page size of/ { size = $8 }
+		/^Pages (active|wired down|occupied by compressor):/ { n += $NF }
+		END { printf "🧠%.2fGiB/%.2fGiB\n", n * size / 1024 / 1024 / 1024, phys / 1024 / 1024 / 1024 }'
+	exit
+fi
+
 top -b -d 1 | awk -v phys="$(sysctl -n hw.physmem)" '
 	/^Memory:/ {
 		split($3, r, "/"); act = r[1]
