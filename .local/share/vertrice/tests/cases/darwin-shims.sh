@@ -227,6 +227,8 @@ t_darwin_profile() {
 t_darwin_profile_off_mac() {
 	home_setup
 	mkdir -p "$HOME/.local/bin/darwin"
+	# The caller's PATH less Homebrew, which the host may have.
+	PATH=$(printf '%s\n' "$PATH" | tr : '\n' | grep -v '^/opt/homebrew' | paste -sd : -)
 	out=$("$VT_SH" -c '. "$HOME/.profile"; printf "%s\n" "$PATH" "$TERMINAL"' 2>&1) ||
 		fail "profile failed: $out"
 	hasnt "no darwin off the Mac" "/.local/bin/darwin" "$(printf '%s\n' "$out" | sed -n 1p)"

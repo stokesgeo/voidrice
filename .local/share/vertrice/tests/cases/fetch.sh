@@ -216,8 +216,10 @@ t_fetch_linkhandler_image() {
 	waitfor 5 grep -q '^nsxiv ' "$VT_STATE/log" || fail "nsxiv never ran"
 	f=$(sed -n 's/^nsxiv -a //p' "$VT_STATE/log")
 	"$VT_REAL_RM" -rf "${f%/*}"
-	# The file lands in a private mktemp directory (desktop.sh checks that).
-	logged "^ftp -MV -o /tmp/[^/]+/$name https://example\.com/$name\$"
+	# The file lands in a private mktemp directory (desktop.sh checks that),
+	# in mktemp's own place: /tmp on OpenBSD, not on the Mac.
+	tmp=$(dirname "$(mktemp -u)")
+	logged "^ftp -MV -o $tmp/[^/]+/$name https://example\.com/$name\$"
 	eq "nsxiv opens what ftp wrote" "$name" "${f##*/}"
 }
 
@@ -264,9 +266,17 @@ scope_path() {
 	else derived .config/lf/scope scope "s|/dev/null|$T/null|g"; fi
 }
 
+# textfile: file(1) answers as OpenBSD's does for a text file; the host's
+# may not (the Mac's -i is not the MIME type).
+textfile() {
+	printf '#!/bin/sh\necho "text/plain; charset=us-ascii"\n' >"$T/bin/file"
+	chmod +x "$T/bin/file"
+}
+
 t_fetch_scope_no_highlight() {
 	command -v highlight >/dev/null 2>&1 && skip "this host has highlight"
 	scope=$(scope_path)
+	textfile
 	printf 'one\ntwo\nthree\nfour\n' >"$T/notes.txt"
 	eq "first screenful" "one
 two
@@ -279,6 +289,7 @@ t_fetch_scope_highlight() {
 	scope=$(scope_path)
 	printf '#!/bin/sh\necho "highlight $*" >>"$VT_STATE/log"\nprintf "1\\n2\\n3\\n4\\n5\\n"\n' >"$T/bin/highlight"
 	chmod +x "$T/bin/highlight"
+	textfile
 	printf 'one\n' >"$T/notes.txt"
 	out=$("$VT_SH" "$scope" "$T/notes.txt" 80 3 41 1)
 	logged '^highlight -O ansi --force .*/notes\.txt$'
