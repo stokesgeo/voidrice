@@ -279,7 +279,10 @@ means in the tree; untested means not yet run on the X220.
   Ghostty, Karabiner-Elements and AeroSpace apps are universal, the
   codex cask is an aarch64 build. oksh is the login shell. Browsers:
   Homebrew disabled its qutebrowser and chromium casks on 2026-09-01
-  (they fail Gatekeeper), so Safari. Done; untested on a Mac.
+  (they fail Gatekeeper), so Safari. `Brewfile.extra` also has bash, for
+  pass's passmenu, which needs bash 4 (the Mac's is 3.2); added after
+  that reading, so its macOS 27 bottle is not checked. Done; untested
+  on a Mac.
 - **launchd for cron.** Agents'. Two user agents: the update count
   (`brew outdated` into `/var/db/updates` at login and every four hours,
   where root's crontab writes it on the X220) and `newsup` every 30
@@ -449,7 +452,9 @@ As the tree has it now.
    held is Super. The key repeat is a `defaults` line in the install.
 6. xclip, notify-send and dunst, xdg-open, setbg -> same-named commands
    in `~/.local/bin/darwin/` over pbcopy and pbpaste, osascript and
-   Notification Center, open, and the desktop picture.
+   Notification Center, open, and the desktop picture. One more there,
+   `shortcuts`, runs `~/.local/bin/shortcuts`: macOS has a `shortcuts`
+   of its own in /usr/bin, which the system's PATH finds first.
 7. ksh -> oksh, the portable OpenBSD ksh, as the login shell; the same
    `~/.profile` and kshrc.
 8. pkg_add and `pkglist` -> `brew bundle` and `Brewfile`
@@ -468,6 +473,8 @@ As the tree has it now.
 13. doas -> sudo, in the install only. Scripts that need root on the
     X220 (mounter, bk, dmenuwifi, rectoggle) are X220 only; every script
     that is, and why, is in `.local/share/darwin/sparse-checkout`.
+    aliasrc sets its doas aliases (mount, shutdown, sdn and the rest)
+    only where there is a doas.
 14. xidle and xlock -> `pmset displaysleepnow` for sysact's lock, with
     the password asked at once (`sysadminctl -screenLock immediate`, in
     the install); the idle lock is macOS's own.
@@ -480,7 +487,9 @@ As the tree has it now.
 18. qutebrowser -> Safari: `BROWSER=safari`, a stand-in over `open -a
     Safari`.
 19. maim and xdotool in maimpick -> `screencapture -i`, `-iW` for a
-    window, `-c` to copy.
+    window, `-c` to copy. Elsewhere, stand-ins: `maim -s FILE` (otp) is
+    `screencapture -i FILE`; `xdotool type TEXT` (dmenuunicode) is
+    pbcopy and Cmd+V.
 20. base spell(1) -> aspell, through the `~/.local/bin/darwin/spell`
     stand-in; `spellcheck` is the same script.
 21. mpd started from xprofile, playing to sndiod -> the launchd agent
@@ -505,8 +514,10 @@ bundle` with this Brewfile, including the source build of sketchybar
 and the Karabiner package's password prompt; `chsh` to oksh and the
 profile and kshrc under it; `sudo install -o` making
 `/var/db/updates` the user's; `launchctl bootout` and `bootstrap` in
-`gui/UID`, and the agents' `HOME` and `PATH` (the updates agent names
-brew by its full path for that reason); the newsup agent sourcing
+`gui/UID`, whether `bootstrap` right after `bootout` fails ("Bootstrap
+failed: 5", reported by others) and whether the install's second try,
+a second later, is enough; the agents' `HOME` and `PATH` (the updates
+agent names brew by its full path for that reason); the newsup agent sourcing
 `~/.profile` under macOS's /bin/sh; `sysadminctl -screenLock status`
 (its wording, and that it writes to stderr) and `-screenLock immediate
 -password -` run as the user, not root; the `defaults` keys under macOS 27
@@ -518,19 +529,31 @@ The stand-ins and Darwin branches are tested against mocks
 (`tests/cases/darwin-shims.sh`); not yet seen on a Mac: `choose -m -e`
 with an empty menu, and its exit status on Escape; the choose colours
 `-b` and `-c` the dmenu stand-in passes; osascript notifications on
-macOS 27; the System Events keystroke (the xdotool stand-in's Cmd+V), which
+macOS 27, and one with an empty body (`notify-send TITLE`); the System
+Events keystroke (the xdotool stand-in's Cmd+V), which
 needs Accessibility for the program that sends it; `remind`'s
 AppleScript (`make new reminder` with no list, into the default one;
-`remind me date` as the alert; the Automation prompt for Reminders the
-first time); `open -a Safari` and `open dict://WORD`;
-`screencapture -iW` and `-ic`; `sketchybar --update` from a block; the
-Darwin blocks against a real Mac: `vm_stat`'s wording and page size,
-the AppleScript `get volume settings` answer (and "missing value" on an
-output with no volume), `route -n get default` and
-`networksetup -listallhardwareports` (the "Wi-Fi" port name);
-`open -na Ghostty.app` with `--working-directory`, `--title`, the
-window size, `--fullscreen=non-native` and `-e`, and whether `sd`
-picks the wrong window when one Ghostty has several; the AeroSpace CLI
+`due date` and `remind me date` set to the same time; the Automation
+prompt for Reminders the first time); `open -a Safari` and `open
+dict://WORD`; `screencapture -iW`, `-ic` and `-i FILE` (the maim
+stand-in); `sntp -t 1 time.apple.com` for otp's sync-time; pass's
+passmenu under Homebrew's bash, found before /bin/bash through the
+profile's PATH, with `DISPLAY` set to a name that is no display; that
+Apple's `/usr/bin/shortcuts` is what the system's PATH finds before
+`~/.local/bin` (the shortcuts stand-in's reason); `sketchybar --update`
+from a block; the Darwin blocks against a real Mac: `vm_stat`'s wording
+and page size (the header's "page size of N bytes", read as its eighth
+field; macOS 27's vm_stat(1) points to meminfo(1), and may change), the
+AppleScript `get volume settings` answer, and "missing value" on an
+output with no volume, which sb-volume takes as no block (assumed, not
+seen); `aerospace volume` from a bar click; `ps -Ao %mem= -o comm=`
+giving comm as a full path, which sb-memory's hogs assume; `route -n
+get default` and `networksetup -listallhardwareports` (the "Wi-Fi" port
+name); `open -na Ghostty.app` with `--quit-after-last-window-closed`,
+`--working-directory`, `--title`, the window size,
+`--fullscreen=non-native` and `-e`, whether Ghostty asks before it runs
+a command given with `-e` this way, and whether `sd` picks the wrong
+window when one Ghostty has several; the AeroSpace CLI
 (`list-windows --format`, `move-node-to-workspace --window-id`,
 `--focus-follows-window`); `lsof -Fn`; the `pmset -g batt` format, and a
 Mac with no battery; the desktop picture's AppleScript; `file
@@ -544,14 +567,19 @@ title after they appear); `quote` as the key name for Super+'; the
 directory AeroSpace starts commands in (`run` now goes home first, so
 maimpick saves and a bare terminal opens there, as under cwm); that
 `exec-on-workspace-change` finds sketchybar on AeroSpace's own PATH
-(it adds /opt/homebrew/bin unless the config sets `[exec]`).
+(it adds /opt/homebrew/bin unless the config sets `[exec]`);
+SketchyBar's `$SCROLL_DELTA` sign under natural scrolling (`block`
+takes a positive delta as button 4, up); that Super+F1 to F8 need Fn
+held under macOS's default keyboard setting (the man page and
+aerospace.toml say so).
 
 Spelling and mpd are tested against mocks (`tests/cases/darwin-spell.sh`,
 `tests/cases/darwin-mpd.sh`); not yet seen on a Mac: aspell's list of
 a real text (what it makes of contractions, curly apostrophes and
 Markdown in its default url mode, where spell(1) runs deroff); macOS
 grep given `-f /dev/null`, which the stand-in relies on to match
-nothing, as GNU grep's does; the English dictionary under `-d en_US` from the bottle; mpd 0.24 reading
+nothing, as GNU grep's does; the English dictionary under `-d en_US`
+from the bottle; mpd 0.24 reading
 `include_optional` with a relative path, which the suite only mimics,
 here and on the X220; the `osx` output on the default device, and
 whether it follows a change of device in System Settings; the agent's

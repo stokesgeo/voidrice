@@ -116,7 +116,10 @@ cmd-alt-ctrl-shift-m = 'volume mute-toggle'
 # --- function keys: help, theme, torrents, screenshots -------------------
 # macOS has its own displays, Night Shift, mounting, Wi-Fi, camera and
 # screen recording, so cwmrc's keys for those stay unbound. A Mac has no
-# Print key: S+s takes maimpick's place (cwmrc: Shift+Print).
+# Print key: S+s takes maimpick's place (cwmrc: Shift+Print). A Mac's top
+# row is brightness, volume and media keys: hold Fn as well for F1-F8, or
+# turn on "Use F1, F2, etc. keys as standard function keys" in System
+# Settings, Keyboard.
 cmd-alt-ctrl-shift-s = 'exec-and-forget ~/.config/aerospace/run maimpick'
 cmd-alt-ctrl-f1 = '''exec-and-forget ~/.config/aerospace/run 'grep "^cmd-" ~/.config/aerospace/aerospace.toml | dmenu -i -l 40 -p Keys:' '''
 cmd-alt-ctrl-shift-f1 = 'exec-and-forget ~/.config/aerospace/run manpick'

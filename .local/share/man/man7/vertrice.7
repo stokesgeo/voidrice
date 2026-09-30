@@ -437,6 +437,14 @@ Running GTK programs keep their theme until restarted.
 At login the palette follows the clock: day from 07:00, night from 19:00.
 .Ev PALETTE Ns = Ns Cm wal
 in the profile takes the colours from the wallpaper with pywal instead.
+On a Mac,
+.Ic theme day ,
+.Ic night
+and
+.Ic toggle
+set the light or dark appearance, and Ghostty, SketchyBar and the menus
+follow it; to follow the clock, set Appearance to Auto in System
+Settings.
 .Ss Updates
 Every four hours root's crontab writes what
 .Xr syspatch 8
@@ -540,6 +548,9 @@ status line along the bottom and
 the menu.
 Karabiner-Elements makes Caps Lock Escape when tapped and Hyper when
 held, and the keys are those of the cwmrc with Hyper in place of Super.
+The top row of a Mac keyboard sets brightness, volume and media, so the
+keys on F1 to F8 need Fn held as well, unless standard function keys are
+turned on in System Settings, Keyboard.
 Where the two systems differ, a file asks
 .Xr uname 1
 which one it is on; the files for the other system are not checked out
@@ -615,6 +626,9 @@ The optional packages are in a second list:
 .Pp
 .Dl $ brew bundle --file=$HOME/.local/share/darwin/Brewfile.extra
 .Pp
+.Ic passmenu
+needs two of them: pass, and a newer bash than the Mac's own.
+.Pp
 Scripts keep calling dmenu, xclip, notify-send, xdg-open and setbg.
 On a Mac the profile puts
 .Pa ~/.local/bin/darwin
@@ -684,7 +698,11 @@ its launchd agents, and
 the Mac's files.
 .It Pa ~/.local/bin/darwin/
 The Mac's commands in place of dmenu, xclip, notify-send, xdg-open,
-setbg and spell.
+setbg, spell, maim and xdotool's type; and
+.Ic shortcuts ,
+which runs the one in
+.Pa ~/.local/bin ,
+not Apple's.
 .It Pa ~/.config/cwm/cwmrc
 The keys.
 .It Pa ~/.config/aerospace/aerospace.toml
