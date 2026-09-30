@@ -197,7 +197,7 @@ maximized and tiled windows below it.
 It is an st window when
 .Ev TERMINAL Ns = Ns Cm st .
 Menus are dmenu, run through
-.Pa ~/.local/bin/wrap/dmenu ,
+.Pa ~/.local/bin/openbsd/dmenu ,
 which passes it IBM Plex Mono and the current palette.
 .Ev WM Ns = Ns Cm dwm
 in the profile runs dwm instead, with
@@ -384,6 +384,11 @@ Read a dump back with
 .It Ic spellcheck Ar file
 .Xr spell 1 ,
 each flagged word shown in its line.
+On a Mac,
+.Ic spell
+is a command in
+.Pa ~/.local/bin/darwin
+that asks aspell.
 Your own words go in
 .Pa ~/.local/share/spell/words ,
 sorted with
@@ -432,6 +437,14 @@ Running GTK programs keep their theme until restarted.
 At login the palette follows the clock: day from 07:00, night from 19:00.
 .Ev PALETTE Ns = Ns Cm wal
 in the profile takes the colours from the wallpaper with pywal instead.
+On a Mac,
+.Ic theme day ,
+.Ic night
+and
+.Ic toggle
+set the light or dark appearance, and Ghostty, SketchyBar and the menus
+follow it; to follow the clock, set Appearance to Auto in System
+Settings.
 .Ss Updates
 Every four hours root's crontab writes what
 .Xr syspatch 8
@@ -535,6 +548,9 @@ status line along the bottom and
 the menu.
 Karabiner-Elements makes Caps Lock Escape when tapped and Hyper when
 held, and the keys are those of the cwmrc with Hyper in place of Super.
+The top row of a Mac keyboard sets brightness, volume and media, so the
+keys on F1 to F8 need Fn held as well, unless standard function keys are
+turned on in System Settings, Keyboard.
 Where the two systems differ, a file asks
 .Xr uname 1
 which one it is on; the files for the other system are not checked out
@@ -570,11 +586,14 @@ makes
 .Pa /var/db/updates
 yours;
 .It
-copies two
+copies three
 .Xr launchd 8
 agents to
 .Pa ~/Library/LaunchAgents
 and loads them:
+.Cm vertrice.mpd
+starts mpd at login with
+.Pa ~/.config/mpd/mpd.conf ,
 .Cm vertrice.updates
 writes what
 .Ic brew upgrade
@@ -606,6 +625,9 @@ Running it again is safe.
 The optional packages are in a second list:
 .Pp
 .Dl $ brew bundle --file=$HOME/.local/share/darwin/Brewfile.extra
+.Pp
+.Ic passmenu
+needs two of them: pass, and a newer bash than the Mac's own.
 .Pp
 Scripts keep calling dmenu, xclip, notify-send, xdg-open and setbg.
 On a Mac the profile puts
@@ -675,14 +697,25 @@ its launchd agents, and
 .Pa sparse-checkout ,
 the Mac's files.
 .It Pa ~/.local/bin/darwin/
-The Mac's commands in place of dmenu, xclip, notify-send, xdg-open and
-setbg.
+The Mac's commands in place of dmenu, xclip, notify-send, xdg-open,
+setbg, spell, maim and xdotool's type; and
+.Ic shortcuts ,
+which runs the one in
+.Pa ~/.local/bin ,
+not Apple's.
 .It Pa ~/.config/cwm/cwmrc
 The keys.
 .It Pa ~/.config/aerospace/aerospace.toml
 The keys on a Mac.
 .It Pa ~/.config/sketchybar/ , ~/.config/karabiner/karabiner.json , ~/.config/ghostty/config
 The Mac's status line, Caps Lock and terminal.
+.It Pa ~/.config/mpd/mpd.conf
+mpd's settings on both systems.
+It includes the sound output from
+.Pa sndio.conf
+on the X220 and
+.Pa osx.conf
+on a Mac, beside it; each system has only its own.
 .It Pa ~/.config/shell/profile
 .Ev WM ,
 .Ev TERMINAL
@@ -793,7 +826,9 @@ and
 .Xr restore 8
 on the backup disk, the update count's reading of
 .Ic pkg_add -u -n -v ,
-the dictionary build, the Codex box's walls and the TrackPoint scroll.
+the dictionary build, mpd's sound output from the included
+.Pa sndio.conf ,
+the Codex box's walls and the TrackPoint scroll.
 Nothing has run on a Mac yet: the Mac install, its agents and its
 desktop are tested only against mocks.
 .Pp

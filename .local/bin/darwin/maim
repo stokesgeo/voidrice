@@ -1,0 +1,7 @@
+#!/bin/sh
+
+# maim on the Mac, as otp calls it: `maim -s FILE`, an area picked with
+# the mouse, is screencapture -i. maimpick has its own Darwin branch.
+
+[ "$1" = -s ] && shift
+exec screencapture -i "$@"

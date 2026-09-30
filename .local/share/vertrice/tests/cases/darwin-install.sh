@@ -38,7 +38,7 @@ t_darwin_install_steps() {
 	logged "^sudo tee -a $R/etc/shells\$"
 	logged '^chsh -s /opt/homebrew/bin/oksh$'
 	logged "^sudo install -o puffy -m 644 /dev/null $R/var/db/updates\$"
-	for a in vertrice.newsup vertrice.updates; do
+	for a in vertrice.mpd vertrice.newsup vertrice.updates; do
 		cmp -s "$REPO/.local/share/darwin/$a.plist" "$la/$a.plist" || fail "$a.plist not in LaunchAgents"
 		logged "^launchctl bootout gui/$uid/$a\$"
 		logged "^launchctl bootstrap gui/$uid $la/$a.plist\$"
@@ -60,11 +60,33 @@ t_darwin_install_twice() {
 	notlogged '^sudo'
 	notlogged '^chsh'
 	eq "one oksh in /etc/shells" 1 "$(grep -c oksh "$R/etc/shells")"
-	for a in vertrice.newsup vertrice.updates; do
+	for a in vertrice.mpd vertrice.newsup vertrice.updates; do
 		eq "$a loaded twice" 2 "$(nlogged "^launchctl bootstrap .*/$a.plist")"
 		eq "$a: unloaded, then loaded" "bootout bootstrap bootout bootstrap" \
 			"$(grep "launchctl .*$a" "$VT_STATE/log" | cut -d' ' -f2 | paste -sd' ' -)"
 	done
+}
+
+# bootout can return before launchd has let the agent go; bootstrap then
+# fails ("Bootstrap failed: 5", assumed from reports, not seen here). The
+# launchctl here fails each agent's first bootstrap: a second must follow.
+t_darwin_install_bootstrap_race() {
+	di_setup
+	rm "$T/bin/launchctl"
+	cat >"$T/bin/launchctl" <<'EOF'
+#!/bin/sh
+echo "launchctl $*" >>"$VT_STATE/log"
+[ "$1" = bootstrap ] || exit 0
+[ -e "$VT_STATE/booted.${3##*/}" ] && exit 0
+: >"$VT_STATE/booted.${3##*/}"
+echo "Bootstrap failed: 5: Input/output error" >&2; exit 5
+EOF
+	chmod +x "$T/bin/launchctl"
+	VT_SLEEP=0 di
+	for a in vertrice.mpd vertrice.newsup vertrice.updates; do
+		eq "$a: tried again" 2 "$(nlogged "^launchctl bootstrap .*/$a.plist")"
+	done
+	logged '^open -a AeroSpace$'
 }
 
 t_darwin_install_brewfiles() {
@@ -84,7 +106,7 @@ t_darwin_install_brewfiles() {
 # The agents' plists: each parses, is named for its label, and runs /bin/sh.
 t_darwin_install_plists() {
 	command -v python3 >/dev/null 2>&1 || skip "no python3 to parse a plist"
-	for a in vertrice.newsup vertrice.updates; do
+	for a in vertrice.mpd vertrice.newsup vertrice.updates; do
 		got=$(python3 -c 'import plistlib, sys
 p = plistlib.load(open(sys.argv[1], "rb"))
 print(p["Label"], p["ProgramArguments"][0], p["ProgramArguments"][1])' \

@@ -51,7 +51,7 @@ EOF
 t_darwin_dmenu() {
 	mac
 	answers b
-	out=$(printf 'a\nb\n' | dmenu -i -l 30 -p 'Open it with?' -fn 'IBM Plex Mono:size=10' -nb '#000' -b)
+	out=$(printf 'a\nb\n' | dmenu -i -l 30 -p 'Open it with?')
 	eq "the pick" b "$out"
 	logged '^choose\|-m\|-e\|-n\|30\|-p\|Open it with\?\|$'
 	eq "the menu" "a
@@ -60,7 +60,7 @@ b" "$(cat "$VT_STATE/menu.1")"
 }
 
 # The palette theme set: the accent behind the chosen line, the text
-# colour for matched letters, before the caller's options.
+# colour for matched letters.
 t_darwin_dmenu_palette() {
 	mac
 	mkdir -p "$HOME/.config/x11" "$XDG_CACHE_HOME"
@@ -70,7 +70,7 @@ t_darwin_dmenu_palette() {
 	printf 'a\n' | dmenu -p Pick: >/dev/null
 	acc=$(sed -n 's/^\*\.color4: #//p' "$REPO/.config/x11/themes/night")
 	fg=$(sed -n 's/^\*\.foreground: #//p' "$REPO/.config/x11/themes/night")
-	logged "^choose\|-m\|-e\|-b\|$acc\|-c\|$fg\|-p\|Pick:\|\$"
+	logged "^choose\|-m\|-e\|-p\|Pick:\|-b\|$acc\|-c\|$fg\|\$"
 }
 
 t_darwin_xclip() {
@@ -110,9 +110,10 @@ t_darwin_ghostty() {
 	mac
 	mkdir -p "$T/d i r"; cd "$T/d i r" || fail "no dir"
 	ghostty
-	logged "^open\\|-na\\|Ghostty.app\\|--args\\|--working-directory=$T/d i r\\|\$"
+	# Each open -na starts a Ghostty; it must quit with its window.
+	logged "^open\\|-na\\|Ghostty.app\\|--args\\|--quit-after-last-window-closed=true\\|--working-directory=$T/d i r\\|\$"
 	ghostty -e grep -e x file
-	logged "^open\\|-na\\|Ghostty.app\\|--args\\|--working-directory=$T/d i r\\|-e\\|/bin/sh\\|-lc\\|exec \"\\\$@\"\\|sh\\|grep\\|-e\\|x\\|file\\|\$"
+	logged "^open\\|-na\\|Ghostty.app\\|--args\\|--quit-after-last-window-closed=true\\|--working-directory=$T/d i r\\|-e\\|/bin/sh\\|-lc\\|exec \"\\\$@\"\\|sh\\|grep\\|-e\\|x\\|file\\|\$"
 }
 
 t_darwin_floatterm() {
@@ -192,6 +193,22 @@ EOF
 	opened "git skipped" "$T/repo/sub"
 }
 
+# Apple's shortcuts(1) is in /usr/bin, before ~/.local/bin: the profile,
+# ref and nvim must still reach vertrice's.
+t_darwin_shortcuts() {
+	mac
+	argmock shortcuts
+	printf '#!/bin/sh\nexec %s "%s" "$@"\n' "$VT_SH" "$REPO/.local/bin/shortcuts" >"$T/vshortcuts"
+	chmod +x "$T/vshortcuts"
+	mkdir -p "$HOME/.local/bin" "$XDG_CONFIG_HOME/shell" "$XDG_CONFIG_HOME/lf" "$XDG_CONFIG_HOME/nvim"
+	ln -s "$T/vshortcuts" "$HOME/.local/bin/shortcuts"
+	ln -s "$REPO/.config/shell/bm-dirs" "$XDG_CONFIG_HOME/shell/bm-dirs"
+	ln -s "$REPO/.config/shell/bm-files" "$XDG_CONFIG_HOME/shell/bm-files"
+	shortcuts
+	notlogged '^shortcuts\|'
+	[ -s "$XDG_CONFIG_HOME/shell/shortcutrc" ] || fail "no shortcutrc"
+}
+
 t_darwin_profile() {
 	home_setup
 	mkdir -p "$HOME/.local/bin/darwin"
@@ -199,10 +216,9 @@ t_darwin_profile() {
 	out=$("$VT_SH" -c '. "$HOME/.profile"; printf "%s\n" "$PATH" "$TERMINAL"' 2>&1) ||
 		fail "profile failed: $out"
 	path=$(printf '%s\n' "$out" | sed -n 1p)
-	case $path in "$HOME/.local/bin/darwin:/opt/homebrew/bin:/opt/homebrew/sbin:"*) ;;
-	*) fail "darwin, then Homebrew, must come first: $path" ;; esac
-	hasnt "no wrap on the Mac" "/.local/bin/wrap" "$path"
-	has "libarchive's bsdcat, for ext" ":/opt/homebrew/opt/libarchive/bin:" "$path"
+	case $path in "$HOME/.local/bin/darwin:/opt/homebrew/bin:/opt/homebrew/opt/libarchive/bin:"*) ;;
+	*) fail "darwin, then Homebrew and libarchive's bsdcat (ext), must come first: $path" ;; esac
+	hasnt "no openbsd on the Mac" "/.local/bin/openbsd" "$path"
 	eq "darwin once" 1 "$(printf '%s\n' "$path" | tr ':' '\n' | grep -c '/\.local/bin/darwin$')"
 	has "statusbar on PATH" ":$HOME/.local/bin/statusbar" "$path"
 	eq "the terminal" ghostty "$(printf '%s\n' "$out" | sed -n 2p)"
@@ -236,6 +252,19 @@ t_darwin_sb_battery() {
 	eq "no battery: no output" "" "$out"
 	logged '^pmset\|-g\|batt\|$'
 	notlogged '^apm'
+}
+
+# The scroll wheel sets the X220's backlight; on the Mac it does nothing,
+# and the help does not offer it.
+t_darwin_sb_battery_clicks() {
+	mac
+	printf "Now drawing from 'AC Power'\n -InternalBattery-0 (id=4653155)\t55%%; charging; 1:02 remaining present: true\n" | fx out.pmset
+	BLOCK_BUTTON=4 sb-battery >/dev/null
+	BLOCK_BUTTON=5 sb-battery >/dev/null
+	notlogged wsconsctl
+	BLOCK_BUTTON=3 sb-battery >/dev/null
+	logged '^osascript\|.*\|🔋 Battery module\|'
+	notlogged backlight
 }
 
 t_darwin_setbg() {
@@ -273,7 +302,7 @@ t_darwin_remind() {
 	mac
 	remind 2026-10-03 Return the '"library"' books || fail "remind failed"
 	logged '^osascript\|-e\|on run a\|'
-	logged '\|-e\|tell application "Reminders" to make new reminder with properties \{name:item 4 of a, remind me date:d\}\|-e\|end run\|2026\|10\|03\|Return the "library" books\|$'
+	logged '\|-e\|tell application "Reminders" to make new reminder with properties \{name:item 4 of a, due date:d, remind me date:d\}\|-e\|end run\|2026\|10\|03\|Return the "library" books\|$'
 	logged '\|set time of d to 9 \* hours\|'
 	: >"$VT_STATE/log"
 	remind 'Oct 3' books 2>/dev/null; eq "not a date: exit 1" 1 "$?"
@@ -328,6 +357,18 @@ EOF
 	notlogged '^top'
 }
 
+# ps on the Mac gives comm as the program's path, spaces and all
+# (hogs_ps, blocks.sh).
+t_darwin_sb_memory_hogs() {
+	mac
+	hogs_ps
+	c='/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
+	printf '3\t%s\n2\t%s\n1.5\t/usr/sbin/mDNSResponder\n' "$c" "$c" | fx procs.mem
+	BLOCK_BUTTON=1 sb-memory >/dev/null
+	logged '\|🧠 Memory hogs\|5 Google Chrome$'
+	logged '^1.5 mDNSResponder\|$'
+}
+
 # osascript answers "VOLUME, MUTED" for the volume settings.
 t_darwin_sb_volume() {
 	mac
@@ -336,12 +377,23 @@ t_darwin_sb_volume() {
 	logged '^osascript\|-e\|set s to get volume settings\|-e\|\{output volume of s, output muted of s\}\|$'
 	echo '55, true' | fx out.osascript
 	eq "muted" "🔇" "$(sb-volume)"
-	: | fx out.osascript; : >"$VT_STATE/log"
-	BLOCK_BUTTON=4 sb-volume >/dev/null
-	logged '^osascript\|-e\|set s to get volume settings\|-e\|set volume output volume \(output volume of s\) \+ 1\|$'
-	BLOCK_BUTTON=2 sb-volume >/dev/null
-	logged '\|set volume output muted not output muted of s\|$'
+	# Clicks and scrolls: AeroSpace's volume, as the keys.
+	for c in 2:mute-toggle 4:up 5:down; do
+		: >"$VT_STATE/log"
+		BLOCK_BUTTON=${c%%:*} sb-volume >/dev/null
+		logged "^aerospace\\|volume\\|${c#*:}\\|\$"
+	done
 	notlogged sndioctl
+}
+
+# An output with no volume to set (HDMI, some interfaces): AppleScript
+# answers "missing value" (assumed, not seen), and the block shows nothing.
+t_darwin_sb_volume_none() {
+	mac
+	echo 'missing value, missing value' | fx out.osascript
+	out=$(sb-volume); rc=$?
+	eq "nothing shown" "" "$out"
+	eq "exit 1, as sb-battery with no battery" 1 "$rc"
 }
 
 # The default route's interface, and whether networksetup calls it Wi-Fi.
@@ -372,6 +424,19 @@ t_darwin_maimpick() {
 	notlogged 'maim |xdotool|xclip'
 }
 
+# xdotool type: pasted with Cmd+V; nothing else is taken.
+t_darwin_xdotool() {
+	mac
+	xdotool type 😀 || fail "type refused"
+	eq "copied" 😀 "$(cat "$VT_STATE/in.pbcopy")"
+	logged '^osascript\|-e\|tell application "System Events" to keystroke "v" using command down\|$'
+	: >"$VT_STATE/log"
+	xdotool key super+F5 2>/dev/null && fail "key taken"
+	xdotool type --clearmodifiers --file - </dev/null 2>/dev/null && fail "type's options taken"
+	notlogged .
+}
+
+# dmenuunicode is voidrice's: its xdotool type reaches the stand-in.
 t_darwin_dmenuunicode() {
 	mac
 	mkdir -p "$HOME/.local/share/larbs/chars"
@@ -380,7 +445,6 @@ t_darwin_dmenuunicode() {
 	dmenuunicode insert
 	eq "copied" 😀 "$(cat "$VT_STATE/in.pbcopy")"
 	logged '^osascript\|-e\|tell application "System Events" to keystroke "v" using command down\|$'
-	notlogged '^xdotool'
 }
 
 t_darwin_ifinstalled() {
@@ -404,6 +468,18 @@ t_darwin_otp_add() {
 	eq "stored under its name" "otpauth://totp/x?secret=ABC" "$(cat "$T/store/github-otp" 2>/dev/null)"
 }
 
+# The Mac has no ntpctl: sync-time shows sntp's offset.
+t_darwin_otp_sync_time() {
+	otp_setup
+	mac
+	argmock sntp
+	echo '+0.012 +/- 0.004 time.apple.com 17.253.4.125' | fx out.sntp
+	answers 🕙sync-time
+	otp >/dev/null 2>&1
+	logged '^sntp\|'
+	logged '\|🕙 Time sync\|\+0.012 \+/- 0.004 time.apple.com 17.253.4.125\|$'
+}
+
 # /var/db/updates is $T/updates (derived, lib.sh); a terminal from with_tty.
 t_darwin_popupgrade() {
 	mac
@@ -416,18 +492,26 @@ t_darwin_popupgrade() {
 	eq "the count cleared" "" "$(cat "$T/updates")"
 }
 
+# pass's passmenu exits unless DISPLAY is set, and needs bash 4 (globstar):
+# Homebrew's, first in the profile's PATH, installed beside pass.
 t_darwin_passmenu() {
 	mac
-	argmock bash
+	printf '#!/bin/sh\necho "bash $DISPLAY $*" >>"$VT_STATE/log"\n' >"$T/bin/bash"
+	chmod +x "$T/bin/bash"
 	passmenu
-	logged '^bash\|/opt/homebrew/share/pass/contrib/dmenu/passmenu\|$'
+	logged '^bash [^ ]+ /opt/homebrew/share/pass/contrib/dmenu/passmenu$'
+	grep -qx 'brew "pass"' "$REPO/.local/share/darwin/Brewfile.extra" &&
+	grep -qx 'brew "bash"' "$REPO/.local/share/darwin/Brewfile.extra" ||
+		fail "Brewfile.extra must install bash with pass"
 }
 
 # Every stand-in can run, and none reaches for X.
 t_darwin_shims_plain() {
 	for f in "$REPO"/.local/bin/darwin/*; do
 		[ -x "$f" ] || fail "${f##*/} is not executable"
-		grep -Eq 'xdotool|xprop|/usr/X11R6' "$f" && fail "${f##*/} calls X"
+		x='xdotool|xprop|/usr/X11R6'
+		[ "${f##*/}" = xdotool ] && x='xprop|/usr/X11R6'	# it stands in for it
+		grep -Eq "$x" "$f" && fail "${f##*/} calls X"
 	done
 	return 0
 }

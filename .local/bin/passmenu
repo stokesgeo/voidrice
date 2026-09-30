@@ -2,8 +2,9 @@
 
 # passmenu: pick a pass(1) entry in dmenu. The password-store package ships
 # this script only as an example, and it needs bash. Homebrew keeps it in
-# pass's contrib, and it needs Homebrew's bash: the Mac's is too old.
-# --type needs xdotool: X only.
+# pass's contrib, and it needs bash 4: Homebrew's (Brewfile.extra), which
+# the profile puts before the Mac's 3.2. It stops unless DISPLAY is set;
+# choose needs no display, so any name will do. --type needs xdotool: X only.
 
-[ "$(uname)" = Darwin ] && exec bash /opt/homebrew/share/pass/contrib/dmenu/passmenu "$@"
+[ "$(uname)" = Darwin ] && DISPLAY=${DISPLAY:-mac} exec bash /opt/homebrew/share/pass/contrib/dmenu/passmenu "$@"
 exec bash /usr/local/share/examples/password-store/dmenu/passmenu "$@"

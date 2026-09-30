@@ -19,5 +19,5 @@ exec osascript -e 'on run a' \
 	-e 'set month of d to (item 2 of a) as integer' \
 	-e 'set day of d to (item 3 of a) as integer' \
 	-e 'set time of d to 9 * hours' \
-	-e 'tell application "Reminders" to make new reminder with properties {name:item 4 of a, remind me date:d}' \
+	-e 'tell application "Reminders" to make new reminder with properties {name:item 4 of a, due date:d, remind me date:d}' \
 	-e 'end run' "${d%%-*}" "${m%-*}" "${d##*-}" "$*"

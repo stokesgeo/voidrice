@@ -8,14 +8,15 @@
 
 # All but X, its programs, and what macOS does itself: Preview for
 # zathura and nsxiv, Safari for qutebrowser, Notification Center for
-# dunst, open(1) for the mimeapps.list and its .desktop files. theme
-# reads the palettes in x11/themes.
+# dunst, open(1) for the mimeapps.list and its .desktop files; and mpd's
+# sndio output. theme reads the palettes in x11/themes.
 /.config/
 !/.config/cdxb/
 !/.config/cwm/
 !/.config/dunst/
 !/.config/fontconfig/
 !/.config/mimeapps.list
+!/.config/mpd/sndio.conf
 !/.config/nsxiv/
 !/.config/qutebrowser/
 !/.config/user-dirs.dirs
@@ -30,7 +31,7 @@
 # keyboard settings. sb-cpu and sb-cpubars read what Apple silicon does
 # not give without root: the temperature, the clock and per-core ticks.
 /.local/bin/
-!/.local/bin/wrap/
+!/.local/bin/openbsd/
 !/.local/bin/bk
 !/.local/bin/cdxb
 !/.local/bin/cron/README.md

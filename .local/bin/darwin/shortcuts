@@ -1,0 +1,7 @@
+#!/bin/sh
+
+# shortcuts on the Mac: vertrice's, which writes the bookmark files, not
+# Apple's /usr/bin/shortcuts, which the system's PATH finds first. The
+# profile, ref and nvim call it by name.
+
+exec "$HOME/.local/bin/shortcuts" "$@"

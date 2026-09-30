@@ -13,6 +13,16 @@ t_sb_battery() {
 	eq "no battery: no output" "" "$out"
 }
 
+# The scroll wheel sets the backlight, and the help says so.
+t_sb_battery_clicks() {
+	BLOCK_BUTTON=4 sb-battery >/dev/null
+	logged '^wsconsctl display.brightness\+=10$'
+	BLOCK_BUTTON=5 sb-battery >/dev/null
+	logged '^wsconsctl display.brightness-=10$'
+	BLOCK_BUTTON=3 sb-battery >/dev/null
+	logged '^- Scroll to change the backlight\.$'
+}
+
 t_sb_brightness() {
 	eq "level" "💡70%" "$(sb-brightness)"
 	eq "fraction dropped" "💡5%" "$(WSCONS_BRIGHTNESS=5.49% sb-brightness)"
@@ -83,6 +93,28 @@ t_sb_memory() {
 	eq "megabytes" "🧠0.44GiB/7.77GiB" "$(sb-memory)"
 	eq "kilobytes" "🧠0.50GiB/7.77GiB" "$(MEM_ACT=524288K sb-memory)"
 	eq "gigabytes" "🧠2.00GiB/7.77GiB" "$(MEM_ACT=2G sb-memory)"
+}
+
+# The hogs on a click: ps's %mem and comm, summed per program, the
+# biggest first. hogs_ps writes a ps that answers from $VT_STATE/procs.mem
+# ("MEM<tab>COMM" lines) in the order the -o options ask.
+hogs_ps() {
+	cat >"$T/bin/ps" <<'EOF'
+#!/bin/sh
+case $* in
+*'%mem= -o comm='*) tr '\t' ' ' <"$VT_STATE/procs.mem" ;;
+*'comm= -o %mem='*) awk -F '\t' '{ print $2, $1 }' "$VT_STATE/procs.mem" ;;
+*) exec "$VT_REAL_PS" "$@" ;;
+esac
+EOF
+	chmod +x "$T/bin/ps"
+}
+t_sb_memory_hogs() {
+	hogs_ps
+	printf '1.5\tfirefox\n2\tfirefox\n0.5\txterm\n' | fx procs.mem
+	BLOCK_BUTTON=1 sb-memory >/dev/null
+	logged '^notify-send 🧠 Memory hogs 3.5 firefox$'
+	logged '^0.5 xterm$'
 }
 
 t_sb_nettraf() {
