@@ -67,6 +67,28 @@ t_darwin_install_twice() {
 	done
 }
 
+# bootout can return before launchd has let the agent go; bootstrap then
+# fails ("Bootstrap failed: 5", assumed from reports, not seen here). The
+# launchctl here fails each agent's first bootstrap: a second must follow.
+t_darwin_install_bootstrap_race() {
+	di_setup
+	rm "$T/bin/launchctl"
+	cat >"$T/bin/launchctl" <<'EOF'
+#!/bin/sh
+echo "launchctl $*" >>"$VT_STATE/log"
+[ "$1" = bootstrap ] || exit 0
+[ -e "$VT_STATE/booted.${3##*/}" ] && exit 0
+: >"$VT_STATE/booted.${3##*/}"
+echo "Bootstrap failed: 5: Input/output error" >&2; exit 5
+EOF
+	chmod +x "$T/bin/launchctl"
+	VT_SLEEP=0 di
+	for a in vertrice.mpd vertrice.newsup vertrice.updates; do
+		eq "$a: tried again" 2 "$(nlogged "^launchctl bootstrap .*/$a.plist")"
+	done
+	logged '^open -a AeroSpace$'
+}
+
 t_darwin_install_brewfiles() {
 	# One entry a line, each a tap, brew or cask, and a tap for each
 	# tapped name.

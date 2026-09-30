@@ -179,9 +179,11 @@ means in the tree; untested means not yet run on the X220.
   Super+b shows the line as a notice when a window covers it. Clicks
   never reach a block. Done; untested.
 - **dmenu through a wrapper.** Agents' (c0230f3): the ports dmenu reads
-  no Xresources. `~/.local/bin/wrap/dmenu`, first in PATH, passes IBM
+  no Xresources. `~/.local/bin/openbsd/dmenu`, first in PATH, passes IBM
   Plex Mono and the palette `theme` last set; the caller's options come
-  after and win. Done.
+  after and win. The folder was `wrap/`; it is named for `uname`, as the
+  Mac's `darwin/` is, so the profile picks the first folder in PATH with
+  one `uname`. Done.
 - **No compositor.** Agents' (9ee25f2): xterm has no alpha, so xcompmgr
   only cost work; run it by hand for st. Done.
 - **sd through proc-cwd.** The owner picked "Write the C helper" (7f5231a): no /proc, so a 49-line C
@@ -277,7 +279,10 @@ means in the tree; untested means not yet run on the X220.
   Ghostty, Karabiner-Elements and AeroSpace apps are universal, the
   codex cask is an aarch64 build. oksh is the login shell. Browsers:
   Homebrew disabled its qutebrowser and chromium casks on 2026-09-01
-  (they fail Gatekeeper), so Safari. Done; untested on a Mac.
+  (they fail Gatekeeper), so Safari. `Brewfile.extra` also has bash, for
+  pass's passmenu, which needs bash 4 (the Mac's is 3.2); added after
+  that reading, so its macOS 27 bottle is not checked. Done; untested
+  on a Mac.
 - **launchd for cron.** Agents'. Two user agents: the update count
   (`brew outdated` into `/var/db/updates` at login and every four hours,
   where root's crontab writes it on the X220) and `newsup` every 30
@@ -318,52 +323,37 @@ means in the tree; untested means not yet run on the X220.
   a Mac has no Print key; no text entry, as Live Text reads any
   screenshot) and is in the Mac's list; newsup runs from launchd (see
   "launchd for cron"). Kept: the ftp stand-in, choose, dmenuunicode.
-  Done; untested on a Mac.
+  dmenuunicode is voidrice's again: an `xdotool` stand-in takes only
+  `type TEXT` (pbcopy, then Cmd+V through System Events) and refuses
+  the rest. otp is voidrice's too: a `maim` stand-in turns its `maim -s
+  FILE` into `screencapture -i FILE`. Done; untested on a Mac.
 - **The Mac's bar blocks.** Agents'. `sb-refresh` runs `sketchybar
   --update` on Darwin, since sbar does not run there. Darwin branches:
   `sb-memory` (vm_stat's active, wired and compressed pages over
-  `hw.memsize`), `sb-volume` (AppleScript's volume settings, clicks
-  included), `sb-internet` (the default route's interface from route(8),
+  `hw.memsize`), `sb-volume` (read from AppleScript's volume settings;
+  clicks and scrolls go to `aerospace volume`, as the keys do; nothing
+  shown for an output with no volume), `sb-internet` (the default route's interface from route(8),
   Wi-Fi named by networksetup(8); no signal strength). `sb-cpu` is off
   the Mac's bar and out of its list: Apple silicon gives the
   temperature and clock only to root (powermetrics). Done; untested on a
   Mac.
 - **Spelling on the Mac: aspell behind a spell stand-in.** Agents'.
   macOS has no spell(1), so `~/.local/bin/darwin/spell` runs `aspell -d
-  en_US list`, which reads text and prints the misspelled words (aspell(1):
-  "Produce a list of misspelled words from standard input"), leaves out
-  the words of each `+list` case-blind, as spell's `+local_file` does,
-  and prints the rest sorted, once each. `spellcheck` and `proof` stay
-  one script for both systems; the X220 keeps base spell, as "Spelling
-  and dictionary" has it. aspell, not hunspell: Homebrew's aspell formula
-  installs its dictionaries with it, English (`aspell6-en-2020.12.07`)
-  among them, and its own test runs `aspell list -d en_US`; Homebrew's
-  hunspell ships none ("Homebrew itself provides no dictionaries for
-  Hunspell"). Both read from Homebrew's formulae on 2026-09-30; aspell
-  has an `arm64_golden_gate` bottle. Done; untested on a Mac.
+  en_US list`, leaves out the words of each `+list` case-blind with
+  grep, as spell's `+local_file` does, and prints the rest sorted, once
+  each; `spellcheck` and `proof` stay one script for both systems.
+  Evidence: Homebrew's aspell installs its English dictionary with it,
+  and its hunspell ships none (formulae read 2026-09-30). Done;
+  untested on a Mac.
 - **mpd on both systems: one mpd.conf, the output per system.**
-  Agents'. `.config/mpd/mpd.conf` is shared and ends its sound output
-  in `include_optional "sndio.conf"` and `include_optional "osx.conf"`;
-  `sndio.conf` (the X220's sndio block, as it was) and `osx.conf`
-  (CoreAudio, mpd's `osx` output) sit beside it, and each machine's
-  sparse-checkout list leaves out the other's, so no `uname` is needed.
-  mpd.conf(5): the path is relative to the including file, and
-  include_optional skips a file that is not there. Both directives came
-  in mpd 0.21 (2018; not in 0.20.23's `ConfigFile.cxx`, in 0.21's
-  `File.cxx`); Homebrew's mpd is 0.24.15, whose formula test checks for
-  the osx output, and OpenBSD's port is 0.24 (0.24.15 in the ports tree,
-  0.24.5 in a packaged release). The X220 reads the same outputs in the
-  same order. On the Mac, mpd does not read `~/.config` (it looks in
-  `~/Library/Application Support/mpd`, `~/.mpdconf` and `~/.mpd`; its
-  `src/fs/XDG.hxx` turns XDG paths off on Apple), so the launchd agent
-  `vertrice.mpd` names the file: `mpd --no-daemon
-  ~/.config/mpd/mpd.conf` at login, `ProcessType` Interactive as in
-  Homebrew's own service. An agent of ours, not `brew services`: that
-  service runs mpd with no file named, and the install already starts
-  its other programs itself. sb-music, sb-mpdup and ncmpcpp need
-  nothing more: mpc and ncmpcpp reach mpd on localhost, and Homebrew's
-  ncmpcpp is built with the visualizer, which reads `/tmp/mpd.fifo`.
-  Done; untested on a Mac.
+  Agents'. `.config/mpd/mpd.conf` ends in `include_optional
+  "sndio.conf"` and `include_optional "osx.conf"`; each machine's list
+  leaves out the other's file, so no `uname` is needed. On the Mac the
+  launchd agent `vertrice.mpd` runs `mpd --no-daemon
+  ~/.config/mpd/mpd.conf`, since mpd there never reads `~/.config`.
+  Evidence: mpd.conf(5) (a relative path, a missing file skipped; since
+  mpd 0.21, and both systems have 0.24), and mpd's `src/fs/XDG.hxx`,
+  which turns XDG paths off on Apple. Done; untested on a Mac.
 - **Luke's leftovers.** Kept as they are: setbg's dwm lines, the st
   lines in xresources, `tutorialvids`, Luke's site in `linkhandler`.
   `sb-help-icon` opens `man vertrice`. Done.
@@ -398,7 +388,8 @@ way, and where it lives.
    `netstat -ibn` for traffic, `top -b` and `hw.physmem` for memory.
 8. GNU syntax and GNU tools -> POSIX and BSD forms: `ftp(1)` for every
    fetch, `nc(1)` for mpv's sockets, `sort -R` for shuf, `stat -f`,
-   `file -bi`, `nq(1)` for task-spooler, bsdtar for the archive tools.
+   `file -bi` (setbg `file -b --mime-type`, which the Mac's file(1)
+   takes too; its `-i` means something else), `nq(1)` for task-spooler, bsdtar for the archive tools.
 9. sudo -> doas. A script that needs root and has no terminal reopens
    itself in one (mounter, bk, dmenuwifi), or cwmrc runs it in
    `$TERMINAL` (rectoggle). doas has no askpass.
@@ -410,7 +401,7 @@ way, and where it lives.
     fstab by DUID first, every mount `nosuid,nodev`, the system disk
     never offered, only offered lines accepted. `unmounter` locks the
     volume again.
-12. Luke's dmenu build -> the ports dmenu behind `wrap/dmenu` (item
+12. Luke's dmenu build -> the ports dmenu behind `openbsd/dmenu` (item
     "dmenu through a wrapper" above).
 13. pacman checks in cron -> one root crontab line writing
     `/var/db/updates` (`syspatch -c`, `pkg_add -u -n -v`); `sb-updates`
@@ -461,7 +452,9 @@ As the tree has it now.
    held is Super. The key repeat is a `defaults` line in the install.
 6. xclip, notify-send and dunst, xdg-open, setbg -> same-named commands
    in `~/.local/bin/darwin/` over pbcopy and pbpaste, osascript and
-   Notification Center, open, and the desktop picture.
+   Notification Center, open, and the desktop picture. One more there,
+   `shortcuts`, runs `~/.local/bin/shortcuts`: macOS has a `shortcuts`
+   of its own in /usr/bin, which the system's PATH finds first.
 7. ksh -> oksh, the portable OpenBSD ksh, as the login shell; the same
    `~/.profile` and kshrc.
 8. pkg_add and `pkglist` -> `brew bundle` and `Brewfile`
@@ -480,6 +473,8 @@ As the tree has it now.
 13. doas -> sudo, in the install only. Scripts that need root on the
     X220 (mounter, bk, dmenuwifi, rectoggle) are X220 only; every script
     that is, and why, is in `.local/share/darwin/sparse-checkout`.
+    aliasrc sets its doas aliases (mount, shutdown, sdn and the rest)
+    only where there is a doas.
 14. xidle and xlock -> `pmset displaysleepnow` for sysact's lock, with
     the password asked at once (`sysadminctl -screenLock immediate`, in
     the install); the idle lock is macOS's own.
@@ -492,7 +487,9 @@ As the tree has it now.
 18. qutebrowser -> Safari: `BROWSER=safari`, a stand-in over `open -a
     Safari`.
 19. maim and xdotool in maimpick -> `screencapture -i`, `-iW` for a
-    window, `-c` to copy.
+    window, `-c` to copy. Elsewhere, stand-ins: `maim -s FILE` (otp) is
+    `screencapture -i FILE`; `xdotool type TEXT` (dmenuunicode) is
+    pbcopy and Cmd+V.
 20. base spell(1) -> aspell, through the `~/.local/bin/darwin/spell`
     stand-in; `spellcheck` is the same script.
 21. mpd started from xprofile, playing to sndiod -> the launchd agent
@@ -517,8 +514,10 @@ bundle` with this Brewfile, including the source build of sketchybar
 and the Karabiner package's password prompt; `chsh` to oksh and the
 profile and kshrc under it; `sudo install -o` making
 `/var/db/updates` the user's; `launchctl bootout` and `bootstrap` in
-`gui/UID`, and the agents' `HOME` and `PATH` (the updates agent names
-brew by its full path for that reason); the newsup agent sourcing
+`gui/UID`, whether `bootstrap` right after `bootout` fails ("Bootstrap
+failed: 5", reported by others) and whether the install's second try,
+a second later, is enough; the agents' `HOME` and `PATH` (the updates
+agent names brew by its full path for that reason); the newsup agent sourcing
 `~/.profile` under macOS's /bin/sh; `sysadminctl -screenLock status`
 (its wording, and that it writes to stderr) and `-screenLock immediate
 -password -` run as the user, not root; the `defaults` keys under macOS 27
@@ -530,19 +529,31 @@ The stand-ins and Darwin branches are tested against mocks
 (`tests/cases/darwin-shims.sh`); not yet seen on a Mac: `choose -m -e`
 with an empty menu, and its exit status on Escape; the choose colours
 `-b` and `-c` the dmenu stand-in passes; osascript notifications on
-macOS 27; the System Events keystroke (dmenuunicode's Cmd+V), which
+macOS 27, and one with an empty body (`notify-send TITLE`); the System
+Events keystroke (the xdotool stand-in's Cmd+V), which
 needs Accessibility for the program that sends it; `remind`'s
 AppleScript (`make new reminder` with no list, into the default one;
-`remind me date` as the alert; the Automation prompt for Reminders the
-first time); `open -a Safari` and `open dict://WORD`;
-`screencapture -iW` and `-ic`; `sketchybar --update` from a block; the
-Darwin blocks against a real Mac: `vm_stat`'s wording and page size,
-the AppleScript `get volume settings` answer (and "missing value" on an
-output with no volume), `route -n get default` and
-`networksetup -listallhardwareports` (the "Wi-Fi" port name);
-`open -na Ghostty.app` with `--working-directory`, `--title`, the
-window size, `--fullscreen=non-native` and `-e`, and whether `sd`
-picks the wrong window when one Ghostty has several; the AeroSpace CLI
+`due date` and `remind me date` set to the same time; the Automation
+prompt for Reminders the first time); `open -a Safari` and `open
+dict://WORD`; `screencapture -iW`, `-ic` and `-i FILE` (the maim
+stand-in); `sntp -t 1 time.apple.com` for otp's sync-time; pass's
+passmenu under Homebrew's bash, found before /bin/bash through the
+profile's PATH, with `DISPLAY` set to a name that is no display; that
+Apple's `/usr/bin/shortcuts` is what the system's PATH finds before
+`~/.local/bin` (the shortcuts stand-in's reason); `sketchybar --update`
+from a block; the Darwin blocks against a real Mac: `vm_stat`'s wording
+and page size (the header's "page size of N bytes", read as its eighth
+field; macOS 27's vm_stat(1) points to meminfo(1), and may change), the
+AppleScript `get volume settings` answer, and "missing value" on an
+output with no volume, which sb-volume takes as no block (assumed, not
+seen); `aerospace volume` from a bar click; `ps -Ao %mem= -o comm=`
+giving comm as a full path, which sb-memory's hogs assume; `route -n
+get default` and `networksetup -listallhardwareports` (the "Wi-Fi" port
+name); `open -na Ghostty.app` with `--quit-after-last-window-closed`,
+`--working-directory`, `--title`, the window size,
+`--fullscreen=non-native` and `-e`, whether Ghostty asks before it runs
+a command given with `-e` this way, and whether `sd` picks the wrong
+window when one Ghostty has several; the AeroSpace CLI
 (`list-windows --format`, `move-node-to-workspace --window-id`,
 `--focus-follows-window`); `lsof -Fn`; the `pmset -g batt` format, and a
 Mac with no battery; the desktop picture's AppleScript; `file
@@ -556,13 +567,19 @@ title after they appear); `quote` as the key name for Super+'; the
 directory AeroSpace starts commands in (`run` now goes home first, so
 maimpick saves and a bare terminal opens there, as under cwm); that
 `exec-on-workspace-change` finds sketchybar on AeroSpace's own PATH
-(it adds /opt/homebrew/bin unless the config sets `[exec]`).
+(it adds /opt/homebrew/bin unless the config sets `[exec]`);
+SketchyBar's `$SCROLL_DELTA` sign under natural scrolling (`block`
+takes a positive delta as button 4, up); that Super+F1 to F8 need Fn
+held under macOS's default keyboard setting (the man page and
+aerospace.toml say so).
 
 Spelling and mpd are tested against mocks (`tests/cases/darwin-spell.sh`,
 `tests/cases/darwin-mpd.sh`); not yet seen on a Mac: aspell's list of
 a real text (what it makes of contractions, curly apostrophes and
-Markdown in its default url mode, where spell(1) runs deroff); the
-English dictionary under `-d en_US` from the bottle; mpd 0.24 reading
+Markdown in its default url mode, where spell(1) runs deroff); macOS
+grep given `-f /dev/null`, which the stand-in relies on to match
+nothing, as GNU grep's does; the English dictionary under `-d en_US`
+from the bottle; mpd 0.24 reading
 `include_optional` with a relative path, which the suite only mimics,
 here and on the X220; the `osx` output on the default device, and
 whether it follows a change of device in System Settings; the agent's

@@ -23,12 +23,14 @@ grep -qx $ksh /etc/shells || echo $ksh | sudo tee -a /etc/shells >/dev/null
 [ -e /var/db/updates ] || sudo install -o "$USER" -m 644 /dev/null /var/db/updates
 # launchd runs, as you, what cron runs on the X220, and mpd, which
 # xprofile starts there. Each agent is unloaded first, so a second run
-# loads the new copy.
+# loads the new copy. bootout can return before the old one is gone, and
+# bootstrap then fails: it is tried once more, a second later.
 mkdir -p ~/Library/LaunchAgents
 for a in vertrice.mpd vertrice.newsup vertrice.updates; do
 	cp $a.plist ~/Library/LaunchAgents/
 	launchctl bootout gui/"$(id -u)"/$a 2>/dev/null
-	launchctl bootstrap gui/"$(id -u)" ~/Library/LaunchAgents/$a.plist
+	launchctl bootstrap gui/"$(id -u)" ~/Library/LaunchAgents/$a.plist 2>/dev/null ||
+		{ sleep 1; launchctl bootstrap gui/"$(id -u)" ~/Library/LaunchAgents/$a.plist; }
 done
 # The Dock hides, so it does not cover the bar. The next two are from
 # AeroSpace's guide: Mission Control groups windows by app, and one Space

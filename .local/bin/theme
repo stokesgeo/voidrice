@@ -100,35 +100,29 @@ apply() {
 	print "$1" > "$state"
 }
 
-# mac day|night|toggle|auto|clock: the Mac, where day is macOS's light
+# mac day|night|toggle|auto: the Mac, where day is macOS's light
 # appearance and night its dark one. day, night and toggle set it; auto
-# takes it as it is; clock leaves the switching to macOS (Appearance:
-# Auto). Ghostty follows the appearance by itself, between the two themes
-# written here; the bar runs `theme auto` on each change, for its colours.
-# The state file tells the menus which palette is shown.
+# takes it as it is. For the clock, set Appearance to Auto: macOS
+# switches by itself. Ghostty follows the appearance, between the two
+# themes written here; the bar runs `theme auto` on each change, for its
+# colours. The state file tells the menus which palette is shown.
 mac() {
-	typeset now p dark t k v
+	typeset now p dark t
 	defaults read -g AppleInterfaceStyle 2>/dev/null | grep -q Dark && now=night || now=day
 	case $1 in
 	day|night)	p=$1 ;;
 	toggle)		[ "$now" = day ] && p=night || p=day ;;
 	auto)		p=$now ;;
-	clock)		return 0 ;;
-	*)		print -u2 "usage: theme day|night|toggle|auto|clock"; return 1 ;;
+	*)		print -u2 "usage: theme day|night|toggle|auto"; return 1 ;;
 	esac
 	dark=false; [ "$p" = night ] && dark=true
 	[ "$p" = "$now" ] || osascript -e "tell application \"System Events\" to tell appearance preferences to set dark mode to $dark" >/dev/null
 	mkdir -p "$conf/ghostty/themes" "${state%/*}"
 	for t in day night; do
 		{ print "# Written by ~/.local/bin/theme from x11/themes/$t: change it there."
-		while read -r k v; do
-			case $k in
-			\*.color*:)	k=${k#\*.color}; print "palette = ${k%:}=$v" ;;
-			\*.foreground:)	print "foreground = $v" ;;
-			\*.background:)	print "background = $v" ;;
-			\*.cursorColor:) print "cursor-color = $v" ;;
-			esac
-		done < "$dir/$t"; } > "$conf/ghostty/themes/vertrice-$t"
+		sed -n 's/^\*\.color\([0-9]*\): /palette = \1=/p; s/^\*\.foreground: /foreground = /p
+			s/^\*\.background: /background = /p; s/^\*\.cursorColor: /cursor-color = /p' "$dir/$t"
+		} > "$conf/ghostty/themes/vertrice-$t"
 	done
 	sketchybar --bar color="0xff$(sed -n 's/^\*\.background: #//p' "$dir/$p")" \
 		--set '/.*/' label.color="0xff$(sed -n 's/^\*\.foreground: #//p' "$dir/$p")" \

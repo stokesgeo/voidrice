@@ -86,12 +86,12 @@ t_palette_wal() {
 	PALETTE=wal setbg -s; logged '^wal -n -i '
 }
 
-# The dmenu wrapper (wrap/dmenu): Plex Mono and the palette theme last set,
+# The dmenu wrapper (openbsd/dmenu): Plex Mono and the palette theme last set,
 # then the caller's own options; the menu, answer and exit status pass
 # through. The real dmenu is the mock, by its full path.
 dm_setup() {
 	th_setup
-	dm=$(derived .local/bin/wrap/dmenu dmenu "s|/usr/local/bin/dmenu|$VT_MOCKS/dmenu|")
+	dm=$(derived .local/bin/openbsd/dmenu dmenu "s|/usr/local/bin/dmenu|$VT_MOCKS/dmenu|")
 }
 t_dmenu_wrap_palette() {
 	dm_setup
@@ -121,6 +121,6 @@ t_dmenu_wrap_no_theme() {
 	: | "$dm" -l 5
 	logged '^dmenu -fn IBM Plex Mono:size=10 -l 5$'
 	# By full path: through PATH it would find itself.
-	grep -q '^exec /usr/local/bin/dmenu ' "$REPO/.local/bin/wrap/dmenu" ||
+	grep -q '^exec /usr/local/bin/dmenu ' "$REPO/.local/bin/openbsd/dmenu" ||
 		fail "the wrapper must run the package's dmenu by its full path"
 }

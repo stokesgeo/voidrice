@@ -132,9 +132,13 @@ home_setup() {
 	mkdir -p "$HOME/.config" "$HOME/.local/share"
 	for d in ksh shell vi x11; do ln -s "$REPO/.config/$d" "$HOME/.config/$d"; done
 	# find(1) does not follow a symlinked start, so bin is a real tree.
-	mkdir -p "$HOME/.local/bin/statusbar" "$HOME/.local/bin/cron" "$HOME/.local/bin/wrap"
+	mkdir -p "$HOME/.local/bin/statusbar" "$HOME/.local/bin/cron" "$HOME/.local/bin/openbsd"
 	ln -s "$REPO/.config/shell/profile" "$HOME/.profile"
 	unset XDG_CONFIG_HOME XDG_CACHE_HOME
+	# The profile picks its first directory by uname; mac (darwin-shims.sh)
+	# says Darwin over this.
+	printf '#!/bin/sh\necho OpenBSD\n' >"$T/bin/uname"
+	chmod +x "$T/bin/uname"
 }
 
 t_profile_loads() {
@@ -145,11 +149,11 @@ t_profile_loads() {
 	eq "NEXINIT" "source $HOME/.config/vi/exrc" "$(printf '%s\n' "$out" | sed -n 2p)"
 	path=$(printf '%s\n' "$out" | sed -n 4p)
 	has "statusbar on PATH" ":$HOME/.local/bin/statusbar" "$path"
-	# Only the wrap folder (the dmenu wrapper) comes before base, once.
-	case $path in "$HOME/.local/bin/wrap:"*) ;; *) fail "~/.local/bin/wrap must come first" ;; esac
-	case ${path#"$HOME/.local/bin/wrap:"} in
+	# Only the openbsd folder (the dmenu wrapper) comes before base, once.
+	case $path in "$HOME/.local/bin/openbsd:"*) ;; *) fail "~/.local/bin/openbsd must come first" ;; esac
+	case ${path#"$HOME/.local/bin/openbsd:"} in
 	"$HOME/.local/bin"*) fail "~/.local/bin must come last, after base" ;;
-	*"$HOME/.local/bin/wrap"*) fail "wrap is on PATH twice" ;;
+	*"$HOME/.local/bin/openbsd"*) fail "openbsd is on PATH twice" ;;
 	esac
 	logged '^detach shortcuts$'
 }
@@ -164,6 +168,17 @@ t_kshrc_loads() {
 	has "vi mode" "vi-mode" "$out"
 	hasnt "no errors" "not found" "$out"
 	hasnt "no syntax errors" "syntax error" "$out"
+}
+
+# The doas aliases only where there is a doas: the X220, not the Mac,
+# where "mount" through them was "doas: not found".
+t_aliasrc_doas() {
+	mkdir -p "$T/withdoas" "$T/nodoas"
+	ln -s "$VT_MOCKS/doas" "$T/withdoas/doas"
+	a='. "$REPO/.config/shell/aliasrc"; alias mount; alias sdn'
+	eq "X220: through doas" "mount='doas mount'
+sdn='doas shutdown -p now'" "$(PATH=$T/withdoas "$VT_SH" -c "$a" 2>&1)"
+	hasnt "no doas: no aliases" doas "$(PATH=$T/nodoas "$VT_SH" -c "$a" 2>&1)"
 }
 
 # cp, mv, rm, mkdir aliases use only flags OpenBSD's tools take: the getopt

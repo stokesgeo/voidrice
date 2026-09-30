@@ -3,19 +3,6 @@
 # sb-battery: battery charge and state, as one figure for all batteries.
 # apm(8) gives the percent (-l), AC line (-a) and state (-b).
 
-case $BLOCK_BUTTON in
-	3) notify-send "🔋 Battery module" "🔋: discharging
-🛑: on AC, not charging
-♻: state unknown
-🔌: charging
-⚡: charged
-❗: battery very low!
-- Scroll to change the backlight." ;;
-	4) wsconsctl display.brightness+=10 >/dev/null ;;
-	5) wsconsctl display.brightness-=10 >/dev/null ;;
-	6) detach "$TERMINAL" -e "$EDITOR" "$0" ;;
-esac
-
 if [ "$(uname)" = Darwin ]; then
 	# The Mac: the same three from pmset(1), read only. Its lines are like
 	# "Now drawing from 'AC Power'" and "...	85%; charging; 0:40 remaining".
@@ -24,10 +11,27 @@ if [ "$(uname)" = Darwin ]; then
 	case $b in *"'AC Power'"*) ac=1 ;; *) ac=0 ;; esac
 	case $b in *"; charging;"*) state=3 ;; *%*) state=0 ;; *) state=4 ;; esac
 else
+	# The X220's scroll wheel sets the backlight; a Mac has its own keys.
+	scroll='
+- Scroll to change the backlight.'
+	case $BLOCK_BUTTON in
+		4) wsconsctl display.brightness+=10 >/dev/null ;;
+		5) wsconsctl display.brightness-=10 >/dev/null ;;
+	esac
 	capacity=$(apm -l)
 	ac=$(apm -a)		# 0 off line, 1 on line, 2 backup, 255 unknown
 	state=$(apm -b)		# 0 high, 1 low, 2 critical, 3 charging, 4 absent, 255 unknown
 fi
+
+case $BLOCK_BUTTON in
+	3) notify-send "🔋 Battery module" "🔋: discharging
+🛑: on AC, not charging
+♻: state unknown
+🔌: charging
+⚡: charged
+❗: battery very low!$scroll" ;;
+	6) detach "$TERMINAL" -e "$EDITOR" "$0" ;;
+esac
 
 # No battery fitted: print nothing.
 [ "$state" = 4 ] && exit 1

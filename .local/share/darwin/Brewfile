@@ -6,8 +6,7 @@
 # Not here, because macOS has it: git (the Command Line Tools),
 # pbcopy for xclip, screencapture for maim, Night Shift for sct,
 # Notification Center for dunst, Preview for zathura and nsxiv, Safari for
-# the browser. Homebrew disabled its qutebrowser and chromium casks on
-# 2026-09-01: they fail Gatekeeper.
+# the browser.
 
 tap "felixkratz/formulae"
 tap "nikitabobko/tap"

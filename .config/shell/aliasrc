@@ -10,10 +10,13 @@
 
 [ -f "$MBSYNCRC" ] && alias mbsync='mbsync -c $MBSYNCRC'
 
-# doas not required for some system commands
-for command in mount umount shutdown reboot halt ; do
-	alias $command="doas $command"
-done; unset command
+# doas not required for some system commands. The Mac has no doas.
+if command -v doas >/dev/null; then
+	for command in mount umount shutdown reboot halt ; do
+		alias $command="doas $command"
+	done; unset command
+	alias sdn="doas shutdown -p now"
+fi
 
 # se: pick a script in ~/.local/bin, then edit it.
 se() {
@@ -46,7 +49,6 @@ alias \
 	g="git" \
 	trem="transmission-remote" \
 	roget="dict -d roget" \
-	sdn="doas shutdown -p now" \
 	e='$EDITOR' \
 	v='$EDITOR' \
 	z="zathura"

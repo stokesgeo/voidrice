@@ -1,0 +1,10 @@
+#!/bin/sh
+
+# xdotool on the Mac, for its one use there: `xdotool type TEXT`, as
+# dmenuunicode inserts a character. The text goes on the pasteboard and
+# System Events presses Cmd+V. Other verbs, and type's options, have no
+# Mac form here: refused.
+
+[ "$1" = type ] && [ $# -eq 2 ] || { echo "xdotool: only 'type TEXT' on the Mac" >&2; exit 1; }
+printf %s "$2" | pbcopy
+exec osascript -e 'tell application "System Events" to keystroke "v" using command down'

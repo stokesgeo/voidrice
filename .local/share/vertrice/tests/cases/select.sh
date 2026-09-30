@@ -36,14 +36,14 @@ takes_all() {
 }
 
 mac_only='^\.config/(aerospace|ghostty|karabiner|sketchybar)/|^\.local/(bin|share)/darwin/|^\.config/mpd/osx\.conf$'
-x220_only='^\.config/(cdxb|cwm|dunst|wal|zathura)/|^\.config/mpd/sndio\.conf$|^\.config/x11/x|^\.local/(bin/wrap|share/openbsd|src)/|^\.x(profile|session)$|^\.calendar/|^\.local/bin/(bk|cdxb|mounter|unmounter|remaps|dmenuwifi|rectoggle|vertrice-dict|statusbar/sb-cpu)$|/tests/check$'
+x220_only='^\.config/(cdxb|cwm|dunst|wal|zathura)/|^\.config/mpd/sndio\.conf$|^\.config/x11/x|^\.local/((bin|share)/openbsd|src)/|^\.x(profile|session)$|^\.calendar/|^\.local/bin/(bk|cdxb|mounter|unmounter|remaps|dmenuwifi|rectoggle|vertrice-dict|statusbar/sb-cpu)$|/tests/check$'
 
 t_select_x220() {
 	sel
 	none "the X220 takes none of the Mac's" "$mac_only" "$T/x220"
 	eq "the X220 takes nothing repo-only" "" "$(comm -12 "$T/x220" "$T/repo")"
 	takes_all "the X220" "$T/x220" .profile .config/cwm/cwmrc .config/x11/xinitrc \
-		.local/bin/wrap/dmenu .local/bin/vertrice-install .local/bin/cdxb \
+		.local/bin/openbsd/dmenu .local/bin/vertrice-install .local/bin/cdxb \
 		.local/share/openbsd/sparse-checkout .local/share/openbsd/pkglist \
 		.local/share/man/man7/vertrice.7 .local/share/vertrice/OPENBSD.md \
 		.local/share/vertrice/tests/check .local/src/sd/proc-cwd.c \
