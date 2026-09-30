@@ -1,0 +1,10 @@
+#!/bin/sh
+
+# xclip on the Mac: the scripts' two uses, on the one pasteboard. -o
+# prints it (pbpaste); otherwise stdin is copied (pbcopy). The Mac has no
+# primary selection, so -selection is moot; pbcopy takes text only.
+
+case " $* " in
+*" -o "*) exec pbpaste ;;
+*) exec pbcopy ;;
+esac

@@ -16,9 +16,18 @@ case $BLOCK_BUTTON in
 	6) detach "$TERMINAL" -e "$EDITOR" "$0" ;;
 esac
 
-capacity=$(apm -l)
-ac=$(apm -a)		# 0 off line, 1 on line, 2 backup, 255 unknown
-state=$(apm -b)		# 0 high, 1 low, 2 critical, 3 charging, 4 absent, 255 unknown
+if [ "$(uname)" = Darwin ]; then
+	# The Mac: the same three from pmset(1), read only. Its lines are like
+	# "Now drawing from 'AC Power'" and "...	85%; charging; 0:40 remaining".
+	b=$(pmset -g batt)
+	capacity=$(echo "$b" | sed -n 's/.*[^0-9]\([0-9]*\)%;.*/\1/p')
+	case $b in *"'AC Power'"*) ac=1 ;; *) ac=0 ;; esac
+	case $b in *"; charging;"*) state=3 ;; *%*) state=0 ;; *) state=4 ;; esac
+else
+	capacity=$(apm -l)
+	ac=$(apm -a)		# 0 off line, 1 on line, 2 backup, 255 unknown
+	state=$(apm -b)		# 0 high, 1 low, 2 critical, 3 charging, 4 absent, 255 unknown
+fi
 
 # No battery fitted: print nothing.
 [ "$state" = 4 ] && exit 1

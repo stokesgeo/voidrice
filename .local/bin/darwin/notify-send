@@ -1,0 +1,11 @@
+#!/bin/sh
+
+# notify-send on the Mac: a Notification Centre banner through osascript.
+# Options (-i icon, -t time, -u urgency) are dropped. The text goes in as
+# arguments, never into the script, so quotes in it cannot break out.
+
+while getopts i:t:u: o; do :; done
+shift $((OPTIND - 1))
+exec osascript -e 'on run a' \
+	-e 'display notification (item 2 of a) with title (item 1 of a)' \
+	-e 'end run' "$1" "$2"

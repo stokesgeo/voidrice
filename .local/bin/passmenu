@@ -1,6 +1,9 @@
 #!/bin/sh
 
 # passmenu: pick a pass(1) entry in dmenu. The password-store package ships
-# this script only as an example, and it needs bash.
+# this script only as an example, and it needs bash. Homebrew keeps it in
+# pass's contrib, and it needs Homebrew's bash: the Mac's is too old.
+# --type needs xdotool: X only.
 
+[ "$(uname)" = Darwin ] && exec bash /opt/homebrew/share/pass/contrib/dmenu/passmenu "$@"
 exec bash /usr/local/share/examples/password-store/dmenu/passmenu "$@"

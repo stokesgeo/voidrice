@@ -5,12 +5,19 @@
 # OpenBSD has no /proc, pstree or tac. ps gives the process tree; proc-cwd
 # (~/.local/src/sd, built on first use) reads a process's directory with
 # sysctl(2) kern.proc_cwd. If it cannot be built, a plain terminal opens.
-src=${SD_SRC:-$HOME/.local/src/sd}
-proccwd=$src/proc-cwd
-[ -x "$proccwd" ] && [ ! "$src/proc-cwd.c" -nt "$proccwd" ] ||
-	(cd -- "$src" && make) >&2 || exec "$TERMINAL"
-
-windowPID=$(xprop -id "$(xprop -root | sed -n "/_NET_ACTIVE_WINDOW/ s/^.*# // p")" | sed -n "/PID/ s/^.*= // p")
+# On the Mac, AeroSpace names the window's process and lsof(8) reads the
+# directory.
+if [ "$(uname)" = Darwin ]; then
+	windowPID=$(aerospace list-windows --focused --format '%{app-pid}')
+	cwdof() { lsof -a -p "$1" -d cwd -Fn 2>/dev/null | sed -n 's/^n//p'; }
+else
+	src=${SD_SRC:-$HOME/.local/src/sd}
+	proccwd=$src/proc-cwd
+	[ -x "$proccwd" ] && [ ! "$src/proc-cwd.c" -nt "$proccwd" ] ||
+		(cd -- "$src" && make) >&2 || exec "$TERMINAL"
+	windowPID=$(xprop -id "$(xprop -root | sed -n "/_NET_ACTIVE_WINDOW/ s/^.*# // p")" | sed -n "/PID/ s/^.*= // p")
+	cwdof() { "$proccwd" "$1" 2>/dev/null; }
+fi
 # The window's process and all below it, as pstree -n lists them (each
 # process, then its children by pid), reversed: the deepest last one first.
 # Sorted by pid first, so each process's children are listed in pid order.
@@ -32,14 +39,16 @@ PIDlist=$(ps -ax -o pid=,ppid= | sort -n | awk -v root="$windowPID" '
 for PID in $PIDlist; do
 	cmdline=$(ps -o args= -p "$PID")
 	process_group_leader=$(ps -o comm= -p "$(ps -o pgid= -p "$PID" | tr -d ' ')")
-	cwd=$("$proccwd" "$PID" 2>/dev/null)
+	cwd=$(cwdof "$PID")
 	# zsh and lf won't be ignored even if it shows ~ or /
+	# (A login shell is "-ksh": Ghostty starts one.)
 	case "$cmdline" in
 		'lf -server') continue ;;
-		"${SHELL##*/}"|'lf'|'lf '*) break ;;
+		"${SHELL##*/}"|"-${SHELL##*/}"|'lf'|'lf '*) break ;;
 	esac
 	# git (and its sub-processes) will show the root of a repository instead of the actual cwd, so they're ignored
-	[ "$process_group_leader" = 'git' ] || [ ! -d "$cwd" ] && continue
+	# (The Mac's ps gives comm as a full path.)
+	[ "${process_group_leader##*/}" = 'git' ] || [ ! -d "$cwd" ] && continue
 	# This is to ignore programs that show ~ or / instead of the actual working directory
 	[ "$cwd" != "$HOME" ] && [ "$cwd" != '/' ] && break
 done
