@@ -290,7 +290,7 @@ t_darwin_remind() {
 	mac
 	remind 2026-10-03 Return the '"library"' books || fail "remind failed"
 	logged '^osascript\|-e\|on run a\|'
-	logged '\|-e\|tell application "Reminders" to make new reminder with properties \{name:item 4 of a, remind me date:d\}\|-e\|end run\|2026\|10\|03\|Return the "library" books\|$'
+	logged '\|-e\|tell application "Reminders" to make new reminder with properties \{name:item 4 of a, due date:d, remind me date:d\}\|-e\|end run\|2026\|10\|03\|Return the "library" books\|$'
 	logged '\|set time of d to 9 \* hours\|'
 	: >"$VT_STATE/log"
 	remind 'Oct 3' books 2>/dev/null; eq "not a date: exit 1" 1 "$?"
