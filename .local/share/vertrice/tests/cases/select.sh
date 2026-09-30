@@ -36,7 +36,7 @@ takes_all() {
 }
 
 mac_only='^\.config/(aerospace|ghostty|karabiner|sketchybar)/|^\.local/(bin|share)/darwin/'
-x220_only='^\.config/(cdxb|cwm|dunst|wal|zathura)/|^\.config/x11/x|^\.local/(bin/wrap|share/openbsd|src)/|^\.x(profile|session)$|^\.local/bin/(bk|cdxb|mounter|unmounter|remaps|dmenuwifi|rectoggle|vertrice-dict)$|/tests/check$'
+x220_only='^\.config/(cdxb|cwm|dunst|wal|zathura)/|^\.config/x11/x|^\.local/(bin/wrap|share/openbsd|src)/|^\.x(profile|session)$|^\.calendar/|^\.local/bin/(bk|cdxb|mounter|unmounter|remaps|dmenuwifi|rectoggle|vertrice-dict|statusbar/sb-cpu)$|/tests/check$'
 
 t_select_x220() {
 	sel
@@ -46,7 +46,8 @@ t_select_x220() {
 		.local/bin/wrap/dmenu .local/bin/vertrice-install .local/bin/cdxb \
 		.local/share/openbsd/sparse-checkout .local/share/openbsd/pkglist \
 		.local/share/man/man7/vertrice.7 .local/share/vertrice/OPENBSD.md \
-		.local/share/vertrice/tests/check .local/src/sd/proc-cwd.c
+		.local/share/vertrice/tests/check .local/src/sd/proc-cwd.c \
+		.calendar/calendar .local/bin/statusbar/sb-cpu
 }
 
 t_select_mac() {
@@ -57,8 +58,9 @@ t_select_mac() {
 		.config/aerospace/run .config/sketchybar/sketchybarrc \
 		.config/karabiner/karabiner.json .config/ghostty/config \
 		.config/x11/themes/day .config/x11/themes/night \
-		.local/bin/darwin/dmenu .local/bin/vertrice-install \
-		.local/share/darwin/install .local/share/darwin/sparse-checkout \
+		.local/bin/darwin/dmenu .local/bin/darwin/remind .local/bin/maimpick \
+		.local/bin/cron/newsup .local/bin/vertrice-install \
+		.local/share/darwin/install .local/share/darwin/vertrice.newsup.plist .local/share/darwin/sparse-checkout \
 		.local/share/man/man7/vertrice.7 .local/share/vertrice/OPENBSD.md
 }
 

@@ -5,7 +5,6 @@
 # ../openbsd/sparse-checkout; what no machine takes, ../vertrice/repo-only.
 
 /.profile
-/.calendar/
 
 # All but X, its programs, and what macOS does itself: Preview for
 # zathura and nsxiv, Safari for qutebrowser, Notification Center for
@@ -27,8 +26,9 @@
 
 # All but the scripts that are X220 only: X, OpenBSD's disks, Wi-Fi,
 # audio and camera switches, backups, the dictionary and the Codex box.
-# macOS has its own display settings, screenshots, screen recording,
-# Night Shift and keyboard settings.
+# macOS has its own display settings, screen recording, Night Shift and
+# keyboard settings. sb-cpu and sb-cpubars read what Apple silicon does
+# not give without root: the temperature, the clock and per-core ticks.
 /.local/bin/
 !/.local/bin/wrap/
 !/.local/bin/bk
@@ -38,7 +38,6 @@
 !/.local/bin/dmenurecord
 !/.local/bin/dmenuwifi
 !/.local/bin/hotplug-watch
-!/.local/bin/maimpick
 !/.local/bin/mounter
 !/.local/bin/nightlight
 !/.local/bin/rectoggle
@@ -47,6 +46,7 @@
 !/.local/bin/vertrice-dict
 !/.local/bin/xdg-terminal-exec
 !/.local/bin/statusbar/sb-brightness
+!/.local/bin/statusbar/sb-cpu
 !/.local/bin/statusbar/sb-cpubars
 !/.local/bin/statusbar/sb-kbselect
 
