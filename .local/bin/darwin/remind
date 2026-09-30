@@ -1,0 +1,23 @@
+#!/bin/sh
+
+# remind DATE TEXT...: a reminder in Reminders, due at 09:00 on DATE
+# (YYYY-MM-DD); Reminders shows it then, and on the phone. The Mac's way
+# to add what on the X220 is a line in ~/.calendar/calendar, for you and
+# for agents. The text goes in as arguments, never into the script.
+
+case $1 in
+[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]) [ $# -gt 1 ] ;;
+*) false ;;
+esac || { echo "usage: remind YYYY-MM-DD text" >&2; exit 1; }
+d=$1; shift
+m=${d#*-}
+# Day 1 first, so a month shorter than today's date cannot roll over.
+exec osascript -e 'on run a' \
+	-e 'set d to current date' \
+	-e 'set day of d to 1' \
+	-e 'set year of d to (item 1 of a) as integer' \
+	-e 'set month of d to (item 2 of a) as integer' \
+	-e 'set day of d to (item 3 of a) as integer' \
+	-e 'set time of d to 9 * hours' \
+	-e 'tell application "Reminders" to make new reminder with properties {name:item 4 of a, remind me date:d}' \
+	-e 'end run' "${d%%-*}" "${m%-*}" "${d##*-}" "$*"
