@@ -204,6 +204,17 @@ means in the tree; untested means not yet run on the X220.
   Mac gets its own window manager, bar and menu, carrying the same UX
   (see "What vertrice is for"). A test round there comes first. Nothing
   is built for the Mac yet.
+- **The Mac build.** The owner (2026-09-29): "Terminal default on Mac
+  is ghostty". Picked from agents' options: AeroSpace (tiler),
+  SketchyBar (bar), choose (picker), Caps as Hyper through Karabiner
+  (modifier). On power: "The battery admin is x220 specific (obsdfreqd
+  and such exist because the x220 is old and has terrible battery life,
+  the MacBook as is is perfectly fine for regular portable work." On the
+  repository: "I want the repo to be ready to install on x220 or Mac
+  after the Mac specific build, so portability and sanity in that domain
+  is a key expectation/requirement." Target macOS 27: "I want to make
+  the most of 27 once installed, so keep that in mind with the Mac
+  version work." Being built; untested on a Mac.
 - **Luke's leftovers.** Kept as they are: setbg's dwm lines, the st
   lines in xresources, `tutorialvids`, Luke's site in `linkhandler`.
   `sb-help-icon` opens `man vertrice`. Done.
