@@ -110,9 +110,10 @@ t_darwin_ghostty() {
 	mac
 	mkdir -p "$T/d i r"; cd "$T/d i r" || fail "no dir"
 	ghostty
-	logged "^open\\|-na\\|Ghostty.app\\|--args\\|--working-directory=$T/d i r\\|\$"
+	# Each open -na starts a Ghostty; it must quit with its window.
+	logged "^open\\|-na\\|Ghostty.app\\|--args\\|--quit-after-last-window-closed=true\\|--working-directory=$T/d i r\\|\$"
 	ghostty -e grep -e x file
-	logged "^open\\|-na\\|Ghostty.app\\|--args\\|--working-directory=$T/d i r\\|-e\\|/bin/sh\\|-lc\\|exec \"\\\$@\"\\|sh\\|grep\\|-e\\|x\\|file\\|\$"
+	logged "^open\\|-na\\|Ghostty.app\\|--args\\|--quit-after-last-window-closed=true\\|--working-directory=$T/d i r\\|-e\\|/bin/sh\\|-lc\\|exec \"\\\$@\"\\|sh\\|grep\\|-e\\|x\\|file\\|\$"
 }
 
 t_darwin_floatterm() {
