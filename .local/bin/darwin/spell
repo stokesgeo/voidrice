@@ -3,20 +3,10 @@
 # spell on the Mac, which has none: aspell(1)'s list, which reads text and
 # prints the misspelled words, as spell(1) does, in American English as
 # spell does by default. As spellcheck calls it: spell [+list ...] [file ...].
-# A +list holds words to pass, as spell's +local_file does; they are left
-# out here, case-blind. What is left comes out sorted, once each, as
-# spell prints it. spell's options are not taken.
+# A +list holds words to pass, as spell's +local_file does; grep leaves
+# them out, case-blind (its path may not hold a space). What is left comes
+# out sorted, once each, as spell prints it. spell's options are not taken.
 
-nl='
-'
-w=
-while :; do
-	case $1 in
-	+*) w=$w$(cat -- "${1#+}")$nl ;;
-	*) break ;;
-	esac
-	shift
-done
-cat -- "$@" | aspell -d en_US --encoding=utf-8 list |
-	W=$w awk 'BEGIN { n = split(ENVIRON["W"], a, "\n"); for (i = 1; i <= n; i++) ok[tolower(a[i])] = 1 }
-	!(tolower($0) in ok)' | sort -u
+f='-f /dev/null'
+while [ "${1#+}" != "$1" ]; do f="$f -f ${1#+}"; shift; done
+cat -- "$@" | aspell -d en_US --encoding=utf-8 list | grep -vixF $f | sort -u

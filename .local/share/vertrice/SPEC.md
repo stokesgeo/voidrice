@@ -563,8 +563,9 @@ maimpick saves and a bare terminal opens there, as under cwm); that
 Spelling and mpd are tested against mocks (`tests/cases/darwin-spell.sh`,
 `tests/cases/darwin-mpd.sh`); not yet seen on a Mac: aspell's list of
 a real text (what it makes of contractions, curly apostrophes and
-Markdown in its default url mode, where spell(1) runs deroff); the
-English dictionary under `-d en_US` from the bottle; mpd 0.24 reading
+Markdown in its default url mode, where spell(1) runs deroff); macOS
+grep given `-f /dev/null`, which the stand-in relies on to match
+nothing, as GNU grep's does; the English dictionary under `-d en_US` from the bottle; mpd 0.24 reading
 `include_optional` with a relative path, which the suite only mimics,
 here and on the X220; the `osx` output on the default device, and
 whether it follows a change of device in System Settings; the agent's
