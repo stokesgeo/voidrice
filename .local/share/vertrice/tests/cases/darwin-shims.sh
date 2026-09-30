@@ -192,6 +192,22 @@ EOF
 	opened "git skipped" "$T/repo/sub"
 }
 
+# Apple's shortcuts(1) is in /usr/bin, before ~/.local/bin: the profile,
+# ref and nvim must still reach vertrice's.
+t_darwin_shortcuts() {
+	mac
+	argmock shortcuts
+	printf '#!/bin/sh\nexec %s "%s" "$@"\n' "$VT_SH" "$REPO/.local/bin/shortcuts" >"$T/vshortcuts"
+	chmod +x "$T/vshortcuts"
+	mkdir -p "$HOME/.local/bin" "$XDG_CONFIG_HOME/shell" "$XDG_CONFIG_HOME/lf" "$XDG_CONFIG_HOME/nvim"
+	ln -s "$T/vshortcuts" "$HOME/.local/bin/shortcuts"
+	ln -s "$REPO/.config/shell/bm-dirs" "$XDG_CONFIG_HOME/shell/bm-dirs"
+	ln -s "$REPO/.config/shell/bm-files" "$XDG_CONFIG_HOME/shell/bm-files"
+	shortcuts
+	notlogged '^shortcuts\|'
+	[ -s "$XDG_CONFIG_HOME/shell/shortcutrc" ] || fail "no shortcutrc"
+}
+
 t_darwin_profile() {
 	home_setup
 	mkdir -p "$HOME/.local/bin/darwin"
