@@ -188,6 +188,7 @@ t_darwin_profile() {
 	case $path in "$HOME/.local/bin/darwin:/opt/homebrew/bin:/opt/homebrew/sbin:"*) ;;
 	*) fail "darwin, then Homebrew, must come first: $path" ;; esac
 	hasnt "no wrap on the Mac" "/.local/bin/wrap" "$path"
+	has "libarchive's bsdcat, for ext" ":/opt/homebrew/opt/libarchive/bin:" "$path"
 	eq "darwin once" 1 "$(printf '%s\n' "$path" | tr ':' '\n' | grep -c '/\.local/bin/darwin$')"
 	has "statusbar on PATH" ":$HOME/.local/bin/statusbar" "$path"
 	eq "the terminal" ghostty "$(printf '%s\n' "$out" | sed -n 2p)"
@@ -280,6 +281,18 @@ t_darwin_otp_add() {
 	logged '^screencapture\|-i\|.*/qr\.png\|$'
 	notlogged '^maim'
 	eq "stored under its name" "otpauth://totp/x?secret=ABC" "$(cat "$T/store/github-otp" 2>/dev/null)"
+}
+
+# /var/db/updates is $T/updates (derived, lib.sh); a terminal from with_tty.
+t_darwin_popupgrade() {
+	mac
+	echo 'git' >"$T/updates"
+	up=$(derived .local/bin/statusbar/sb-popupgrade sb-popupgrade "s|/var/db/updates|$T/updates|g")
+	printf '\n' | with_tty "$up"
+	logged '^brew\|update\|$'
+	logged '^brew\|upgrade\|$'
+	notlogged '^doas'
+	eq "the count cleared" "" "$(cat "$T/updates")"
 }
 
 t_darwin_passmenu() {
