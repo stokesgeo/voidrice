@@ -51,7 +51,7 @@ EOF
 t_darwin_dmenu() {
 	mac
 	answers b
-	out=$(printf 'a\nb\n' | dmenu -i -l 30 -p 'Open it with?' -fn 'IBM Plex Mono:size=10' -nb '#000' -b)
+	out=$(printf 'a\nb\n' | dmenu -i -l 30 -p 'Open it with?')
 	eq "the pick" b "$out"
 	logged '^choose\|-m\|-e\|-n\|30\|-p\|Open it with\?\|$'
 	eq "the menu" "a
@@ -60,7 +60,7 @@ b" "$(cat "$VT_STATE/menu.1")"
 }
 
 # The palette theme set: the accent behind the chosen line, the text
-# colour for matched letters, before the caller's options.
+# colour for matched letters.
 t_darwin_dmenu_palette() {
 	mac
 	mkdir -p "$HOME/.config/x11" "$XDG_CACHE_HOME"
@@ -70,7 +70,7 @@ t_darwin_dmenu_palette() {
 	printf 'a\n' | dmenu -p Pick: >/dev/null
 	acc=$(sed -n 's/^\*\.color4: #//p' "$REPO/.config/x11/themes/night")
 	fg=$(sed -n 's/^\*\.foreground: #//p' "$REPO/.config/x11/themes/night")
-	logged "^choose\|-m\|-e\|-b\|$acc\|-c\|$fg\|-p\|Pick:\|\$"
+	logged "^choose\|-m\|-e\|-p\|Pick:\|-b\|$acc\|-c\|$fg\|\$"
 }
 
 t_darwin_xclip() {

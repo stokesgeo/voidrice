@@ -1,25 +1,22 @@
 #!/bin/sh
 
 # dmenu on the Mac: choose(1), a native menu that reads stdin and prints
-# the pick, as dmenu does. dmenu's -l becomes choose's -n and -p stays;
-# the rest are dropped (choose's -i means something else, and it matches
-# case-blind anyway). -m prints what was typed when nothing matches, as
-# dmenu does on Return; -e opens the menu with no items, for a typed answer.
+# the pick, as dmenu does. It takes the options the scripts pass: -l
+# becomes choose's -n and -p stays; -i is dropped (choose's -i means
+# something else, and it matches case-blind anyway). -m prints what was
+# typed when nothing matches, as dmenu does on Return; -e opens the menu
+# with no items, for a typed answer.
 
-set -- "$@" --
-while [ "$1" != -- ]; do
-	case $1 in
-	-l) set -- "$@" -n "$2"; shift ;;
-	-p) set -- "$@" -p "$2"; shift ;;
-	-fn|-m|-nb|-nf|-sb|-sf|-w) shift ;;
+while getopts il:p: o; do
+	case $o in
+	l) n=$OPTARG ;;
+	p) q=$OPTARG ;;
 	esac
-	shift
 done
-shift
 
-# The palette `theme` last set, as openbsd/dmenu passes it on the X220: the
-# accent behind the chosen line, the text colour for the matched letters.
+# The palette `theme` last set, as openbsd/dmenu passes it on the X220:
+# the accent behind the chosen line, the text colour for matched letters.
 p=${XDG_CONFIG_HOME:-$HOME/.config}/x11/themes/$(cat "${XDG_CACHE_HOME:-$HOME/.cache}/theme" 2>/dev/null)
 get() { sed -n "s/^\*\.$1: #//p" "$p" 2>/dev/null; }
 sel=$(get color4) fg=$(get foreground)
-exec choose -m -e ${sel:+-b "$sel"} ${fg:+-c "$fg"} "$@"
+exec choose -m -e ${n:+-n "$n"} ${q:+-p "$q"} ${sel:+-b "$sel"} ${fg:+-c "$fg"}
