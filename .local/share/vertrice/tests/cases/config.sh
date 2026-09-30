@@ -166,6 +166,17 @@ t_kshrc_loads() {
 	hasnt "no syntax errors" "syntax error" "$out"
 }
 
+# The doas aliases only where there is a doas: the X220, not the Mac,
+# where "mount" through them was "doas: not found".
+t_aliasrc_doas() {
+	mkdir -p "$T/withdoas" "$T/nodoas"
+	ln -s "$VT_MOCKS/doas" "$T/withdoas/doas"
+	a='. "$REPO/.config/shell/aliasrc"; alias mount; alias sdn'
+	eq "X220: through doas" "mount='doas mount'
+sdn='doas shutdown -p now'" "$(PATH=$T/withdoas "$VT_SH" -c "$a" 2>&1)"
+	hasnt "no doas: no aliases" doas "$(PATH=$T/nodoas "$VT_SH" -c "$a" 2>&1)"
+}
+
 # cp, mv, rm, mkdir aliases use only flags OpenBSD's tools take: the getopt
 # strings of bin/cp/cp.c, bin/mv/mv.c, bin/rm/rm.c, bin/mkdir/mkdir.c
 # (OpenBSD src, 2026).
