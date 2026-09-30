@@ -1,6 +1,7 @@
 # The Mac install: vertrice-install hands over to darwin/install when uname
-# says Darwin. Here copies of both sit in $T/x, with /etc/shells and
-# /var/db/updates rewritten into $T/sys (derived, lib.sh). uname, brew,
+# says Darwin. Here copies of both sit in $T/x, with /etc/shells,
+# /var/db/updates and Homebrew's bin in PATH rewritten into $T/sys (derived,
+# lib.sh): on a Mac the real brew would come before the mock. uname, brew,
 # sudo, chsh, launchctl, defaults, killall, open and sysadminctl are logging mocks, so
 # sudo runs nothing. ~/Library/LaunchAgents is in the case's own HOME.
 #
@@ -14,7 +15,8 @@ di_setup() {
 	cp "$REPO/.local/bin/vertrice-install" "$T/x/bin/"
 	cp -R "$REPO/.local/share/darwin" "$T/x/share/"
 	derived .local/share/darwin/install x/share/darwin/install \
-		"s|/etc/shells|$R/etc/shells|g; s|/var/db/updates|$R/var/db/updates|g" >/dev/null
+		"s|/etc/shells|$R/etc/shells|g; s|/var/db/updates|$R/var/db/updates|g
+		 s|^PATH=/opt/homebrew/bin:|PATH=$R/opt/homebrew/bin:|" >/dev/null
 	for m in uname brew sudo chsh launchctl defaults killall open sysadminctl pkg_add rcctl; do
 		ln -s "$VT_MOCKS/_log" "$T/bin/$m"
 	done
