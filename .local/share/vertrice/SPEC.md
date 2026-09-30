@@ -287,7 +287,9 @@ means in the tree; untested means not yet run on the X220.
   (`brew outdated` into `/var/db/updates` at login and every four hours,
   where root's crontab writes it on the X220) and `newsup` every 30
   minutes (`vertrice.newsup`, as the crontab line in `cron/README.md`;
-  it runs only once newsboat, from `Brewfile.extra`, is there). The
+  it runs only once newsboat, from `Brewfile.extra`, is there).
+  `cron/README.md` itself lands on the X220 only (picked 2026-09-30:
+  "OpenBSD list only"). The
   update file is made the user's once, so `sb-updates` reads one path on
   both systems. Not carried: root's mail (nothing on the Mac mails it),
   the dump reminder (Time Machine). The reminders agent went with
@@ -302,9 +304,9 @@ means in the tree; untested means not yet run on the X220.
   at 09:00 that day, and Reminders shows it. It is the Mac's form of the
   X220's verb (a line in `~/.calendar/calendar`), for the owner and for
   agents. `~/.calendar` is X220 only; the X220 keeps calendar(1)
-  unchanged. Open: no agent instruction file on the Mac names `remind`
-  (the X220's is the Codex box's AGENTS.md); `man vertrice` does. Done;
-  untested on a Mac.
+  unchanged. For agents on the Mac, picked (2026-09-30): "Add a line to
+  SPEC": to add a reminder, run `remind YYYY-MM-DD TEXT`; to read them,
+  open Reminders. `man vertrice` says the same. Done; untested on a Mac.
 - **The browser on the Mac.** Picked (2026-09-30): "Safari". `BROWSER`
   is `safari` on Darwin, a stand-in in `~/.local/bin/darwin` that runs
   `open -a Safari`: the scripts run `"$BROWSER"` as one word. The
@@ -313,14 +315,14 @@ means in the tree; untested means not yet run on the X220.
   Nothing in vertrice; `bk` stays X220 only. Done.
 - **Lock on the Mac.** Picked (2026-09-30): "pmset displaysleepnow".
   sysact's lock runs it; display off, now the same thing, left the Mac's
-  menu. The install sets "require password immediately" with
+  menu (agents'; the owner confirmed it, 2026-09-30). The install sets "require password immediately" with
   `sysadminctl -screenLock immediate -password -` (it asks for the
   password), unless `-screenLock status` already says immediate. Done;
   untested on a Mac.
 - **The Mac's other stand-ins.** Agents' recommendations, filtered by
   the owner's idiom words: `dict` opens `dict://WORD` (Dictionary.app);
   maimpick has a Darwin branch on `screencapture -i` (Super+Shift+s, as
-  a Mac has no Print key; no text entry, as Live Text reads any
+  a Mac has no Print key; the owner kept the key, 2026-09-30; no text entry, as Live Text reads any
   screenshot) and is in the Mac's list; newsup runs from launchd (see
   "launchd for cron"). Kept: the ftp stand-in, choose, dmenuunicode.
   dmenuunicode is voidrice's again: an `xdotool` stand-in takes only
