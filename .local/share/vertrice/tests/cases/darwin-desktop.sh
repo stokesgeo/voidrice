@@ -60,9 +60,10 @@ t_darwin_desktop_theme_set() {
 	eq "toggle from dark" day "$(cat "$XDG_CACHE_HOME/theme")"
 }
 
+# clock and wal are the X220's: macOS keeps the clock itself.
 t_darwin_desktop_theme_clock() {
 	mac_setup
-	"$VT_KSH" "$theme" clock || fail "clock must leave quietly"
+	"$VT_KSH" "$theme" clock 2>/dev/null; eq "clock: X only" 1 "$?"
 	[ -e "$XDG_CACHE_HOME/theme" ] && fail "clock wrote the state"
 	notlogged '^(osascript|sketchybar)'
 	"$VT_KSH" "$theme" wal 2>/dev/null; eq "wal: X only" 1 "$?"
