@@ -12,6 +12,9 @@
 #	git --git-dir=$HOME/.local/share/vertrice.git --work-tree=$HOME checkout -f
 #	git --git-dir=$HOME/.local/share/vertrice.git config status.showUntrackedFiles no
 
+# A Mac has its own list, run as you, not root.
+[ "$(uname)" = Darwin ] && exec sh "$(dirname "$0")/../share/darwin/install"
+
 # Root runs this, so "you" is found as the owner of the script. Root's mail
 # goes to you.
 u=$(stat -f %Su "$0")
