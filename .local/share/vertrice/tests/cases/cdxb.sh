@@ -259,7 +259,11 @@ t_cdxb_doas_client_relay() {
 	command -v cc >/dev/null 2>&1 || skip "no cc"
 	printf '#!/bin/sh\necho "doas $*"\necho oops >&2\nexit 3\n' >"$T/fakedoas"
 	chmod +x "$T/fakedoas"
-	cc -Wall -Wextra -Werror -D_GNU_SOURCE -D'pledge(a,b)=0' -D'unveil(a,b)=0' \
+	# The Mac has neither accept4 nor SOCK_CLOEXEC; OpenBSD and Linux do.
+	mac=
+	[ "$VT_HOST" = Darwin ] && mac="-DSOCK_CLOEXEC=0 -Daccept4(a,b,c,d)=accept(a,b,c)"
+	# shellcheck disable=SC2086
+	cc -Wall -Wextra -Werror -D_GNU_SOURCE -D'pledge(a,b)=0' -D'unveil(a,b)=0' $mac \
 		-DDOAS="\"$T/fakedoas\"" -o "$T/cb" \
 		"$REPO/.local/src/codex-box/codex-box.c" 2>"$T/cc.out" ||
 		fail "codex-box.c does not build: $(cat "$T/cc.out")"
