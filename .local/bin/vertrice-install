@@ -17,7 +17,7 @@
 #	git --work-tree=$HOME checkout -f
 #	git config status.showUntrackedFiles no
 
-# A Mac has its own list, run as you, not root.
+# A Mac runs its own install, as you, not root.
 [ "$(uname)" = Darwin ] && exec sh "$(dirname "$0")/../share/darwin/install"
 
 # Root runs this, so "you" is found as the owner of the script. Root's mail
