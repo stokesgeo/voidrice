@@ -63,9 +63,9 @@ th_setup() {
 	mkdir -p "$XDG_CONFIG_HOME/x11" "$T/dev"
 	ln -s "$REPO/.config/x11/themes" "$XDG_CONFIG_HOME/x11/themes"
 	theme=$(derived .local/bin/theme theme \
-		"s|> \"/dev/tty|>> \"$T/dev/tty|; s|\"/dev/tty|\"$T/dev/tty|g")
+		"s|> \"/dev/|>> \"$T/dev/|; s|\"/dev/|\"$T/dev/|g")
 	: >"$T/dev/ttyp3"; : >"$T/dev/ttyq1"; : >"$T/dev/ttyC0"
-	printf 'p3\nC0\n??\np3\nq1\n' >"$VT_STATE/ttys"
+	printf '%-8s\n' ttyp3 ttyC0 '??' ttyp3 ttyq1 >"$VT_STATE/ttys"
 }
 # count TEXT FILE: how often TEXT occurs in FILE.
 count() { awk -v s="$1" '{ n += gsub(s, "") } END { print n + 0 }' "$2"; }

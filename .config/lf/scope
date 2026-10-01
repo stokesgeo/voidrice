@@ -23,7 +23,7 @@ case $1 in *.tar*|*.t[abgx]z|*.tbz2|*.tzst|*.zip|*.jar|*.7z|*.rar|*.iso) bsdtar 
 # (The name comes from stat(1) data: path, inode, type, size, block size,
 # mtime; a changed file gets a new thumbnail.)
 
-case "$(file -biL -- "$1" | cut -d';' -f1)" in
+case "$(file -bL --mime-type -- "$1" | cut -d';' -f1)" in	# the Mac's file -i means something else
 	image/avif) CACHE="${XDG_CACHE_HOME:-$HOME/.cache}/lf/thumb.$(stat -f '%N %i %HT %z %B %m' -- "$(readlink -f "$1")" | md5)" CACHE="${CACHE%% *}"
 		[ ! -f "$CACHE.jpg" ] && convert "$1" "$CACHE.jpg"
 		image "$CACHE.jpg" "$2" "$3" "$4" "$5" "$1" ;;
@@ -41,7 +41,7 @@ case "$(file -biL -- "$1" | cut -d';' -f1)" in
 		image "$CACHE.jpg" "$2" "$3" "$4" "$5" "$1" ;;
 	image/*) image "$1" "$2" "$3" "$4" "$5" "$1" ;;
 	text/html) lynx -width="$2" -display_charset=utf-8 -dump "$1" ;;	# $2: the width
-	text/troff) man ./ "$1" | col -b ;;
+	text/troff) mandoc "$1" | col -b ;;	# OpenBSD's man takes names, not files
 	text/* | */xml | application/json | application/x-ndjson) { highlight -O ansi --force "$1" || cat -- "$1"; } 2>/dev/null | head -n "$3" ;;
 	audio/* | application/octet-stream) mediainfo "$1" || exit 1 ;;
 	video/* )

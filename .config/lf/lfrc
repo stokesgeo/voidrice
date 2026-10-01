@@ -29,7 +29,7 @@ set autoquit true
 # cmds/functions
 # open picks a program by MIME type; other files go to $OPENER.
 cmd open ${{
-    mime=$(file -bi "$(readlink -f $f)")
+    mime=$(file -b --mime-type "$(readlink -f $f)")	# the Mac's file -i means something else
     case ${mime%%;*} in
 	application/vnd.openxmlformats-officedocument.spreadsheetml.sheet) localc $fx ;;
 	image/vnd.djvu|application/vnd.djvu|application/pdf|application/postscript|application/epub*) detach zathura $fx >/dev/null 2>&1 ;;
@@ -110,7 +110,7 @@ cmd copyto ${{
 	read -r ans
 	[ "$ans" != "y" ] && exit
 	for x in $fx; do
-		cp -ivr "$x" "$destpath"
+		cp -iRv "$x" "$destpath"	# OpenBSD's -r follows symbolic links
 	done &&
 	notify-send "📋 File(s) copied." "File(s) copied to $destpath."
 }}
@@ -123,7 +123,7 @@ cmd bulkrename ${{
     tmpfile_old="$(mktemp)"
     tmpfile_new="$(mktemp)"
 
-    [ -n "$fs" ] && fs=$(basename -a $fs) || fs=$(ls)
+    [ -n "$fs" ] && fs=$(for x in $fs; do basename "$x"; done) || fs=$(ls)	# OpenBSD's basename has no -a
 
     echo "$fs" > "$tmpfile_old"
     echo "$fs" > "$tmpfile_new"

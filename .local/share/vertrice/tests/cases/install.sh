@@ -124,6 +124,9 @@ block return out log proto {tcp udp} user _pbuild" \
 # /etc/apm/suspend: a fake xidle in $T records the signal it gets. SIGUSR1
 # is what makes the real one start xlock; anything else would kill it.
 t_apm_suspend_locks() {
+	# The fake xidle is a script; the Mac names its process after the
+	# interpreter, so pkill -x xidle cannot find it there.
+	[ "$VT_HOST" = Darwin ] && skip "the Mac names a script's process sh"
 	cat >"$T/xidle" <<'EOF'
 #!/bin/sh
 trap 'echo USR1 >"$0.got"; exit 0' USR1

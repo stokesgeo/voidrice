@@ -216,8 +216,10 @@ t_fetch_linkhandler_image() {
 	waitfor 5 grep -q '^nsxiv ' "$VT_STATE/log" || fail "nsxiv never ran"
 	f=$(sed -n 's/^nsxiv -a //p' "$VT_STATE/log")
 	"$VT_REAL_RM" -rf "${f%/*}"
-	# The file lands in a private mktemp directory (desktop.sh checks that).
-	logged "^ftp -MV -o /tmp/[^/]+/$name https://example\.com/$name\$"
+	# The file lands in a private mktemp directory (desktop.sh checks that),
+	# in mktemp's own place: /tmp on OpenBSD, not on the Mac.
+	tmp=$(dirname "$(mktemp -u)")
+	logged "^ftp -MV -o $tmp/[^/]+/$name https://example\.com/$name\$"
 	eq "nsxiv opens what ftp wrote" "$name" "${f##*/}"
 }
 
@@ -264,13 +266,35 @@ scope_path() {
 	else derived .config/lf/scope scope "s|/dev/null|$T/null|g"; fi
 }
 
+# textfile: file(1) answers as OpenBSD's does for a text file; the host's
+# may not (the Mac's -i is not the MIME type).
+textfile() {
+	printf '#!/bin/sh\necho "text/plain; charset=us-ascii"\n' >"$T/bin/file"
+	chmod +x "$T/bin/file"
+}
+
 t_fetch_scope_no_highlight() {
 	command -v highlight >/dev/null 2>&1 && skip "this host has highlight"
 	scope=$(scope_path)
+	textfile
 	printf 'one\ntwo\nthree\nfour\n' >"$T/notes.txt"
 	eq "first screenful" "one
 two
 three" "$("$VT_SH" "$scope" "$T/notes.txt" 80 3 0 0)"
+}
+
+# A man page's source: rendered, as mandoc does it. OpenBSD's man reads its
+# arguments as names to search for, never as files (usr.bin/mandoc/main.c).
+t_fetch_scope_troff() {
+	command -v mandoc >/dev/null 2>&1 || skip "no mandoc"
+	scope=$(scope_path)
+	printf '#!/bin/sh\necho "text/troff; charset=us-ascii"\n' >"$T/bin/file"
+	chmod +x "$T/bin/file"
+	# man as OpenBSD's: the host's may read a path as a file.
+	printf '#!/bin/sh\nfor a; do echo "man: No entry for $a in the manual." >&2; done\nexit 1\n' >"$T/bin/man"
+	chmod +x "$T/bin/man"
+	printf '.Dd $Mdocdate$\n.Dt VTX 1\n.Os\n.Sh NAME\n.Nm vtx\n.Nd a test page\n' >"$T/vtx.1"
+	has "the page rendered" "vtx - a test page" "$("$VT_SH" "$scope" "$T/vtx.1" 80 30 0 0 2>&1)"
 }
 
 # With highlight: coloured (ANSI), plain for an unknown syntax, cut to
@@ -279,6 +303,7 @@ t_fetch_scope_highlight() {
 	scope=$(scope_path)
 	printf '#!/bin/sh\necho "highlight $*" >>"$VT_STATE/log"\nprintf "1\\n2\\n3\\n4\\n5\\n"\n' >"$T/bin/highlight"
 	chmod +x "$T/bin/highlight"
+	textfile
 	printf 'one\n' >"$T/notes.txt"
 	out=$("$VT_SH" "$scope" "$T/notes.txt" 80 3 41 1)
 	logged '^highlight -O ansi --force .*/notes\.txt$'

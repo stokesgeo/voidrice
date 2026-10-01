@@ -15,9 +15,8 @@ EOF
 }
 # wifi_run TYPED: run it in a terminal, typing TYPED there.
 wifi_run() {
-	o=-c; script --version 2>/dev/null | grep -q util-linux && o=-qec	# as with_tty
-	( "$VT_REAL_SLEEP" 0.5; printf '%s\n' "$1" ) |
-		script $o "$VT_KSH $wifi" /dev/null >"$T/tty.out" 2>&1
+	( "$VT_REAL_SLEEP" 0.5; printf '%s\n' "$1"; "$VT_REAL_SLEEP" 1 ) |
+		pty "$VT_KSH $wifi" >"$T/tty.out" 2>&1
 }
 
 t_wifi_join_remember() {

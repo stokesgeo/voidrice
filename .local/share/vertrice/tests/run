@@ -24,8 +24,10 @@ On Linux it needs OpenBSD's ksh and awk: set OKSH to a build of oksh
 (portable OpenBSD ksh) and BWK_AWK to the one true awk, or put oksh and
 original-awk on PATH. It links them as sh, ksh and awk in a directory put
 before the system's, so scripts run under the shell and awk they will have
-on the machine. Optional: CWM (a cwm binary) and CWM_SRC (cwm's source,
-for conf.c); on OpenBSD these default to base cwm and /usr/xenocara.
+on the machine. On the Mac, oksh is Homebrew's and its own awk is the one
+true awk; libarchive's bin on PATH runs the ext cases. Optional: CWM (a cwm
+binary) and CWM_SRC (cwm's source, for conf.c); on OpenBSD these default
+to base cwm and /usr/xenocara.
 EOF
 }
 
@@ -44,16 +46,22 @@ while [ $# -gt 0 ]; do
 	shift
 done
 
+# The physical path: on the Mac /tmp is a link to /private/tmp, and scripts
+# that resolve a directory must match what the cases expect. The Mac's own
+# $TMPDIR is too deep for the Unix sockets the cases make (104 bytes).
+[ "$(uname -s)" = Darwin ] && TMPDIR=/tmp
 RUN=$(mktemp -d "${TMPDIR:-/tmp}/vertrice-tests.XXXXXX") || exit 2
+RUN=$(cd "$RUN" && pwd -P)
 trap '[ -n "$keep" ] || rm -rf "$RUN"' EXIT
 trap 'exit 130' INT TERM
 
 # Real tools, found before the mocks go on PATH. Mocks that wrap a real
-# command (ps, sleep, rm, date, pgrep) call these.
+# command (ps, sleep, rm, date, pgrep, basename) call these.
 VT_REAL_PS=$(command -v ps) VT_REAL_SLEEP=$(command -v sleep)
 VT_REAL_RM=$(command -v rm) VT_REAL_DATE=$(command -v date)
-VT_REAL_PGREP=$(command -v pgrep)
-export VT_REAL_PS VT_REAL_SLEEP VT_REAL_RM VT_REAL_DATE VT_REAL_PGREP
+VT_REAL_PGREP=$(command -v pgrep) VT_REAL_BASENAME=$(command -v basename)
+export VT_REAL_PS VT_REAL_SLEEP VT_REAL_RM VT_REAL_DATE VT_REAL_PGREP \
+	VT_REAL_BASENAME
 
 # The shell and awk the scripts expect. On OpenBSD they are base. Elsewhere,
 # oksh named "sh" runs in sh mode, as OpenBSD's /bin/sh does.
@@ -66,6 +74,8 @@ if [ "$os" = OpenBSD ]; then
 else
 	oksh=${OKSH:-$(command -v oksh)}
 	bwk=${BWK_AWK:-$(command -v original-awk || command -v bwk-awk)}
+	# The Mac's awk is the one true awk.
+	[ "$os" = Darwin ] && bwk=${bwk:-/usr/bin/awk}
 	[ -x "$oksh" ] || { echo "run: need oksh: set OKSH" >&2; exit 2; }
 	[ -x "$bwk" ] || { echo "run: need BWK awk: set BWK_AWK" >&2; exit 2; }
 	shim=$RUN/shim
@@ -74,7 +84,9 @@ else
 	VT_KSH=$shim/ksh VT_SH=$shim/sh
 	CWM=${CWM:-$(command -v cwm)}
 fi
-export VT_KSH VT_SH CWM CWM_SRC REPO
+# VT_HOST: the system the suite runs on; uname in a case is the mock's.
+VT_HOST=$os
+export VT_KSH VT_SH CWM CWM_SRC REPO VT_HOST
 
 # One wrapper per script, so scripts that call each other by name (sbar runs
 # the blocks, sb-show runs sbar) find the repository's copy and run under

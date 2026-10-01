@@ -45,13 +45,8 @@ tty_in() {
 	command -v script >/dev/null 2>&1 || skip "no script(1) to provide a terminal"
 	_in=$1; shift
 	for _a; do printf "'%s' " "$(printf '%s' "$_a" | sed "s/'/'\\\\''/g")"; done >"$T/.ttycmd"
-	if script --version 2>/dev/null | grep -q util-linux; then
-		( "$VT_REAL_SLEEP" 2; printf '%s\n' "$_in"; "$VT_REAL_SLEEP" 3 ) |
-			script -qec "$VT_SH $T/.ttycmd" /dev/null >"$T/tty.out" 2>&1
-	else
-		( "$VT_REAL_SLEEP" 2; printf '%s\n' "$_in"; "$VT_REAL_SLEEP" 3 ) |
-			script -c "$VT_SH $T/.ttycmd" /dev/null >"$T/tty.out" 2>&1
-	fi
+	( "$VT_REAL_SLEEP" 2; printf '%s\n' "$_in"; "$VT_REAL_SLEEP" 3 ) |
+		pty "$VT_SH $T/.ttycmd" >"$T/tty.out" 2>&1
 }
 
 # wall DESC LINE / nowall DESC LINE: the last box had (not) this wall.
@@ -264,7 +259,11 @@ t_cdxb_doas_client_relay() {
 	command -v cc >/dev/null 2>&1 || skip "no cc"
 	printf '#!/bin/sh\necho "doas $*"\necho oops >&2\nexit 3\n' >"$T/fakedoas"
 	chmod +x "$T/fakedoas"
-	cc -Wall -Wextra -Werror -D_GNU_SOURCE -D'pledge(a,b)=0' -D'unveil(a,b)=0' \
+	# The Mac has neither accept4 nor SOCK_CLOEXEC; OpenBSD and Linux do.
+	mac=
+	[ "$VT_HOST" = Darwin ] && mac="-DSOCK_CLOEXEC=0 -Daccept4(a,b,c,d)=accept(a,b,c)"
+	# shellcheck disable=SC2086
+	cc -Wall -Wextra -Werror -D_GNU_SOURCE -D'pledge(a,b)=0' -D'unveil(a,b)=0' $mac \
 		-DDOAS="\"$T/fakedoas\"" -o "$T/cb" \
 		"$REPO/.local/src/codex-box/codex-box.c" 2>"$T/cc.out" ||
 		fail "codex-box.c does not build: $(cat "$T/cc.out")"

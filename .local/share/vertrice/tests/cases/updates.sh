@@ -49,8 +49,10 @@ t_updates_nothing() {
 
 # sb-popupgrade in a terminal: Enter to close.
 t_popupgrade_runs() {
-	script --version 2>/dev/null | grep -q util-linux || skip "needs util-linux script(1) to feed a terminal"
-	printf '\n' | script -qec "$VT_SH $REPO/.local/bin/statusbar/sb-popupgrade" /dev/null >"$T/tty.out" 2>&1
+	script --version 2>/dev/null | grep -q util-linux || [ "$VT_HOST" = Darwin ] ||
+		skip "needs util-linux or the Mac's script(1) to feed a terminal"
+	( printf '\n'; "$VT_REAL_SLEEP" 1 ) |
+		pty "$VT_SH $REPO/.local/bin/statusbar/sb-popupgrade" >"$T/tty.out" 2>&1
 	logged '^doas syspatch$'
 	logged '^doas pkg_add -u$'
 	logged '^doas rm -f /var/db/updates$'

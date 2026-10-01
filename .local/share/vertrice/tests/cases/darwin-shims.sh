@@ -106,6 +106,18 @@ t_darwin_ftp() {
 	logged '^curl\|-fsSL\|-O\|https://example.org/song.mp3\|$'
 }
 
+# lf's scope with the Mac's own file(1), whose -i is not the MIME type:
+# only on a Mac. OpenBSD's file.c takes --mime-type as -i.
+t_darwin_scope_text() {
+	[ "$VT_HOST" = Darwin ] || skip "needs the Mac's file(1)"
+	command -v highlight >/dev/null 2>&1 && skip "this host has highlight"
+	mac
+	printf 'one\ntwo\nthree\nfour\n' >"$T/notes.txt"
+	eq "first screenful" "one
+two
+three" "$("$VT_SH" "$REPO/.config/lf/scope" "$T/notes.txt" 80 3 0 0)"
+}
+
 t_darwin_ghostty() {
 	mac
 	mkdir -p "$T/d i r"; cd "$T/d i r" || fail "no dir"
@@ -227,6 +239,8 @@ t_darwin_profile() {
 t_darwin_profile_off_mac() {
 	home_setup
 	mkdir -p "$HOME/.local/bin/darwin"
+	# The caller's PATH less Homebrew, which the host may have.
+	PATH=$(printf '%s\n' "$PATH" | tr : '\n' | grep -v '^/opt/homebrew' | paste -sd : -)
 	out=$("$VT_SH" -c '. "$HOME/.profile"; printf "%s\n" "$PATH" "$TERMINAL"' 2>&1) ||
 		fail "profile failed: $out"
 	hasnt "no darwin off the Mac" "/.local/bin/darwin" "$(printf '%s\n' "$out" | sed -n 1p)"
