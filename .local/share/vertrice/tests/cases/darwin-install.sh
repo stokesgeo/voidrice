@@ -164,7 +164,7 @@ t_darwin_install_newsup_agent() {
 	ln -s "$VT_MOCKS/_log" "$T/p/newsup"
 	# Not the caller's PATH: the host may have newsboat.
 	printf 'PATH=%s:/usr/bin:/bin\n' "$T/p" >"$HOME/.profile"
-	"$VT_SH" -c "$(agentcmd vertrice.newsup)"
+	"$VT_SH" -c "$(agentcmd vertrice.newsup)" || fail "absent optional newsboat reported failure"
 	notlogged '^newsup'
 	ln -s "$VT_MOCKS/_log" "$T/p/newsboat"
 	"$VT_SH" -c "$(agentcmd vertrice.newsup)" || fail "agent failed"

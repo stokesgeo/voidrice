@@ -13,7 +13,8 @@ esac
 # it back to the one in view. The name is the window's title (floatterm).
 if [ "$(uname)" = Darwin ]; then
 	win() { aerospace list-windows "$@" --format '%{window-id}%{tab}%{window-title}' |
-		awk -F '\t' -v n="$name" '$2 == n { print $1; exit }'; }
+		awk -F '\t' -v n="$name" '{ sub(/^🔔 /, "", $2) }
+			$2 == n { print $1; exit }'; }
 	id=$(win --all)
 	if [ -z "$id" ]; then exec floatterm "$name" "$geo" $cmd
 	elif [ -n "$(win --workspace focused)" ]; then

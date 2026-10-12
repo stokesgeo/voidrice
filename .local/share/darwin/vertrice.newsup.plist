@@ -12,7 +12,7 @@
 	<array>
 		<string>/bin/sh</string>
 		<string>-c</string>
-		<string>. "$HOME/.profile" >/dev/null 2>&amp;1; command -v newsboat >/dev/null &amp;&amp; newsup</string>
+		<string>. "$HOME/.profile" >/dev/null 2>&amp;1; if command -v newsboat >/dev/null; then newsup; fi</string>
 	</array>
 	<key>StartInterval</key>
 	<integer>1800</integer>

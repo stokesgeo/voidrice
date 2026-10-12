@@ -123,9 +123,9 @@ t_darwin_ghostty() {
 	mkdir -p "$T/d i r"; cd "$T/d i r" || fail "no dir"
 	ghostty
 	# Each open -na starts a Ghostty; it must quit with its window.
-	logged "^open\\|-na\\|Ghostty.app\\|--args\\|--quit-after-last-window-closed=true\\|--window-inherit-working-directory=false\\|--working-directory=$T/d i r\\|\$"
+	logged "^open\\|-na\\|Ghostty.app\\|--args\\|--quit-after-last-window-closed=true\\|--window-save-state=never\\|--window-inherit-working-directory=false\\|--working-directory=$T/d i r\\|\$"
 	ghostty -e grep -e x file
-	logged "^open\\|-na\\|Ghostty.app\\|--args\\|--quit-after-last-window-closed=true\\|--window-inherit-working-directory=false\\|--working-directory=$T/d i r\\|-e\\|/bin/sh\\|-lc\\|exec \"\\\$@\"\\|sh\\|grep\\|-e\\|x\\|file\\|\$"
+	has "quoted command" "--initial-command=/bin/sh -lc 'exec \"\$@\"' sh 'grep' '-e' 'x' 'file'|" "$(cat "$VT_STATE/log")"
 }
 
 t_darwin_ghostty_missing() {
@@ -143,7 +143,32 @@ t_darwin_ghostty_missing() {
 	chmod +x "$T/with spaces/tool"
 	ghostty --title=test -e "$T/with spaces/tool" 'an argument'
 	logged '\|--window-inherit-working-directory=false\|--working-directory='
-	logged "\|sh\|$T/with spaces/tool\|an argument\|\$"
+	has "argument boundaries" "sh '$T/with spaces/tool' 'an argument'|" "$(cat "$VT_STATE/log")"
+	: >"$VT_STATE/log"
+	ghostty -e "$T/with spaces/tool" "a'b" '$(false)' ''
+	has "quoted apostrophe" "'a'\\''b'" "$(cat "$VT_STATE/log")"
+	has "literal syntax and empty argument" "'\$(false)' ''|" "$(cat "$VT_STATE/log")"
+}
+
+t_darwin_ghostty_argument_roundtrip() {
+	mac
+	cat >"$T/bin/open" <<'EOF'
+#!/bin/sh
+for last; do :; done
+printf '%s' "$last" >"$VT_STATE/initial-command"
+EOF
+	cat >"$T/bin/argument-tool" <<'EOF'
+#!/bin/sh
+printf '%s\0' "$@" >"$VT_STATE/arguments"
+EOF
+	chmod +x "$T/bin/open" "$T/bin/argument-tool"
+	line='ends in newline
+'
+	ghostty -e "$T/bin/argument-tool" 'two words' "a'b" '$(false)' '' "$line"
+	command=$(cat "$VT_STATE/initial-command")
+	/bin/sh -c "${command#--initial-command=}" || fail "startup command failed"
+	printf '%s\0' 'two words' "a'b" '$(false)' '' "$line" >"$T/expected"
+	cmp -s "$T/expected" "$VT_STATE/arguments" || fail "command arguments changed"
 }
 
 t_darwin_sb_clock_apps() {
@@ -162,14 +187,14 @@ t_darwin_sb_clock_apps() {
 t_darwin_floatterm() {
 	mac
 	TERMINAL=ghostty floatterm spcalc 50x20 bc -l
-	logged "\\|--working-directory=$T\\|--title=spcalc\\|--window-width=50\\|--window-height=20\\|-e\\|/bin/sh\\|-lc\\|exec \"\\\$@\"\\|sh\\|bc\\|-l\\|\$"
+	has "calculator startup" "--working-directory=$T|--title=spcalc|--window-width=50|--window-height=20|--initial-command=/bin/sh -lc 'exec \"\$@\"' sh 'bc' '-l'|" "$(cat "$VT_STATE/log")"
 }
 
 t_darwin_writemode() {
 	mac
 	mkdir -p "$HOME/writing"
 	TERMINAL=ghostty writemode "$HOME/writing/a.md"
-	logged "\\|--title=write\\|--fullscreen=non-native\\|-e\\|/bin/sh\\|-lc\\|exec \"\\\$@\"\\|sh\\|nvim\\|-c\\|silent! Goyo\\|$HOME/writing/a.md\\|\$"
+	has "writing startup" "--title=write|--fullscreen=non-native|--initial-command=/bin/sh -lc 'exec \"\$@\"' sh 'nvim' '-c' 'silent! Goyo' '$HOME/writing/a.md'|" "$(cat "$VT_STATE/log")"
 }
 
 # scratch: AeroSpace's windows are "ID<tab>TITLE" lines, all of them in
@@ -196,6 +221,12 @@ EOF
 	: | fx out.aerospace-here
 	scratch term
 	logged '^aerospace\|move-node-to-workspace\|--focus-follows-window\|--window-id\|7\|3\|$'
+	# Ghostty decorates a background window title when its bell rings.
+	printf '7\t🔔 spterm\n9\t🔔 spterm2\n' | fx out.aerospace-all
+	printf '7\t🔔 spterm\n' | fx out.aerospace-here
+	: >"$VT_STATE/log"; scratch term
+	logged '^aerospace\|move-node-to-workspace\|--window-id\|7\|scratch\|$'
+	notlogged '^open'
 	# The title is matched whole: spterm2 is not the scratchpad.
 	printf '9\tspterm2\n' | fx out.aerospace-all
 	: >"$VT_STATE/log"; TERMINAL=ghostty scratch term

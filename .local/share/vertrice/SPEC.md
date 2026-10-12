@@ -521,9 +521,15 @@ errors or warnings. Ghostty 1.3.1 validated the config and themes on
 macOS 27. A live terminal command reproduced loss of the requested working
 directory; disabling window directory inheritance fixed it. The exact
 launcher then preserved the requested directory and xterm-256color.
-Keyboard dispatch, tiling, scratchpad focus, permissions, real launchd
-activation, visual legibility and battery effects still require desktop
-acceptance. Mock and parser checks do not establish these outcomes.
+A disposable macOS 27.0.1/26A434 guest exercised native permission grants,
+AeroSpace workspace dispatch using synthetic modifier events, Neovide
+focus/resize/fullscreen return, and scratch terminal/calculator hide/show.
+Karabiner's DriverKit extension reported activated enabled. Script-launched
+Ghostty instances disable window state restoration; scratch lookup handles
+Ghostty's bell-decorated title. Physical Caps/Fn input, existing editor
+configurations, laptop-scale legibility, authenticated remote sessions and
+battery effects remain hardware acceptance. Synthetic modifier events do
+not establish physical keyboard remapping.
 
 vertrice(7) CAVEATS lists what has not run on an X220, and
 `tests/check` is the first-boot check. Beyond that list, not yet seen on
@@ -535,15 +541,12 @@ lf's opener against OpenBSD file(1)'s MIME database (try an mp3, mp4,
 epub and an empty file); otp's QR image in /tmp on an SSD (`rm -P`
 cannot beat wear levelling); `hotplug-watch` with a real attach.
 
-The regression suite has run on a Mac; the desktop and installer are
-not fully activated. The Mac install is tested against mocks
-(`tests/cases/darwin-install.sh`); not yet seen on macOS 27: `brew
-bundle` with this Brewfile, including the source build of sketchybar
-and the Karabiner package's password prompt; `chsh` to oksh and the
-profile and kshrc under it; `launchctl bootout` and `bootstrap` in
-`gui/UID`, whether `bootstrap` right after `bootout` fails ("Bootstrap
-failed: 5", reported by others) and whether the install's second try,
-a second later, is enough; the agents' `HOME` and `PATH` (the updates
+The regression suite has run on a Mac. The real Brewfile and installer
+completed in the guest, including fixture-account authentication for
+`chsh`, launchd agent bootstrap and running AeroSpace/SketchyBar.
+An interactive oksh login remains unqualified. The installer is also tested against mocks
+(`tests/cases/darwin-install.sh`). Still unqualified: an actual bootstrap
+race, the agents' complete `HOME` and `PATH` behavior (the updates
 agent names brew by its full path for that reason); the newsup agent sourcing
 `~/.profile` under macOS's /bin/sh; the `defaults` keys under macOS 27
 (`expose-group-apps`, `spans-displays`, `KeyRepeat` 2 below the

@@ -51,5 +51,7 @@ killall Dock 2>/dev/null || :
 # AeroSpace starts SketchyBar (aerospace.toml), under the login profile.
 open -a AeroSpace
 echo "Files installed; permissions and a fresh login are pending."
-echo "In System Settings, Privacy & Security, allow AeroSpace (Accessibility)"
-echo "and Karabiner-Elements (its driver, Input Monitoring). Then log out and in."
+echo "Allow AeroSpace and Karabiner-Core-Service under Privacy & Security,"
+echo "Device Control and Data Access (Accessibility on older macOS)."
+echo "In General, Login Items, enable both Karabiner background services and"
+echo "its Driver Extension. Then log out and in."

@@ -161,6 +161,10 @@ t_sb_mailbox() {
 }
 
 t_sb_music() {
+	# The activated desktop may already run sb-mpdup outside this fixture.
+	# Exercise the fixture's first-start branch without inspecting it.
+	printf '#!/bin/sh\nexit 1\n' >"$T/bin/pgrep"
+	chmod +x "$T/bin/pgrep"
 	printf '%s\n' "Boards of Canada - Roygbiv" "[playing] #3/10   1:02/2:31 (41%)" \
 		"volume: 80%   repeat: off   random: off   single: off   consume: off" \
 		>"$VT_STATE/out.mpc"

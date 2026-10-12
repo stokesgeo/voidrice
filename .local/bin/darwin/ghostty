@@ -7,7 +7,7 @@
 # runs under a login sh, which reads the profile. Each Ghostty started so
 # quits with its last window, or it stays on, windowless.
 
-n=$# e= next=
+n=$# e= next= cmd=
 for a; do
 	if [ -n "$next" ]; then
 		if ! command -v "$a" >/dev/null 2>&1; then
@@ -18,12 +18,21 @@ for a; do
 		next=
 	fi
 	if [ -z "$e" ] && [ "$a" = -e ]; then
-		e=1 next=1; set -- "$@" -e /bin/sh -lc 'exec "$@"' sh
+		e=1 next=1
+	elif [ -n "$e" ]; then
+		# Cocoa also opens bare arguments as files, creating another tab and
+		# an execution prompt. Use one initial-command option instead, with
+		# each command argument quoted for the shell that parses it.
+		q=$(printf '%s' "$a" | sed "s/'/'\\\\''/g"; printf '.')
+		q=${q%.}
+		cmd="$cmd '$q'"
 	else
 		set -- "$@" "$a"
 	fi
 done
 shift "$n"
 [ -z "$next" ] || { echo "ghostty: -e needs a command" >&2; exit 2; }
+[ -z "$e" ] || set -- "$@" "--initial-command=/bin/sh -lc 'exec \"\$@\"' sh$cmd"
 exec open -na Ghostty.app --args --quit-after-last-window-closed=true \
-	--window-inherit-working-directory=false --working-directory="$PWD" "$@"
+	--window-save-state=never --window-inherit-working-directory=false \
+	--working-directory="$PWD" "$@"
