@@ -118,6 +118,26 @@ two
 three" "$("$VT_SH" "$REPO/.config/lf/scope" "$T/notes.txt" 80 3 0 0)"
 }
 
+t_darwin_ghostty_actions() {
+	mac
+	cat >"$T/bin/real-ghostty" <<'EOF'
+#!/bin/sh
+printf '%s\n' "$@" >"$VT_STATE/action-arguments"
+echo 'native action output'
+exit 7
+EOF
+	chmod +x "$T/bin/real-ghostty"
+	shim=$(derived .local/bin/darwin/ghostty ghostty-actions \
+		"s|/Applications/Ghostty.app/Contents/MacOS/ghostty|$T/bin/real-ghostty|g")
+	"$VT_SH" "$shim" +show-config --default --docs >"$T/out"
+	eq "native action status" 7 "$?"
+	eq "native action output" 'native action output' "$(cat "$T/out")"
+	eq "native action arguments" '+show-config
+--default
+--docs' "$(cat "$VT_STATE/action-arguments")"
+	notlogged '^open'
+}
+
 t_darwin_ghostty() {
 	mac
 	mkdir -p "$T/d i r"; cd "$T/d i r" || fail "no dir"

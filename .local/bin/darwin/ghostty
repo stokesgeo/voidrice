@@ -7,6 +7,7 @@
 # runs under a login sh, which reads the profile. Each Ghostty started so
 # quits with its last window, or it stays on, windowless.
 
+case ${1:-} in +*) exec /Applications/Ghostty.app/Contents/MacOS/ghostty "$@" ;; esac
 n=$# e= next= cmd=
 for a; do
 	if [ -n "$next" ]; then

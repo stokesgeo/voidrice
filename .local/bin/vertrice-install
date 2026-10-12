@@ -18,7 +18,7 @@
 #	git config status.showUntrackedFiles no
 
 # A Mac runs its own install, as you, not root.
-[ "$(uname)" = Darwin ] && exec sh "$(dirname "$0")/../share/darwin/install"
+[ "$(uname)" = Darwin ] && exec sh "$(dirname "$0")/../share/darwin/install" "$@"
 
 # Root runs this, so "you" is found as the owner of the script. Root's mail
 # goes to you.

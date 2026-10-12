@@ -63,6 +63,8 @@ have been verified. Caps held supplies Command+Option+Control; adding
 Shift supplies Hyper. Caps+Fn+F1 shows readable actions, also available
 from the application picker. Missing optional terminal programs produce
 a clear notification.
+The Mac installer accepts `--keep-shell` to retain an existing login shell.
+Without it, oksh remains the default.
 On macOS 27, grant AeroSpace and Karabiner-Core-Service Device Control
 and Data Access. Enable both Karabiner background services and its Driver
 Extension in Login Items. Script-launched terminals start with one fresh

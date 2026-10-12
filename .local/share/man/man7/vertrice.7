@@ -627,6 +627,10 @@ Karabiner-Core-Service under Device Control and Data Access
 In General, Login Items, enable both Karabiner background services and
 its Driver Extension, then log out and in.
 Running it again is safe.
+On an existing Mac, the
+.Fl Fl keep-shell
+installer option preserves the current login shell and skips shell registration.
+Without it, the installer selects oksh.
 Required package and agent failures stop the installer.
 Permissions and a fresh login must still be checked after files are installed.
 The update count follows

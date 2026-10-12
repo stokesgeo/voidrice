@@ -27,7 +27,24 @@ di_setup() {
 	uid=$(id -u)
 	la=$HOME/Library/LaunchAgents
 }
-di() { "$VT_SH" "$T/x/bin/vertrice-install" >"$T/out" 2>&1; }
+di() { "$VT_SH" "$T/x/bin/vertrice-install" "$@" >"$T/out" 2>&1; }
+
+t_darwin_install_keep_shell() {
+	di_setup
+	di --keep-shell || fail "keep-shell install failed"
+	notlogged '^chsh'
+	notlogged '^sudo'
+	logged '^brew bundle --file=Brewfile$'
+	logged '^launchctl bootstrap'
+}
+
+t_darwin_install_bad_option() {
+	di_setup
+	di --unknown && fail "unknown option accepted"
+	notlogged '^brew'
+	notlogged '^sudo'
+	notlogged '^launchctl'
+}
 
 t_darwin_install_bundle_failure() {
 	di_setup

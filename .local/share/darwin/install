@@ -12,6 +12,13 @@
 
 set -e
 
+keep_shell=
+case $# in
+0) ;;
+1) [ "$1" = --keep-shell ] && keep_shell=1 || { echo "usage: vertrice-install [--keep-shell]" >&2; exit 2; } ;;
+*) echo "usage: vertrice-install [--keep-shell]" >&2; exit 2 ;;
+esac
+
 cd "$(dirname "$0")"
 # sysact locks by sleeping the display. Check this before changing anything;
 # changing the setting with sysadminctl would ask for a login password.
@@ -24,8 +31,10 @@ brew bundle --file=Brewfile		# the optional rest: brew bundle --file=Brewfile.ex
 # oksh is the login shell, as ksh is on the X220; chsh takes only a shell
 # listed in /etc/shells.
 ksh=/opt/homebrew/bin/oksh
-grep -qx $ksh /etc/shells || echo $ksh | sudo tee -a /etc/shells >/dev/null
-[ "$SHELL" = $ksh ] || chsh -s $ksh
+if [ -z "$keep_shell" ]; then
+	grep -qx $ksh /etc/shells || echo $ksh | sudo tee -a /etc/shells >/dev/null
+	[ "$SHELL" = $ksh ] || chsh -s $ksh
+fi
 # launchd runs, as you, what cron runs on the X220, and mpd, which
 # xprofile starts there. Each agent is unloaded first, so a second run
 # loads the new copy. bootout can return before the old one is gone, and
