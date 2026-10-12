@@ -1,0 +1,20 @@
+# Written by ~/.local/bin/theme from x11/themes/day: change it there.
+foreground = #383642
+background = #f5f1e8
+cursor-color = #a8474a
+palette = 0=#383642
+palette = 1=#a3403f
+palette = 2=#4d7340
+palette = 3=#80621a
+palette = 4=#3c639c
+palette = 5=#834d96
+palette = 6=#2c7170
+palette = 7=#e6e0d3
+palette = 8=#6f6a63
+palette = 9=#9e3b3a
+palette = 10=#48703b
+palette = 11=#7a5d16
+palette = 12=#3a609a
+palette = 13=#7f4892
+palette = 14=#276c6b
+palette = 15=#fbf9f4

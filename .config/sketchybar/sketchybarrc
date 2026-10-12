@@ -26,16 +26,25 @@ sketchybar --add event aerospace_workspace_change \
 # Right-hand items are placed from the right edge inwards, so the list is
 # added last block first, to read left to right as in sbar.
 for b in $(printf '%s\n' $blocks | tail -r); do
+	case $b in
+	sb-music) seconds=5 ;;
+	sb-memory|sb-internet) seconds=30 ;;
+	sb-volume) seconds=0 ;;
+	*) seconds=60 ;;
+	esac
 	sketchybar --add item "$b" right \
-		--set "$b" script="$CONFIG_DIR/block" update_freq=5 \
+		--set "$b" script="$CONFIG_DIR/block" update_freq="$seconds" \
 		--subscribe "$b" mouse.clicked mouse.scrolled
 done
 sketchybar --subscribe sb-volume volume_change \
-	--subscribe sb-battery power_source_change system_woke
+	--subscribe sb-battery power_source_change system_woke \
+	--subscribe sb-internet system_woke
 
 # macOS posts this notice when it turns light or dark.
 sketchybar --add event appearance AppleInterfaceThemeChangedNotification \
 	--add item theme left --set theme drawing=off script='theme auto' \
 	--subscribe theme appearance
 
+# Hidden items need not run on --update; set the initial appearance now.
+theme auto
 sketchybar --update

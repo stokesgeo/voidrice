@@ -1,7 +1,7 @@
 #!/bin/sh
 
 # block: an item of the bar (sketchybarrc), named after its status block.
-# SketchyBar runs this every 5 seconds and on a click or scroll: the
+# SketchyBar runs this at the item's interval and on a click or scroll: the
 # block's line becomes the label, and an empty line hides the item.
 # A click or scroll becomes $BLOCK_BUTTON as the blocks read it (see
 # sbar): 1 left, 2 middle, 3 right, 4 and 5 scroll, 6 shift click.

@@ -123,9 +123,40 @@ t_darwin_ghostty() {
 	mkdir -p "$T/d i r"; cd "$T/d i r" || fail "no dir"
 	ghostty
 	# Each open -na starts a Ghostty; it must quit with its window.
-	logged "^open\\|-na\\|Ghostty.app\\|--args\\|--quit-after-last-window-closed=true\\|--working-directory=$T/d i r\\|\$"
+	logged "^open\\|-na\\|Ghostty.app\\|--args\\|--quit-after-last-window-closed=true\\|--window-inherit-working-directory=false\\|--working-directory=$T/d i r\\|\$"
 	ghostty -e grep -e x file
-	logged "^open\\|-na\\|Ghostty.app\\|--args\\|--quit-after-last-window-closed=true\\|--working-directory=$T/d i r\\|-e\\|/bin/sh\\|-lc\\|exec \"\\\$@\"\\|sh\\|grep\\|-e\\|x\\|file\\|\$"
+	logged "^open\\|-na\\|Ghostty.app\\|--args\\|--quit-after-last-window-closed=true\\|--window-inherit-working-directory=false\\|--working-directory=$T/d i r\\|-e\\|/bin/sh\\|-lc\\|exec \"\\\$@\"\\|sh\\|grep\\|-e\\|x\\|file\\|\$"
+}
+
+t_darwin_ghostty_missing() {
+	mac
+	ghostty -e vertrice-missing-program >"$T/out" 2>&1
+	eq "missing command status" 127 "$?"
+	notlogged '^open'
+	logged '\|Program not installed\|vertrice-missing-program: see the optional packages in man vertrice\.\|$'
+	ghostty -e >"$T/out" 2>&1
+	eq "missing -e operand" 2 "$?"
+	notlogged '^open'
+	# A command supplied as a path with spaces stays one executable operand.
+	mkdir -p "$T/with spaces"
+	printf '#!/bin/sh\nexit 0\n' >"$T/with spaces/tool"
+	chmod +x "$T/with spaces/tool"
+	ghostty --title=test -e "$T/with spaces/tool" 'an argument'
+	logged '\|--window-inherit-working-directory=false\|--working-directory='
+	logged "\|sh\|$T/with spaces/tool\|an argument\|\$"
+}
+
+t_darwin_sb_clock_apps() {
+	mac
+	argmock calcurse
+	BLOCK_BUTTON=1 sb-clock >"$T/out"
+	logged '^open\|-a\|Calendar\|$'
+	BLOCK_BUTTON=2 sb-clock >"$T/out"
+	logged '^open\|-a\|Reminders\|$'
+	BLOCK_BUTTON=3 sb-clock >"$T/out"
+	logged 'Left click opens Calendar. Middle click opens Reminders.'
+	notlogged '^calcurse'
+	has 'clock still shown' "$(date +%Y)" "$(cat "$T/out")"
 }
 
 t_darwin_floatterm() {
@@ -494,16 +525,29 @@ t_darwin_otp_sync_time() {
 	logged '\|🕙 Time sync\|\+0.012 \+/- 0.004 time.apple.com 17.253.4.125\|$'
 }
 
-# /var/db/updates is $T/updates (derived, lib.sh); a terminal from with_tty.
+# A terminal from with_tty; the update count is in the case's cache.
 t_darwin_popupgrade() {
 	mac
-	echo 'git' >"$T/updates"
+	echo 'git' >"$XDG_CACHE_HOME/updates"
 	up=$(derived .local/bin/statusbar/sb-popupgrade sb-popupgrade "s|/var/db/updates|$T/updates|g")
 	printf '\n' | with_tty "$up"
 	logged '^brew\|update\|$'
 	logged '^brew\|upgrade\|$'
 	notlogged '^doas'
-	eq "the count cleared" "" "$(cat "$T/updates")"
+	eq "the count cleared" "" "$(cat "$XDG_CACHE_HOME/updates")"
+}
+
+t_darwin_popupgrade_failure() {
+	mac
+	echo 'git' >"$XDG_CACHE_HOME/updates"
+	echo 1 | fx rc.brew
+	up=$(derived .local/bin/statusbar/sb-popupgrade sb-popupgrade "s|/var/db/updates|$T/updates|g")
+	printf '\n' | pty "$VT_SH $up; echo \$? >$T/rc" >"$T/out" 2>&1
+	eq "failed upgrade status" 1 "$(cat "$T/rc")"
+	eq "old count retained" git "$(cat "$XDG_CACHE_HOME/updates")"
+	has "failure shown" 'Upgrade failed.' "$(cat "$T/out")"
+	hasnt "no success claim" 'Upgrade complete.' "$(cat "$T/out")"
+	notlogged '^brew\|upgrade\|'
 }
 
 # pass's passmenu exits unless DISPLAY is set, and needs bash 4 (globstar):

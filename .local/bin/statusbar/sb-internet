@@ -5,6 +5,14 @@
 # Show 🔒 if a vpn connection is active (wg or tun)
 # OpenBSD has no /sys: it all comes from one ifconfig(8).
 
+if [ "$(uname)" = Darwin ]; then
+	case $BLOCK_BUTTON in
+		1) open 'x-apple.systempreferences:com.apple.Network-Settings.extension' ;;
+		3) notify-send 'Network' 'Shows the default-route interface: Wi-Fi, wired or tunnel.
+No route shows as an antenna. This does not test internet or hub reachability.
+Click to open Network Settings.' ;;
+	esac
+else
 case $BLOCK_BUTTON in
 	3) notify-send "🌐 Internet module" "\- Click to connect
 ❌: wifi disabled
@@ -16,6 +24,7 @@ case $BLOCK_BUTTON in
 " ;;
 	6) detach "$TERMINAL" -e "$EDITOR" "$0" ;;
 esac
+fi
 
 # The Mac: the way out is the interface of the default route (route(8));
 # networksetup(8) names the Wi-Fi one; a VPN that takes all traffic is a

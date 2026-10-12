@@ -35,7 +35,7 @@ On a fresh system, as root:
 .Pp
 Then, as the user:
 .Bd -literal -offset indent
-$ git clone --bare https://github.com/stokesgeo/vertrice.git \e
+$ git clone --bare https://github.com/stokesgeo/voidrice.git \e
     ~/.local/share/vertrice.git
 $ cd ~/.local/share/vertrice.git
 $ git show HEAD:.local/share/$(uname | tr A-Z a-z)/sparse-checkout |
@@ -546,8 +546,10 @@ Ghostty is the terminal, AeroSpace the window manager, SketchyBar the
 status line along the bottom and
 .Ic choose
 the menu.
-Karabiner-Elements makes Caps Lock Escape when tapped and Hyper when
-held, and the keys are those of the cwmrc with Hyper in place of Super.
+Karabiner-Elements makes Caps Lock Escape when tapped and Super when
+held: Command, Option and Control together.
+Shift adds the fourth modifier, Hyper.
+The keys follow the cwmrc's Super and Shift layers.
 The top row of a Mac keyboard sets brightness, volume and media, so the
 keys on F1 to F8 need Fn held as well, unless standard function keys are
 turned on in System Settings, Keyboard.
@@ -564,6 +566,12 @@ then Homebrew from
 then clone the dotfiles as in
 .Sx Install .
 Run the system half as yourself, not as root:
+.Pp
+On an existing home, merge the selected files before checkout; a forced
+checkout replaces existing shell, editor and desktop configuration.
+Before running the installer, set the password delay in System Settings,
+Lock Screen, to Immediately.
+The installer checks this setting first.
 .Pp
 .Dl $ sh ~/.local/bin/vertrice-install
 .Pp
@@ -582,10 +590,6 @@ makes oksh, the portable
 ksh, the login shell, and lists it in
 .Pa /etc/shells ;
 .It
-makes
-.Pa /var/db/updates
-yours;
-.It
 copies three
 .Xr launchd 8
 agents to
@@ -598,17 +602,16 @@ starts mpd at login with
 writes what
 .Ic brew upgrade
 would install to
-.Pa /var/db/updates ,
+.Pa ~/.cache/updates ,
 at login and every four hours, and
 .Cm vertrice.newsup
 runs
 .Ic newsup
 every 30 minutes once newsboat is installed;
 .It
-makes the screen ask for your password as soon as the display sleeps,
-with
-.Xr sysadminctl 8 ,
-which asks for it once;
+checks that the screen asks for your password as soon as the display
+sleeps, with
+.Xr sysadminctl 8 ;
 .It
 opens AeroSpace, which starts SketchyBar;
 .It
@@ -622,12 +625,27 @@ Then, in System Settings, Privacy & Security, allow AeroSpace under
 Accessibility and Karabiner-Elements its driver and Input Monitoring,
 and log out and in.
 Running it again is safe.
+Required package and agent failures stop the installer.
+Permissions and a fresh login must still be checked after files are installed.
+The update count follows
+.Ev XDG_CACHE_HOME
+when set and keeps the previous count if Homebrew fails.
 The optional packages are in a second list:
 .Pp
 .Dl $ brew bundle --file=$HOME/.local/share/darwin/Brewfile.extra
 .Pp
 .Ic passmenu
 needs two of them: pass, and a newer bash than the Mac's own.
+.Pp
+Super+F1 shows key names and actions.
+The application picker also offers
+keyboard help and includes applications in the user's Applications
+directory and nested folders.
+Duplicate names keep their bundle paths.
+An absent optional terminal command reports that it is not installed.
+The clock opens Calendar on left click and Reminders on middle click.
+The network item opens Network Settings; its icon describes the default
+route, not internet or remote-host reachability.
 .Pp
 Scripts keep calling dmenu, xclip, notify-send, xdg-open and setbg.
 On a Mac the profile puts

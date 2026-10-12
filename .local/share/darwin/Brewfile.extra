@@ -7,6 +7,8 @@
 # reads and writes exFAT).
 
 brew "neomutt"
+brew "abook"
+brew "profanity"
 brew "isync"
 brew "msmtp"
 brew "newsboat"

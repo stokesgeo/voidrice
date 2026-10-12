@@ -7,14 +7,23 @@
 # runs under a login sh, which reads the profile. Each Ghostty started so
 # quits with its last window, or it stays on, windowless.
 
-n=$# e=
+n=$# e= next=
 for a; do
+	if [ -n "$next" ]; then
+		if ! command -v "$a" >/dev/null 2>&1; then
+			printf 'ghostty: %s is not installed\n' "$a" >&2
+			notify-send "Program not installed" "$a: see the optional packages in man vertrice."
+			exit 127
+		fi
+		next=
+	fi
 	if [ -z "$e" ] && [ "$a" = -e ]; then
-		e=1; set -- "$@" -e /bin/sh -lc 'exec "$@"' sh
+		e=1 next=1; set -- "$@" -e /bin/sh -lc 'exec "$@"' sh
 	else
 		set -- "$@" "$a"
 	fi
 done
 shift "$n"
+[ -z "$next" ] || { echo "ghostty: -e needs a command" >&2; exit 2; }
 exec open -na Ghostty.app --args --quit-after-last-window-closed=true \
-	--working-directory="$PWD" "$@"
+	--window-inherit-working-directory=false --working-directory="$PWD" "$@"

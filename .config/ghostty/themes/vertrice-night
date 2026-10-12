@@ -1,0 +1,20 @@
+# Written by ~/.local/bin/theme from x11/themes/night: change it there.
+foreground = #dcd6ca
+background = #24232e
+cursor-color = #e8b4b8
+palette = 0=#34323f
+palette = 1=#e89c9c
+palette = 2=#a9cf9b
+palette = 3=#e3c98d
+palette = 4=#9db8e3
+palette = 5=#cfa6de
+palette = 6=#94cccb
+palette = 7=#c7c0b4
+palette = 8=#908b9f
+palette = 9=#f2b3b3
+palette = 10=#bfe0b2
+palette = 11=#efdaa7
+palette = 12=#b6cbef
+palette = 13=#dfbdea
+palette = 14=#afdcdb
+palette = 15=#f1ece2

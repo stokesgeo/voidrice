@@ -265,7 +265,7 @@ means in the tree; untested means not yet run on the X220.
 - **The Mac install: Brewfile and a command list.** Agents'. One line
   at the top of `vertrice-install` hands a Mac over to
   `~/.local/share/darwin/install`, run as the user (Homebrew refuses
-  root; sudo only for `/etc/shells` and `/var/db/updates`). The
+  root; sudo for `/etc/shells`). The
   directory is named for `uname`, beside `.local/share/openbsd` and
   `.local/bin/darwin`; the brief had said under `.local/share/vertrice`.
   `Brewfile` and `Brewfile.extra` split as `pkglist` and
@@ -284,14 +284,14 @@ means in the tree; untested means not yet run on the X220.
   that reading, so its macOS 27 bottle is not checked. Done; untested
   on a Mac.
 - **launchd for cron.** Agents'. Two user agents: the update count
-  (`brew outdated` into `/var/db/updates` at login and every four hours,
-  where root's crontab writes it on the X220) and `newsup` every 30
+  (`brew outdated` into the user cache's `updates` at login and every
+  four hours; root's crontab uses `/var/db/updates` on the X220) and `newsup` every 30
   minutes (`vertrice.newsup`, as the crontab line in `cron/README.md`;
   it runs only once newsboat, from `Brewfile.extra`, is there).
   `cron/README.md` itself lands on the X220 only (picked 2026-09-30:
   "OpenBSD list only"). The
-  update file is made the user's once, so `sb-updates` reads one path on
-  both systems. Not carried: root's mail (nothing on the Mac mails it),
+  update count follows `XDG_CACHE_HOME`, falling back to `~/.cache`,
+  and survives failed Homebrew checks. Not carried: root's mail (nothing on the Mac mails it),
   the dump reminder (Time Machine). The reminders agent went with
   "Reminders on the Mac" below. Done; untested on a Mac.
 - **macOS settings.** Agents'. The Dock hides (the bar is along the
@@ -315,10 +315,12 @@ means in the tree; untested means not yet run on the X220.
   Nothing in vertrice; `bk` stays X220 only. Done.
 - **Lock on the Mac.** Picked (2026-09-30): "pmset displaysleepnow".
   sysact's lock runs it; display off, now the same thing, left the Mac's
-  menu (agents'; the owner confirmed it, 2026-09-30). The install sets "require password immediately" with
-  `sysadminctl -screenLock immediate -password -` (it asks for the
-  password), unless `-screenLock status` already says immediate. Done;
-  untested on a Mac.
+  menu (agents'; the owner confirmed it, 2026-09-30). The installer
+  checks `sysadminctl -screenLock status` before changes and stops
+  unless the delay is immediate. Change the delay in System Settings
+  before installing; the installer does not request a login password
+  to change it. Status wording checked on macOS 27; lock behavior
+  after desktop activation remains untested.
 - **The Mac's other stand-ins.** Agents' recommendations, filtered by
   the owner's idiom words: `dict` opens `dict://WORD` (Dictionary.app);
   maimpick has a Darwin branch on `screencapture -i` (Super+Shift+s, as
@@ -462,8 +464,8 @@ As the tree has it now.
 8. pkg_add and `pkglist` -> `brew bundle` and `Brewfile`
    (`.local/share/darwin/`); the X220's installer hands over on `uname`.
 9. Root's crontab line for the update count -> the launchd agent
-   `vertrice.updates` writing `brew outdated` to the same
-   `/var/db/updates`; the user's crontab line for `newsup` -> the
+   `vertrice.updates` writing `brew outdated` to the user cache's
+   `updates`; the user's crontab line for `newsup` -> the
    agent `vertrice.newsup`.
 10. calendar(1) and daily(8) mailing `calendar -a` -> Reminders:
     `remind YYYY-MM-DD TEXT` adds one through osascript, and Reminders
@@ -478,8 +480,8 @@ As the tree has it now.
     aliasrc sets its doas aliases (mount, shutdown, sdn and the rest)
     only where there is a doas.
 14. xidle and xlock -> `pmset displaysleepnow` for sysact's lock, with
-    the password asked at once (`sysadminctl -screenLock immediate`, in
-    the install); the idle lock is macOS's own.
+    the password asked at once (the installer checks the immediate
+    delay prerequisite); the idle lock is macOS's own.
 15. dump and `bk` -> Time Machine alone; `bk` is X220 only.
 16. `cdxb` -> nothing: Codex sandboxes itself on macOS (Seatbelt).
     Left out of the Mac install.
@@ -500,6 +502,29 @@ As the tree has it now.
 
 ## Untested on the machine
 
+### Mac qualification, 2026-10-11
+
+Implementation review, not new owner rulings: installer and upgrades
+stop on required failures; update counts use the user cache and survive
+failed checks. Immediate lock is checked before any installation change.
+The application picker includes user and nested bundles with exact paths
+for duplicate names. Key help derives action labels from the bindings.
+Optional terminal commands report their absence before opening a window.
+The clock opens Calendar or Reminders on the Mac. Network help describes
+the default route and opens native settings; it does not prove remote
+reachability. Bar items use events and separate polling intervals.
+Ghostty's generated palettes ship with the config, and the bar applies
+the appearance on startup.
+
+The official AeroSpace v0.21.3-Beta parser accepted the full config without
+errors or warnings. Ghostty 1.3.1 validated the config and themes on
+macOS 27. A live terminal command reproduced loss of the requested working
+directory; disabling window directory inheritance fixed it. The exact
+launcher then preserved the requested directory and xterm-256color.
+Keyboard dispatch, tiling, scratchpad focus, permissions, real launchd
+activation, visual legibility and battery effects still require desktop
+acceptance. Mock and parser checks do not establish these outcomes.
+
 vertrice(7) CAVEATS lists what has not run on an X220, and
 `tests/check` is the first-boot check. Beyond that list, not yet seen on
 the machine: the bar's height under st (cwmrc's gap is xterm's 22
@@ -510,19 +535,17 @@ lf's opener against OpenBSD file(1)'s MIME database (try an mp3, mp4,
 epub and an empty file); otp's QR image in /tmp on an SSD (`rm -P`
 cannot beat wear levelling); `hotplug-watch` with a real attach.
 
-Nothing has run on a Mac. The Mac install is tested against mocks
+The regression suite has run on a Mac; the desktop and installer are
+not fully activated. The Mac install is tested against mocks
 (`tests/cases/darwin-install.sh`); not yet seen on macOS 27: `brew
 bundle` with this Brewfile, including the source build of sketchybar
 and the Karabiner package's password prompt; `chsh` to oksh and the
-profile and kshrc under it; `sudo install -o` making
-`/var/db/updates` the user's; `launchctl bootout` and `bootstrap` in
+profile and kshrc under it; `launchctl bootout` and `bootstrap` in
 `gui/UID`, whether `bootstrap` right after `bootout` fails ("Bootstrap
 failed: 5", reported by others) and whether the install's second try,
 a second later, is enough; the agents' `HOME` and `PATH` (the updates
 agent names brew by its full path for that reason); the newsup agent sourcing
-`~/.profile` under macOS's /bin/sh; `sysadminctl -screenLock status`
-(its wording, and that it writes to stderr) and `-screenLock immediate
--password -` run as the user, not root; the `defaults` keys under macOS 27
+`~/.profile` under macOS's /bin/sh; the `defaults` keys under macOS 27
 (`expose-group-apps`, `spans-displays`, `KeyRepeat` 2 below the
 Settings slider); AeroSpace, which is not notarized (its cask strips
 the quarantine flag), under macOS 27's Gatekeeper.

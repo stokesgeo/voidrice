@@ -1,0 +1,24 @@
+#!/bin/sh
+
+# Action labels live beside the bindings; this list never carries commands.
+awk '
+	BEGIN {
+		name["enter"] = "Return"; name["space"] = "Space";
+		name["backspace"] = "Backspace"; name["tab"] = "Tab";
+		name["quote"] = "\047"; name["backtick"] = "`";
+		name["backslash"] = "\\"; name["semicolon"] = ";";
+		name["comma"] = ","; name["period"] = ".";
+		name["minus"] = "-"; name["equal"] = "=";
+		name["leftSquareBracket"] = "["; name["rightSquareBracket"] = "]";
+		name["pageUp"] = "PageUp"; name["pageDown"] = "PageDown"
+	}
+	/^cmd-alt-ctrl-/ {
+		key = $1; sub(/^cmd-alt-ctrl-/, "", key);
+		prefix = "Caps+";
+		if (sub(/^shift-/, "", key)) prefix = prefix "Shift+";
+		if (key ~ /^f[0-9]+$/) { prefix = prefix "Fn+"; key = toupper(key) }
+		else key = key in name ? name[key] : toupper(key);
+		action = $0; sub(/^.*# /, "", action);
+		if (action == $0) next;
+		printf "%-25s %s\n", prefix key, action
+	}' "$HOME/.config/aerospace/aerospace.toml" | dmenu -i -l 30 -p 'Keys (Caps held):'

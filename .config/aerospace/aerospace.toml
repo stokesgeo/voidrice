@@ -32,86 +32,86 @@ on-window-detected = [
 [mode.main.binding]
 
 # --- windows: j k focus, q close, t tile, h l resize, S+hjkl move --------
-cmd-alt-ctrl-j = 'focus --wrap-around dfs-next'
-cmd-alt-ctrl-k = 'focus --wrap-around dfs-prev'
-cmd-alt-ctrl-q = 'close'
-cmd-alt-ctrl-t = 'layout h_tiles'			# side by side, as cwm's vtile
-cmd-alt-ctrl-shift-t = 'layout v_tiles'		# one above the other, as htile
-cmd-alt-ctrl-space = 'layout floating tiling'	# float or tile the window
-cmd-alt-ctrl-f = 'fullscreen --no-outer-gaps'	# over the bar too
-cmd-alt-ctrl-shift-u = 'fullscreen'			# fill the screen, bar kept
-cmd-alt-ctrl-h = 'resize smart -100'
-cmd-alt-ctrl-l = 'resize smart +100'
-cmd-alt-ctrl-shift-h = 'move left'
-cmd-alt-ctrl-shift-j = 'move down'
-cmd-alt-ctrl-shift-k = 'move up'
-cmd-alt-ctrl-shift-l = 'move right'
+cmd-alt-ctrl-j = 'focus --wrap-around dfs-next' # Focus next window
+cmd-alt-ctrl-k = 'focus --wrap-around dfs-prev' # Focus previous window
+cmd-alt-ctrl-q = 'close' # Close window
+cmd-alt-ctrl-t = 'layout h_tiles' # Tile side by side
+cmd-alt-ctrl-shift-t = 'layout v_tiles' # Tile vertically
+cmd-alt-ctrl-space = 'layout floating tiling' # Float or tile window
+cmd-alt-ctrl-f = 'fullscreen --no-outer-gaps' # Fullscreen over bar
+cmd-alt-ctrl-shift-u = 'fullscreen' # Fullscreen with bar
+cmd-alt-ctrl-h = 'resize smart -100' # Shrink window
+cmd-alt-ctrl-l = 'resize smart +100' # Grow window
+cmd-alt-ctrl-shift-h = 'move left' # Move window left
+cmd-alt-ctrl-shift-j = 'move down' # Move window down
+cmd-alt-ctrl-shift-k = 'move up' # Move window up
+cmd-alt-ctrl-shift-l = 'move right' # Move window right
 
 # --- workspaces: 1-9 show one, S+1-9 send the window there ---------------
 # Tab and \ go to the last one; g ; PgUp PgDn cycle.
-cmd-alt-ctrl-1 = 'workspace 1'
-cmd-alt-ctrl-2 = 'workspace 2'
-cmd-alt-ctrl-3 = 'workspace 3'
-cmd-alt-ctrl-4 = 'workspace 4'
-cmd-alt-ctrl-5 = 'workspace 5'
-cmd-alt-ctrl-6 = 'workspace 6'
-cmd-alt-ctrl-7 = 'workspace 7'
-cmd-alt-ctrl-8 = 'workspace 8'
-cmd-alt-ctrl-9 = 'workspace 9'
-cmd-alt-ctrl-shift-1 = 'move-node-to-workspace 1'
-cmd-alt-ctrl-shift-2 = 'move-node-to-workspace 2'
-cmd-alt-ctrl-shift-3 = 'move-node-to-workspace 3'
-cmd-alt-ctrl-shift-4 = 'move-node-to-workspace 4'
-cmd-alt-ctrl-shift-5 = 'move-node-to-workspace 5'
-cmd-alt-ctrl-shift-6 = 'move-node-to-workspace 6'
-cmd-alt-ctrl-shift-7 = 'move-node-to-workspace 7'
-cmd-alt-ctrl-shift-8 = 'move-node-to-workspace 8'
-cmd-alt-ctrl-shift-9 = 'move-node-to-workspace 9'
-cmd-alt-ctrl-tab = 'workspace-back-and-forth'
-cmd-alt-ctrl-backslash = 'workspace-back-and-forth'
-cmd-alt-ctrl-g = 'workspace --wrap-around prev'
-cmd-alt-ctrl-semicolon = 'workspace --wrap-around next'
-cmd-alt-ctrl-pageUp = 'workspace --wrap-around prev'
-cmd-alt-ctrl-pageDown = 'workspace --wrap-around next'
+cmd-alt-ctrl-1 = 'workspace 1' # Workspace 1
+cmd-alt-ctrl-2 = 'workspace 2' # Workspace 2
+cmd-alt-ctrl-3 = 'workspace 3' # Workspace 3
+cmd-alt-ctrl-4 = 'workspace 4' # Workspace 4
+cmd-alt-ctrl-5 = 'workspace 5' # Workspace 5
+cmd-alt-ctrl-6 = 'workspace 6' # Workspace 6
+cmd-alt-ctrl-7 = 'workspace 7' # Workspace 7
+cmd-alt-ctrl-8 = 'workspace 8' # Workspace 8
+cmd-alt-ctrl-9 = 'workspace 9' # Workspace 9
+cmd-alt-ctrl-shift-1 = 'move-node-to-workspace 1' # Send window to workspace 1
+cmd-alt-ctrl-shift-2 = 'move-node-to-workspace 2' # Send window to workspace 2
+cmd-alt-ctrl-shift-3 = 'move-node-to-workspace 3' # Send window to workspace 3
+cmd-alt-ctrl-shift-4 = 'move-node-to-workspace 4' # Send window to workspace 4
+cmd-alt-ctrl-shift-5 = 'move-node-to-workspace 5' # Send window to workspace 5
+cmd-alt-ctrl-shift-6 = 'move-node-to-workspace 6' # Send window to workspace 6
+cmd-alt-ctrl-shift-7 = 'move-node-to-workspace 7' # Send window to workspace 7
+cmd-alt-ctrl-shift-8 = 'move-node-to-workspace 8' # Send window to workspace 8
+cmd-alt-ctrl-shift-9 = 'move-node-to-workspace 9' # Send window to workspace 9
+cmd-alt-ctrl-tab = 'workspace-back-and-forth' # Previous workspace
+cmd-alt-ctrl-backslash = 'workspace-back-and-forth' # Previous workspace
+cmd-alt-ctrl-g = 'workspace --wrap-around prev' # Previous workspace
+cmd-alt-ctrl-semicolon = 'workspace --wrap-around next' # Next workspace
+cmd-alt-ctrl-pageUp = 'workspace --wrap-around prev' # Previous workspace
+cmd-alt-ctrl-pageDown = 'workspace --wrap-around next' # Next workspace
 
 # --- launchers: Return terminal, w web, e mail, r files, d apps ----------
 # BackSpace and S+q open the power menu (sysact). Shifted keys are variants.
 # S+Return and ' show or hide the scratch terminal and calculator.
-cmd-alt-ctrl-enter = 'exec-and-forget ~/.config/aerospace/run sd'
-cmd-alt-ctrl-shift-enter = 'exec-and-forget ~/.config/aerospace/run scratch term'
-cmd-alt-ctrl-quote = 'exec-and-forget ~/.config/aerospace/run scratch calc'
-cmd-alt-ctrl-d = '''exec-and-forget ~/.config/aerospace/run 'ls /Applications /System/Applications | sed -n "s/\.app$//p" | dmenu -i -p Open: | xargs -I{} open -a {}' '''
-cmd-alt-ctrl-shift-d = 'exec-and-forget ~/.config/aerospace/run passmenu'
-cmd-alt-ctrl-w = '''exec-and-forget ~/.config/aerospace/run '$BROWSER' '''
-cmd-alt-ctrl-e = '''exec-and-forget ~/.config/aerospace/run '$TERMINAL -e neomutt; sb-refresh' '''
-cmd-alt-ctrl-shift-e = '''exec-and-forget ~/.config/aerospace/run '$TERMINAL -e abook' '''
-cmd-alt-ctrl-r = '''exec-and-forget ~/.config/aerospace/run '$TERMINAL -e lfub' '''
-cmd-alt-ctrl-shift-r = '''exec-and-forget ~/.config/aerospace/run '$TERMINAL -e top' '''
-cmd-alt-ctrl-c = '''exec-and-forget ~/.config/aerospace/run '$TERMINAL -e profanity' '''
-cmd-alt-ctrl-n = '''exec-and-forget ~/.config/aerospace/run '$TERMINAL -e nvim -c VimwikiIndex' '''
-cmd-alt-ctrl-shift-n = '''exec-and-forget ~/.config/aerospace/run '$TERMINAL -e newsboat; sb-refresh' '''
-cmd-alt-ctrl-m = '''exec-and-forget ~/.config/aerospace/run '$TERMINAL -e ncmpcpp' '''
-cmd-alt-ctrl-b = 'exec-and-forget ~/.config/aerospace/run sb-show'
-cmd-alt-ctrl-backtick = 'exec-and-forget ~/.config/aerospace/run dmenuunicode'
-cmd-alt-ctrl-backspace = 'exec-and-forget ~/.config/aerospace/run sysact'
-cmd-alt-ctrl-shift-q = 'exec-and-forget ~/.config/aerospace/run sysact'
-cmd-alt-ctrl-shift-backspace = 'exec-and-forget ~/.config/aerospace/run sysact'
+cmd-alt-ctrl-enter = 'exec-and-forget ~/.config/aerospace/run sd' # Terminal in current directory
+cmd-alt-ctrl-shift-enter = 'exec-and-forget ~/.config/aerospace/run scratch term' # Show or hide scratch terminal
+cmd-alt-ctrl-quote = 'exec-and-forget ~/.config/aerospace/run scratch calc' # Show or hide calculator
+cmd-alt-ctrl-d = 'exec-and-forget ~/.config/aerospace/run ~/.config/aerospace/apps' # Open application or keyboard help
+cmd-alt-ctrl-shift-d = 'exec-and-forget ~/.config/aerospace/run passmenu' # Passwords (optional pass)
+cmd-alt-ctrl-w = '''exec-and-forget ~/.config/aerospace/run '$BROWSER' ''' # Safari
+cmd-alt-ctrl-e = '''exec-and-forget ~/.config/aerospace/run '$TERMINAL -e neomutt; sb-refresh' ''' # Mail (optional neomutt)
+cmd-alt-ctrl-shift-e = '''exec-and-forget ~/.config/aerospace/run '$TERMINAL -e abook' ''' # Contacts (optional abook)
+cmd-alt-ctrl-r = '''exec-and-forget ~/.config/aerospace/run '$TERMINAL -e lfub' ''' # Files
+cmd-alt-ctrl-shift-r = '''exec-and-forget ~/.config/aerospace/run '$TERMINAL -e top' ''' # Process monitor
+cmd-alt-ctrl-c = '''exec-and-forget ~/.config/aerospace/run '$TERMINAL -e profanity' ''' # Chat (optional profanity)
+cmd-alt-ctrl-n = '''exec-and-forget ~/.config/aerospace/run '$TERMINAL -e nvim -c VimwikiIndex' ''' # Vimwiki
+cmd-alt-ctrl-shift-n = '''exec-and-forget ~/.config/aerospace/run '$TERMINAL -e newsboat; sb-refresh' ''' # Feeds (optional newsboat)
+cmd-alt-ctrl-m = '''exec-and-forget ~/.config/aerospace/run '$TERMINAL -e ncmpcpp' ''' # Music library
+cmd-alt-ctrl-b = 'exec-and-forget ~/.config/aerospace/run sb-show' # Show status
+cmd-alt-ctrl-backtick = 'exec-and-forget ~/.config/aerospace/run dmenuunicode' # Unicode picker
+cmd-alt-ctrl-backspace = 'exec-and-forget ~/.config/aerospace/run sysact' # Lock, sleep or power menu
+cmd-alt-ctrl-shift-q = 'exec-and-forget ~/.config/aerospace/run sysact' # Lock, sleep or power menu
+cmd-alt-ctrl-shift-backspace = 'exec-and-forget ~/.config/aerospace/run sysact' # Lock, sleep or power menu
 
 # --- music and volume: p pause, [ ] seek, , . track, - = volume, S+m mute ---
 # mpd plays; macOS sets the volume, and the bar hears the change.
-cmd-alt-ctrl-p = 'exec-and-forget ~/.config/aerospace/run mpc toggle'
-cmd-alt-ctrl-shift-p = '''exec-and-forget ~/.config/aerospace/run 'mpc pause; pauseallmpv' '''
-cmd-alt-ctrl-leftSquareBracket = 'exec-and-forget ~/.config/aerospace/run mpc seek -10'
-cmd-alt-ctrl-shift-leftSquareBracket = 'exec-and-forget ~/.config/aerospace/run mpc seek -60'
-cmd-alt-ctrl-rightSquareBracket = 'exec-and-forget ~/.config/aerospace/run mpc seek +10'
-cmd-alt-ctrl-shift-rightSquareBracket = 'exec-and-forget ~/.config/aerospace/run mpc seek +60'
-cmd-alt-ctrl-comma = 'exec-and-forget ~/.config/aerospace/run mpc prev'
-cmd-alt-ctrl-period = 'exec-and-forget ~/.config/aerospace/run mpc next'
-cmd-alt-ctrl-minus = 'volume down'
-cmd-alt-ctrl-shift-minus = 'volume down; volume down; volume down'
-cmd-alt-ctrl-equal = 'volume up'
-cmd-alt-ctrl-shift-equal = 'volume up; volume up; volume up'
-cmd-alt-ctrl-shift-m = 'volume mute-toggle'
+cmd-alt-ctrl-p = 'exec-and-forget ~/.config/aerospace/run mpc toggle' # Play or pause music
+cmd-alt-ctrl-shift-p = '''exec-and-forget ~/.config/aerospace/run 'mpc pause; pauseallmpv' ''' # Pause all players
+cmd-alt-ctrl-leftSquareBracket = 'exec-and-forget ~/.config/aerospace/run mpc seek -10' # Seek back 10 seconds
+cmd-alt-ctrl-shift-leftSquareBracket = 'exec-and-forget ~/.config/aerospace/run mpc seek -60' # Seek back 60 seconds
+cmd-alt-ctrl-rightSquareBracket = 'exec-and-forget ~/.config/aerospace/run mpc seek +10' # Seek forward 10 seconds
+cmd-alt-ctrl-shift-rightSquareBracket = 'exec-and-forget ~/.config/aerospace/run mpc seek +60' # Seek forward 60 seconds
+cmd-alt-ctrl-comma = 'exec-and-forget ~/.config/aerospace/run mpc prev' # Previous track
+cmd-alt-ctrl-period = 'exec-and-forget ~/.config/aerospace/run mpc next' # Next track
+cmd-alt-ctrl-minus = 'volume down' # Volume down
+cmd-alt-ctrl-shift-minus = 'volume down; volume down; volume down' # Volume down more
+cmd-alt-ctrl-equal = 'volume up' # Volume up
+cmd-alt-ctrl-shift-equal = 'volume up; volume up; volume up' # Volume up more
+cmd-alt-ctrl-shift-m = 'volume mute-toggle' # Mute or unmute
 
 # --- function keys: help, theme, torrents, screenshots -------------------
 # macOS has its own displays, Night Shift, mounting, Wi-Fi, camera and
@@ -120,11 +120,11 @@ cmd-alt-ctrl-shift-m = 'volume mute-toggle'
 # row is brightness, volume and media keys: hold Fn as well for F1-F8, or
 # turn on "Use F1, F2, etc. keys as standard function keys" in System
 # Settings, Keyboard.
-cmd-alt-ctrl-shift-s = 'exec-and-forget ~/.config/aerospace/run maimpick'
-cmd-alt-ctrl-f1 = '''exec-and-forget ~/.config/aerospace/run 'grep "^cmd-" ~/.config/aerospace/aerospace.toml | dmenu -i -l 40 -p Keys:' '''
-cmd-alt-ctrl-shift-f1 = 'exec-and-forget ~/.config/aerospace/run manpick'
-cmd-alt-ctrl-f2 = 'exec-and-forget ~/.config/aerospace/run tutorialvids'
-cmd-alt-ctrl-f5 = 'reload-config'
-cmd-alt-ctrl-f6 = 'exec-and-forget ~/.config/aerospace/run torwrap'
-cmd-alt-ctrl-f7 = 'exec-and-forget ~/.config/aerospace/run td-toggle'
-cmd-alt-ctrl-f8 = 'exec-and-forget ~/.config/aerospace/run theme toggle'	# light / dark
+cmd-alt-ctrl-shift-s = 'exec-and-forget ~/.config/aerospace/run maimpick' # Screenshot
+cmd-alt-ctrl-f1 = 'exec-and-forget ~/.config/aerospace/run ~/.config/aerospace/keys' # Keyboard help
+cmd-alt-ctrl-shift-f1 = 'exec-and-forget ~/.config/aerospace/run manpick' # Manual picker
+cmd-alt-ctrl-f2 = 'exec-and-forget ~/.config/aerospace/run tutorialvids' # Tutorial videos
+cmd-alt-ctrl-f5 = 'reload-config' # Reload window bindings
+cmd-alt-ctrl-f6 = 'exec-and-forget ~/.config/aerospace/run torwrap' # Tor (optional)
+cmd-alt-ctrl-f7 = 'exec-and-forget ~/.config/aerospace/run td-toggle' # Torrents (optional)
+cmd-alt-ctrl-f8 = 'exec-and-forget ~/.config/aerospace/run theme toggle' # Switch light or dark

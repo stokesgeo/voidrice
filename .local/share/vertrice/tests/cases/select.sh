@@ -84,7 +84,7 @@ t_select_home_half() {
 	command -v git >/dev/null 2>&1 || skip "no git"
 	git -C "$REPO" rev-parse -q --verify HEAD >/dev/null 2>&1 || skip "not in a clone"
 	sed -n '/^# The home half/,/^$/s/^#	//p' "$REPO/.local/bin/vertrice-install" |
-		sed "s|https://github.com/stokesgeo/vertrice.git|$REPO|" >"$T/half"
+		sed "s|https://github.com/stokesgeo/voidrice.git|$REPO|" >"$T/half"
 	[ "$(wc -l <"$T/half")" -ge 4 ] || fail "no commands in the header"
 	for os in OpenBSD Darwin; do
 		printf '#!/bin/sh\necho %s\n' "$os" >"$T/bin/uname"; chmod +x "$T/bin/uname"

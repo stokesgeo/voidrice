@@ -16,13 +16,19 @@ and choose for the menus. See "The Mac" in `man vertrice`.
 
 ## Install
 
+These commands are for a fresh home. On an existing Mac, review and merge
+the selected files first: a forced checkout replaces existing dotfiles,
+including shell, editor and desktop settings. Keep local launchers and
+author-owned configuration. Install packages and activate the desktop
+only after that merge.
+
 As root on a fresh system:
 
     pkg_add git
 
 As your user:
 
-    git clone --bare https://github.com/stokesgeo/vertrice.git ~/.local/share/vertrice.git
+    git clone --bare https://github.com/stokesgeo/voidrice.git ~/.local/share/vertrice.git
     cd ~/.local/share/vertrice.git
     git show HEAD:.local/share/$(uname | tr A-Z a-z)/sparse-checkout | git --work-tree=$HOME sparse-checkout set --no-cone --stdin
     git --work-tree=$HOME checkout -f
@@ -49,6 +55,20 @@ Update with `config pull origin master`. After an update that changes
 `sparse-checkout` there, run the second and third lines above again.
 
 ## Documentation
+
+On the Mac, set Lock Screen's password delay to Immediately before running
+the installer as your user. The installer stops on required failures;
+packages and files installed does not mean permissions or a fresh login
+have been verified. Caps held supplies Command+Option+Control; adding
+Shift supplies Hyper. Caps+Fn+F1 shows readable actions, also available
+from the application picker. Missing optional terminal programs produce
+a clear notification.
+
+Mac update counts live in the user cache. Calendar and Reminders open from
+the clock; Network Settings opens from the network item. The route icon
+does not establish internet or remote-host reachability. The bar uses
+events and block-specific intervals rather than polling every item at
+five seconds.
 
 `man vertrice` is the reference: the install and what the installer
 changes in `/etc`, the session, the keys, the machine settings, the tools

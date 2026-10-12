@@ -1,6 +1,6 @@
 # The Mac install: vertrice-install hands over to darwin/install when uname
 # says Darwin. Here copies of both sit in $T/x, with /etc/shells,
-# /var/db/updates and Homebrew's bin in PATH rewritten into $T/sys (derived,
+# Homebrew's bin in PATH rewritten into $T/sys (derived,
 # lib.sh): on a Mac the real brew would come before the mock. uname, brew,
 # sudo, chsh, launchctl, defaults, killall, open and sysadminctl are logging mocks, so
 # sudo runs nothing. ~/Library/LaunchAgents is in the case's own HOME.
@@ -21,12 +21,40 @@ di_setup() {
 		ln -s "$VT_MOCKS/_log" "$T/bin/$m"
 	done
 	echo Darwin >"$VT_STATE/out.uname"
+	echo 'screenLock delay is immediate' | fx out.sysadminctl
 	printf '/bin/sh\n/bin/zsh\n' >"$R/etc/shells"
 	export USER=puffy SHELL=/bin/zsh
 	uid=$(id -u)
 	la=$HOME/Library/LaunchAgents
 }
 di() { "$VT_SH" "$T/x/bin/vertrice-install" >"$T/out" 2>&1; }
+
+t_darwin_install_bundle_failure() {
+	di_setup
+	echo 1 | fx rc.brew
+	di && fail "failed bundle reported success"
+	notlogged '^chsh'
+	notlogged '^sudo'
+	notlogged '^launchctl'
+	notlogged '^open'
+}
+
+t_darwin_install_bootstrap_failure() {
+	di_setup
+	echo 5 | fx rc.launchctl
+	VT_SLEEP=0 di && fail "failed bootstrap reported success"
+	eq "failed agent retried once" 2 "$(nlogged '^launchctl bootstrap')"
+	notlogged '^defaults'
+	notlogged '^open'
+}
+
+t_darwin_install_shell_registration_failure() {
+	di_setup
+	echo 1 | fx rc.sudo
+	di && fail "failed shell registration reported success"
+	notlogged '^chsh'
+	notlogged '^launchctl'
+}
 
 t_darwin_install_hands_over() {
 	di_setup; di
@@ -39,7 +67,7 @@ t_darwin_install_steps() {
 	di_setup; di
 	logged "^sudo tee -a $R/etc/shells\$"
 	logged '^chsh -s /opt/homebrew/bin/oksh$'
-	logged "^sudo install -o puffy -m 644 /dev/null $R/var/db/updates\$"
+	notlogged '^sudo install'
 	for a in vertrice.mpd vertrice.newsup vertrice.updates; do
 		cmp -s "$REPO/.local/share/darwin/$a.plist" "$la/$a.plist" || fail "$a.plist not in LaunchAgents"
 		logged "^launchctl bootout gui/$uid/$a\$"
@@ -144,12 +172,16 @@ t_darwin_install_newsup_agent() {
 	notlogged '^newsboat'
 }
 
-# The screen asks for the password at once after sysact's lock: set once,
-# with the password asked for, never passed.
+# An insecure lock setting stops the install before packages or prompts.
 t_darwin_install_screenlock() {
-	di_setup; di
+	di_setup
+	echo 'screenLock delay is 5 seconds' | fx out.sysadminctl
+	di && fail "insecure lock reported success"
 	logged '^sysadminctl -screenLock status$'
-	logged '^sysadminctl -screenLock immediate -password -$'
+	notlogged 'screenLock immediate'
+	notlogged '^brew'
+	notlogged '^sudo'
+	has "lock instruction" 'Immediately' "$(cat "$T/out")"
 	: >"$VT_STATE/log"
 	echo 'screenLock delay is immediate' | fx out.sysadminctl
 	di
@@ -161,10 +193,40 @@ t_darwin_install_updates_agent() {
 	# What brew outdated lists, sb-updates counts, as on the X220.
 	ln -s "$VT_MOCKS/_log" "$T/bin/brew"
 	printf 'ffmpeg\nmpv\n' | fx out.brew
-	cmd=$(agentcmd vertrice.updates | sed "s|/opt/homebrew/bin/brew|brew|g; s|/var/db/updates|$T/updates|g")
+	cmd=$(agentcmd vertrice.updates | sed 's|/opt/homebrew/bin/brew|brew|g')
 	"$VT_SH" -c "$cmd" || fail "agent failed"
 	logged '^brew update --quiet$'
 	logged '^brew outdated --quiet$'
-	bar=$(derived .local/bin/statusbar/sb-updates sb-updates "s|/var/db/updates|$T/updates|g")
+	bar=$(derived .local/bin/statusbar/sb-updates sb-updates "s|/var/db/updates|$XDG_CACHE_HOME/updates|g")
 	eq "bar" "📦2" "$("$VT_SH" "$bar")"
+}
+
+t_darwin_install_updates_preserve_on_failure() {
+	ln -s "$VT_MOCKS/_log" "$T/bin/brew"
+	printf 'previous\n' >"$XDG_CACHE_HOME/updates"
+	echo 1 | fx rc.brew
+	cmd=$(agentcmd vertrice.updates | sed 's|/opt/homebrew/bin/brew|brew|g')
+	"$VT_SH" -c "$cmd" && fail "failed brew update reported success"
+	eq "previous count survives" previous "$(cat "$XDG_CACHE_HOME/updates")"
+	notlogged '^brew outdated'
+	# A failing outdated may still print a partial list: do not publish it.
+	rm "$T/bin/brew"
+	cat >"$T/bin/brew" <<'EOF'
+#!/bin/sh
+[ "$1" = update ] && exit 0
+echo partial
+exit 1
+EOF
+	chmod +x "$T/bin/brew"
+	"$VT_SH" -c "$cmd" && fail "failed brew outdated reported success"
+	eq "partial count not published" previous "$(cat "$XDG_CACHE_HOME/updates")"
+}
+
+t_darwin_install_updates_home_cache() {
+	ln -s "$VT_MOCKS/_log" "$T/bin/brew"
+	printf 'mpv\n' | fx out.brew
+	unset XDG_CACHE_HOME
+	cmd=$(agentcmd vertrice.updates | sed 's|/opt/homebrew/bin/brew|brew|g')
+	"$VT_SH" -c "$cmd" || fail "agent failed"
+	eq "launchd uses HOME without XDG" mpv "$(cat "$HOME/.cache/updates")"
 }

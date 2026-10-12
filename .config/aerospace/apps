@@ -1,0 +1,17 @@
+#!/bin/sh
+
+# Native application bundles; keep a path only when names collide.
+apps=$(find /Applications /System/Applications "$HOME/Applications" \
+	-type d -name '*.app' -prune -print 2>/dev/null | sort)
+menu=$(printf '%s\n' "$apps" | awk '
+	{ path[NR] = $0; name[NR] = $0; sub(/^.*\//, "", name[NR]);
+	  sub(/\.app$/, "", name[NR]); count[name[NR]]++ }
+	END { for (i = 1; i <= NR; i++)
+	  print name[i] (count[name[i]] > 1 ? " (" path[i] ")" : "") }')
+pick=$(printf 'Keyboard help\n%s\n' "$menu" | dmenu -i -p Open:) || exit
+[ -n "$pick" ] || exit
+[ "$pick" = 'Keyboard help' ] && exec "$HOME/.config/aerospace/keys"
+path=$(printf '%s\n' "$apps" | awk -v pick="$pick" '
+	{ name = $0; sub(/^.*\//, "", name); sub(/\.app$/, "", name);
+	  if (pick == name || pick == name " (" $0 ")") { print; exit } }')
+[ -n "$path" ] && exec open "$path"

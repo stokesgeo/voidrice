@@ -1,6 +1,9 @@
 #!/bin/sh
 
 # sb-updates: number of updates waiting. Root's cron job writes one line
-# per update to /var/db/updates (updates.cron). Prints nothing when none.
+# per update to /var/db/updates (updates.cron). On the Mac, the user's
+# launchd agent writes the cache instead. Prints nothing when none.
 
-n=$(grep -c . /var/db/updates 2>/dev/null) && echo "📦$n"
+f=/var/db/updates
+[ "$(uname)" = Darwin ] && f=${XDG_CACHE_HOME:-$HOME/.cache}/updates
+n=$(grep -c . "$f" 2>/dev/null) && echo "📦$n"

@@ -24,6 +24,7 @@ t_darwin_desktop_theme_auto() {
 	for p in day night; do
 		g=$XDG_CONFIG_HOME/ghostty/themes/vertrice-$p
 		[ -f "$g" ] || fail "no Ghostty theme $p"
+		cmp -s "$g" "$REPO/.config/ghostty/themes/vertrice-$p" || fail "shipped $p theme differs from its palette"
 		eq "$p palette" 16 "$(grep -c '^palette = [0-9]*=#' "$g")"
 		has "$p colour 4" "palette = 4=$(pal "$p" color4)" "$(cat "$g")"
 		has "$p background" "background = $(pal "$p" background)" "$(cat "$g")"
@@ -113,6 +114,7 @@ EOF
 # temperature and clock Apple silicon keeps for root.
 t_darwin_desktop_bar() {
 	ln -s "$VT_MOCKS/_log" "$T/bin/sketchybar"
+	ln -s "$VT_MOCKS/_log" "$T/bin/theme"
 	# tail -r, as the BSDs have it, where GNU tail lacks it (Linux).
 	if ! tail -r </dev/null >/dev/null 2>&1; then
 		printf '#!/bin/sh\n[ "$1" = -r ] || exit 2\nawk "{ l[NR] = \\$0 } END { for (i = NR; i; i--) print l[i] }"\n' >"$T/bin/tail"
@@ -129,11 +131,63 @@ t_darwin_desktop_bar() {
 		awk '{ l = $0 " " l } END { sub(/ $/, "", l); print l }')
 	eq "sbar's blocks" "$want" "$got"
 	for b in $got; do
-		logged "^sketchybar --add item $b right --set $b script=$REPO/.config/sketchybar/block update_freq=5 --subscribe $b mouse.clicked mouse.scrolled\$"
+		case $b in
+		sb-music) seconds=5 ;;
+		sb-memory|sb-internet) seconds=30 ;;
+		sb-volume) seconds=0 ;;
+		*) seconds=60 ;;
+		esac
+		logged "^sketchybar --add item $b right --set $b script=$REPO/.config/sketchybar/block update_freq=$seconds --subscribe $b mouse.clicked mouse.scrolled\$"
 		[ -x "$REPO/.local/bin/statusbar/$b" ] || fail "no block $b"
 	done
 	logged '^sketchybar --add event appearance AppleInterfaceThemeChangedNotification .* script=theme auto '
 	logged '^sketchybar --update$'
+	logged '^theme auto$'
+	eq 'appearance before first update' 'theme auto' "$(tail -n 2 "$VT_STATE/log" | head -n 1)"
+}
+
+# Names stay readable; duplicate names and spaces resolve to exact bundles.
+t_darwin_desktop_apps() {
+	ln -s "$VT_MOCKS/_log" "$T/bin/open"
+	ln -s "$VT_MOCKS/_log" "$T/bin/dmenu"
+	ln -s "$VT_MOCKS/_log" "$T/bin/find"
+	printf '/Applications/Editor.app\n/System/Applications/Utilities/Terminal.app\n%s/Applications/My Writer.app\n%s/Applications/Editor.app\n' "$HOME" "$HOME" >"$VT_STATE/out.find"
+	printf 'My Writer\n' >"$VT_STATE/out.dmenu"
+	"$VT_SH" "$REPO/.config/aerospace/apps"
+	logged "^open $HOME/Applications/My Writer.app\$"
+	printf 'Editor (%s/Applications/Editor.app)\n' "$HOME" >"$VT_STATE/out.dmenu"
+	"$VT_SH" "$REPO/.config/aerospace/apps"
+	logged "^open $HOME/Applications/Editor.app\$"
+	: >"$VT_STATE/log"
+	printf 'unknown\n' >"$VT_STATE/out.dmenu"
+	"$VT_SH" "$REPO/.config/aerospace/apps"
+	notlogged '^open '
+}
+
+# Every binding has a readable action, including an Fn hint for Mac F keys.
+t_darwin_desktop_help() {
+	mkdir -p "$HOME/.config/aerospace"
+	cp "$REPO/.config/aerospace/aerospace.toml" "$HOME/.config/aerospace/"
+	printf '#!/bin/sh\ncat\n' >"$T/bin/dmenu"
+	chmod +x "$T/bin/dmenu"
+	got=$("$VT_SH" "$REPO/.config/aerospace/keys")
+	has 'terminal action' 'Terminal in current directory' "$got"
+	has 'Fn discovery' 'Caps+Fn+F1' "$got"
+	has 'shifted action' 'Caps+Shift+Return' "$got"
+	hasnt 'no command syntax' 'exec-and-forget' "$got"
+	eq 'every binding shown' "$(grep -c '^cmd-alt-ctrl-' "$REPO/.config/aerospace/aerospace.toml")" "$(printf '%s\n' "$got" | wc -l | tr -d ' ')"
+}
+
+t_darwin_desktop_network_help() {
+	for c in uname open notify-send route networksetup; do
+		ln -s "$VT_MOCKS/_log" "$T/bin/$c"
+	done
+	echo Darwin >"$VT_STATE/out.uname"
+	BLOCK_BUTTON=1 "$VT_SH" "$REPO/.local/bin/statusbar/sb-internet" >/dev/null
+	logged '^open x-apple.systempreferences:com.apple.Network-Settings.extension$'
+	BLOCK_BUTTON=3 "$VT_SH" "$REPO/.local/bin/statusbar/sb-internet" >/dev/null
+	logged 'This does not test internet or hub reachability.'
+	notlogged 'connection with quality'
 }
 
 # aerospace.toml: Super is cmd-alt-ctrl, as karabiner.json makes Caps

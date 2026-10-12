@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <!-- The update count: what brew upgrade would install, one a line, in
-     /var/db/updates, at login and every four hours. On the X220, root's
-     crontab writes the same file from syspatch and pkg_add. macOS shows
+     ~/.cache/updates, at login and every four hours. On the X220, root's
+     crontab writes /var/db/updates from syspatch and pkg_add. macOS shows
      its own updates in System Settings. -->
 <plist version="1.0">
 <dict>
@@ -12,7 +12,7 @@
 	<array>
 		<string>/bin/sh</string>
 		<string>-c</string>
-		<string>/opt/homebrew/bin/brew update --quiet >/dev/null; /opt/homebrew/bin/brew outdated --quiet >/var/db/updates</string>
+		<string>cache=${XDG_CACHE_HOME:-$HOME/.cache}; mkdir -p "$cache" &amp;&amp; /opt/homebrew/bin/brew update --quiet >/dev/null &amp;&amp; /opt/homebrew/bin/brew outdated --quiet >"$cache/updates.tmp" &amp;&amp; mv "$cache/updates.tmp" "$cache/updates"</string>
 	</array>
 	<key>RunAtLoad</key>
 	<true/>
