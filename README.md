@@ -56,8 +56,10 @@ Update with `config pull origin master`. After an update that changes
 
 ## Documentation
 
-On the Mac, set Lock Screen's password delay to Immediately before running
-the installer as your user. The installer stops on required failures;
+On the Mac, run the installer as your user. Existing display, sleep and
+password-delay settings are preserved. The system menu's display-off action
+uses that recovery window; it does not promise immediate locking.
+The installer stops on required failures;
 packages and files installed does not mean permissions or a fresh login
 have been verified. Caps held supplies Command+Option+Control; adding
 Shift supplies Hyper. Caps+Fn+F1 shows readable actions, also available

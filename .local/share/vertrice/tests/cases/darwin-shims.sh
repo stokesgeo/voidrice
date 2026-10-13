@@ -378,7 +378,7 @@ t_darwin_sysact() {
 	answers '💤 sleep'
 	sysact
 	logged '^pmset\|sleepnow\|$'
-	eq "the Mac's menu" "🔒 lock
+	eq "the Mac's menu" "📺 display off
 🚪 log out
 🔃 reboot
 🖥️shutdown
@@ -386,8 +386,8 @@ t_darwin_sysact() {
 	rm -f "$VT_STATE/choose.n"; answers '🔃 reboot'
 	sysact
 	logged '^osascript\|-e\|tell application "System Events" to restart\|$'
-	# Lock: the display sleeps; the install makes waking it ask.
-	rm -f "$VT_STATE/choose.n"; answers '🔒 lock'; : >"$VT_STATE/log"
+	# Display off preserves the OS recovery window and does not force a lock.
+	rm -f "$VT_STATE/choose.n"; answers '📺 display off'; : >"$VT_STATE/log"
 	sysact
 	logged '^pmset\|displaysleepnow\|$'
 	notlogged 'keystroke|doas|xlock|sndioctl'

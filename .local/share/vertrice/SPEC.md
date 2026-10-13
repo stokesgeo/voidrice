@@ -314,13 +314,13 @@ means in the tree; untested means not yet run on the X220.
 - **Backups on the Mac.** Picked (2026-09-30): "Time Machine alone".
   Nothing in vertrice; `bk` stays X220 only. Done.
 - **Lock on the Mac.** Picked (2026-09-30): "pmset displaysleepnow".
-  sysact's lock runs it; display off, now the same thing, left the Mac's
-  menu (agents'; the owner confirmed it, 2026-09-30). The installer
-  checks `sysadminctl -screenLock status` before changes and stops
-  unless the delay is immediate. Change the delay in System Settings
-  before installing; the installer does not request a login password
-  to change it. Status wording checked on macOS 27; lock behavior
-  after desktop activation remains untested.
+  The action remains, now labelled display off: it does not guarantee a
+  lock during macOS's password recovery window. The immediate-delay
+  installation prerequisite is removed by the 2026-10-12 owner ruling:
+  "Current behavior is fine, we can review after a month or so."
+  Existing macOS idle, sleep and password-delay settings are preserved.
+  Later review remains optional and approximately timed, not an automatic
+  policy change. Lid-close behavior is not established by a delay check.
 - **The Mac's other stand-ins.** Agents' recommendations, filtered by
   the owner's idiom words: `dict` opens `dict://WORD` (Dictionary.app);
   maimpick has a Darwin branch on `screencapture -i` (Super+Shift+s, as
@@ -479,9 +479,8 @@ As the tree has it now.
     that is, and why, is in `.local/share/darwin/sparse-checkout`.
     aliasrc sets its doas aliases (mount, shutdown, sdn and the rest)
     only where there is a doas.
-14. xidle and xlock -> `pmset displaysleepnow` for sysact's lock, with
-    the password asked at once (the installer checks the immediate
-    delay prerequisite); the idle lock is macOS's own.
+14. xidle and xlock -> macOS's existing idle locking; sysact's display-off
+    action uses `pmset displaysleepnow`, preserving the password delay.
 15. dump and `bk` -> Time Machine alone; `bk` is X220 only.
 16. `cdxb` -> nothing: Codex sandboxes itself on macOS (Seatbelt).
     Left out of the Mac install.
@@ -506,7 +505,8 @@ As the tree has it now.
 
 Implementation review, not new owner rulings: installer and upgrades
 stop on required failures; update counts use the user cache and survive
-failed checks. Immediate lock is checked before any installation change.
+failed checks. The immediate-delay gate from this pass was superseded
+by the October12 owner ruling above.
 The application picker includes user and nested bundles with exact paths
 for duplicate names. Key help derives action labels from the bindings.
 Optional terminal commands report their absence before opening a window.

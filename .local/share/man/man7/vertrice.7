@@ -569,9 +569,7 @@ Run the system half as yourself, not as root:
 .Pp
 On an existing home, merge the selected files before checkout; a forced
 checkout replaces existing shell, editor and desktop configuration.
-Before running the installer, set the password delay in System Settings,
-Lock Screen, to Immediately.
-The installer checks this setting first.
+The installer preserves existing display, sleep and password-delay settings.
 .Pp
 .Dl $ sh ~/.local/bin/vertrice-install
 .Pp
@@ -671,7 +669,8 @@ which opens Safari;
 .Ic dict Ar word
 opens the word in Dictionary.app.
 .Ic sysact Ns 's
-lock puts the display to sleep.
+display-off action puts the display to sleep and preserves the macOS
+password recovery window; it does not promise immediate locking.
 .Ic maimpick
 (Shift+s with Caps Lock held) takes screenshots with
 .Xr screencapture 1 .

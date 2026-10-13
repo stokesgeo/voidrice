@@ -20,12 +20,7 @@ case $# in
 esac
 
 cd "$(dirname "$0")"
-# sysact locks by sleeping the display. Check this before changing anything;
-# changing the setting with sysadminctl would ask for a login password.
-if ! sysadminctl -screenLock status 2>&1 | grep -q immediate; then
-	echo "Set System Settings > Lock Screen > Require password after screen saver begins or display is turned off to Immediately, then run the installer again." >&2
-	exit 1
-fi
+# Preserve the user's existing display, sleep and password-delay settings.
 PATH=/opt/homebrew/bin:$PATH		# Homebrew's place on Apple silicon
 brew bundle --file=Brewfile		# the optional rest: brew bundle --file=Brewfile.extra
 # oksh is the login shell, as ksh is on the X220; chsh takes only a shell

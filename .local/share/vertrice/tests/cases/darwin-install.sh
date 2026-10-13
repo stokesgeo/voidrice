@@ -189,21 +189,17 @@ t_darwin_install_newsup_agent() {
 	notlogged '^newsboat'
 }
 
-# An insecure lock setting stops the install before packages or prompts.
+# Existing password delay is neither queried nor changed by installation.
 t_darwin_install_screenlock() {
 	di_setup
-	echo 'screenLock delay is 5 seconds' | fx out.sysadminctl
-	di && fail "insecure lock reported success"
-	logged '^sysadminctl -screenLock status$'
-	notlogged 'screenLock immediate'
-	notlogged '^brew'
-	notlogged '^sudo'
-	has "lock instruction" 'Immediately' "$(cat "$T/out")"
+	echo 'screenLock delay is 300 seconds' | fx out.sysadminctl
+	di
+	notlogged '^sysadminctl'
+	logged '^brew bundle --file=Brewfile$'
 	: >"$VT_STATE/log"
 	echo 'screenLock delay is immediate' | fx out.sysadminctl
 	di
-	logged '^sysadminctl -screenLock status$'
-	notlogged 'screenLock immediate'
+	notlogged '^sysadminctl'
 }
 
 t_darwin_install_updates_agent() {
