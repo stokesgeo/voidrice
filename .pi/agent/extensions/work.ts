@@ -20,19 +20,28 @@ export default function (pi: ExtensionAPI) {
   const configured = process.env.VERTRICE_WORK_DIR;
   // Resolve relative configuration once, never against a changing tool cwd.
   const store = new WorkStore(configured ? path.resolve(configured) : path.join(os.homedir(), '.local/share/vertrice-work'));
+  let showDetails = false;
   function refresh(ctx: any) {
     if (!ctx.hasUI) return;
     try {
       const rows = store.list(), open = rows.filter(row => row.task.status !== 'completed');
       const active = open.filter(row => row.task.status === 'in_progress');
       const sorted = [...open].sort((a, b) => Number(b.task.status === 'in_progress') - Number(a.task.status === 'in_progress') || a.task.created.localeCompare(b.task.created));
-      ctx.ui.setWidget('vertrice-work', [
-        `Work: ${open.length} open / ${active.length} active / ${rows.length - open.length} completed (local disk)`,
+      ctx.ui.setWidget('vertrice-work', showDetails ? [
+        `Work: ${open.length} open / ${active.length} active (local disk; /work folds)`,
         ...sorted.slice(0, 5).map(row => `${row.task.id.slice(0, 8)} ${row.task.status} ${safe(row.task.title.slice(0, 100))} | owner ${safe(row.task.owner.slice(0, 40))} | next ${safe(row.task.next_action.slice(0, 120))}`),
         ...(open.length > 5 ? [`${open.length - 5} more; work_task list for full records`] : []),
-      ]);
-    } catch { ctx.ui.setWidget('vertrice-work', ['Work: STORE ERROR; use work_task list to inspect. No clean-state claim.']); }
+      ] : undefined);
+      ctx.ui.setStatus('vertrice-work', open.length ? `work ${open.length}${active.length ? ` / ${active.length} active` : ''}` : undefined);
+    } catch {
+      ctx.ui.setStatus('vertrice-work', 'work STORE ERROR');
+      ctx.ui.setWidget('vertrice-work', ['Work: STORE ERROR; use work_task list to inspect. No clean-state claim.']);
+    }
   }
+  pi.registerCommand('work', {
+    description: 'Show or fold the local task details',
+    handler: async (_args, ctx) => { showDetails = !showDetails; refresh(ctx); },
+  });
   pi.on('session_start', async (_event, ctx) => refresh(ctx));
   pi.on('turn_end', async (_event, ctx) => refresh(ctx));
   pi.registerTool({

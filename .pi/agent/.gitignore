@@ -4,6 +4,7 @@
 !AGENTS.md
 !work-store.mjs
 !ipe-client.mjs
+!action-summary.mjs
 !context/
 context/*
 !context/README.md
@@ -20,6 +21,7 @@ context/*
 extensions/*
 !extensions/general-tools.ts
 !extensions/work.ts
+!extensions/conversation-ui.ts
 !extensions/ipe.ts
 !extensions/self-maintain.ts
 !extensions/subagent/

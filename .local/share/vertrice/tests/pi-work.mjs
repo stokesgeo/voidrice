@@ -107,13 +107,16 @@ try {
   const source = stripTypeScriptTypes(fs.readFileSync(path.join(agent, 'extensions/work.ts'), 'utf8'))
     .replace(/^import .*;\n/gm, '').replace(/^const packRoot = .*;$/m, `const packRoot = ${JSON.stringify(agent)};`).replace('export default function', 'function extension');
   const types = new Proxy({}, { get: () => (...args) => ({ args }) });
-  const tools = {}, events = {}, widgets = [];
+  const tools = {}, events = {}, commands = {}, widgets = [], statuses = [];
   const old = process.env.VERTRICE_WORK_DIR; process.env.VERTRICE_WORK_DIR = path.join(tmp, 'ui');
-  try { compileFunction(source + '\nreturn extension;', ['os', 'path', 'Type', 'WorkStore', 'ContextPack'])(os, path, types, WorkStore, ContextPack)({ registerTool: tool => { tools[tool.name] = tool; }, on: (name, handler) => { events[name] = handler; } }); }
+  try { compileFunction(source + '\nreturn extension;', ['os', 'path', 'Type', 'WorkStore', 'ContextPack'])(os, path, types, WorkStore, ContextPack)({ registerTool: tool => { tools[tool.name] = tool; }, registerCommand: (name, command) => { commands[name] = command; }, on: (name, handler) => { events[name] = handler; } }); }
   finally { if (old === undefined) delete process.env.VERTRICE_WORK_DIR; else process.env.VERTRICE_WORK_DIR = old; }
-  const ctx = { hasUI: true, sessionManager: { getSessionId: () => 'ui-owner' }, ui: { setWidget: (_key, lines) => widgets.push(lines) } };
+  const ctx = { hasUI: true, sessionManager: { getSessionId: () => 'ui-owner' }, ui: { setWidget: (_key, lines) => widgets.push(lines), setStatus: (_key, status) => statuses.push(status) } };
   const call = (params, signal) => tools.work_task.execute('fixture', params, signal, undefined, ctx);
   await events.session_start({}, ctx);
+  check(() => assert.equal(widgets.at(-1), undefined));
+  check(() => assert.equal(statuses.at(-1), undefined));
+  await commands.work.handler('', ctx);
   check(() => assert(widgets.at(-1)[0].includes('0 open')));
   let result = await call({ action: 'create', ...input });
   check(() => assert(!result.isError));
@@ -135,7 +138,10 @@ try {
   const disk = new WorkStore(path.join(tmp, 'ui')); const active = disk.read(created.task.id);
   disk.update(active.task.id, active.revision, { status: 'completed', evidence: ['API fixture result checked'], next_action: '' }, 'ui-owner');
   await events.turn_end({}, ctx);
-  check(() => assert(widgets.at(-1)[0].includes('0 open / 0 active / 1 completed')));
+  check(() => assert(widgets.at(-1)[0].includes('0 open / 0 active')));
+  await commands.work.handler('', ctx);
+  check(() => assert.equal(widgets.at(-1), undefined));
+  check(() => assert.equal(statuses.at(-1), undefined));
   fs.writeFileSync(active.file, 'corrupt record');
   await events.turn_end({}, ctx);
   check(() => assert(widgets.at(-1)[0].includes('STORE ERROR')));

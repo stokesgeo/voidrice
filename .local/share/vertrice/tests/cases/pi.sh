@@ -105,7 +105,9 @@ const fs = require('node:fs');
 const theme = JSON.parse(fs.readFileSync(process.argv[2]));
 assert.equal(theme.name, 'vertrice');
 assert.equal(theme.colors.toolSuccessBg, '');
-assert.equal(theme.colors.userMessageBg, '');
+assert.equal(theme.colors.userMessageBg, 7);
+assert.equal(theme.colors.userMessageText, 0);
+for (const role of ['muted', 'dim', 'thinkingText', 'toolOutput', 'borderMuted']) assert.equal(theme.colors[role], 8);
 assert(Object.values(theme.colors).every(c => c === '' || (Number.isInteger(c) && c >= 0 && c < 16)));
 JS
 	[ $? -eq 0 ] || fail 'theme caches RGB instead of live terminal colors'

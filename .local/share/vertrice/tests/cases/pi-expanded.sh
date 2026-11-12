@@ -20,6 +20,12 @@ t_pi_self_modification() {
 	node "$REPO/.local/share/vertrice/tests/pi-self.mjs" "$REPO" >"$T/out" 2>&1 || fail "$(cat "$T/out")"
 }
 
+t_pi_conversation_labels() {
+	command -v node >/dev/null 2>&1 || skip 'Node unavailable for conversation checks'
+	node "$REPO/.local/share/vertrice/tests/action-summary-test.mjs" >"$T/out" 2>&1 || fail "$(cat "$T/out")"
+	node "$REPO/.local/share/vertrice/tests/pi-conversation.mjs" "$REPO" >"$T/out" 2>&1 || fail "$(cat "$T/out")"
+}
+
 t_pi_subagent_renderer() {
 	command -v node >/dev/null 2>&1 || skip 'Node unavailable for renderer checks'
 	node "$REPO/.local/share/vertrice/tests/pi-render.mjs" "$REPO" >"$T/out" 2>&1 || fail "$(cat "$T/out")"
