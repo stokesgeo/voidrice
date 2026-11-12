@@ -4,7 +4,7 @@
   "files": [
     {
       "path": "AGENTS.md",
-      "sha256": "ed98267dffdbc33df5528ea2b825c16e810457333bf0b6d798a8cb405eb78903"
+      "sha256": "c2dd33e5b1806c8aba4c104016f217461d725e202e6e79a352b1c04ec42d1a8f"
     },
     {
       "path": "agents/worker.md",
@@ -28,11 +28,11 @@
     },
     {
       "path": "skills/research/SKILL.md",
-      "sha256": "2e51863fc5fad790ac172537bfb550fe4bf96b0b95e8c206effa3bf4a4a96ff4"
+      "sha256": "c41b9b5a4e7ab4be7333712cc291c807c08fa0f0c254f131c25f74d4eea07c8c"
     },
     {
       "path": "skills/web-video/SKILL.md",
-      "sha256": "f3dadec2c7fc31e646768507622e2ec78b23d974b5614f07a5b2d7a3544a7a06"
+      "sha256": "2ddadd43d3100dbc8dcf41e17d28a28ef8c0b1ded42980572fd81d5814d4540d"
     },
     {
       "path": "skills/writing-companion/SKILL.md",
@@ -52,7 +52,7 @@
     },
     {
       "path": "context/usage.md",
-      "sha256": "119e6c13ef5a125e92552719866ee179c49c5abf88b981a8fbae8085d26ca392"
+      "sha256": "8b8c78c9e9cb38964daa670893e241976e085eff18cd1a23ea33af2400aa872a"
     },
     {
       "path": "context/tasks.md",
@@ -80,7 +80,7 @@
     },
     {
       "path": "context/capability-boundaries.md",
-      "sha256": "b5c2b3fbf4fa4d993932eee5717c5daf9908d3acd467f057619991c2594e2034"
+      "sha256": "b062fd100b48dfee606a61fcfe5f6f8e44a82ad872e7a7447abdd574a01e7aa9"
     },
     {
       "path": "skills/self-maintain/SKILL.md",
