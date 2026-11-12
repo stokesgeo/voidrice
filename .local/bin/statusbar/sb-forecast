@@ -22,7 +22,7 @@ checkforecast() {
 # Line 16 of the report holds the chances of rain; show the highest.
 getprecipchance() {
 	echo "$weatherdata" | sed '16q;d' |    # Extract line 16 from file
-		grep -wo "[0-9]*%" |           # Find a sequence of digits followed by '%'
+		grep -Eo '[0-9]+%' |           # Find a sequence of digits followed by '%'
 		sort -rn |                     # Sort in descending order
 		head -n 1                       # Extract first line
 }
@@ -62,7 +62,11 @@ esac
 checkforecast && showweather ||
 	( ( exec >/dev/null 2>&1; lock=/tmp/sb-forecast-$(id -u).lock
 		mkdir "$lock" || exit
-		trap 'rmdir "$lock"' EXIT; tries=0; while [ $tries -ne 100 ]; do
+		trap 'rmdir "$lock"' EXIT
+		trap 'exit 129' HUP
+		trap 'exit 130' INT
+		trap 'exit 143' TERM
+		tries=0; while [ $tries -ne 100 ]; do
 			getforecast && break ||
 				{ tries=$((tries+1)); sleep .1; }
 		done

@@ -6,7 +6,7 @@
 # Compiles .tex. groff (.mom, .ms), .rmd, .md, .org.  Opens .sent files as sent
 # presentations. Runs scripts based on extension or shebang.
 
-# Usage: compiler FILE. A document's PDF is written beside FILE.
+# Usage: compiler FILE. PDFs normally go beside FILE; TeX follows latexmk's out/.
 
 file="${1}"
 ext="${file##*.}"

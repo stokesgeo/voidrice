@@ -24,7 +24,11 @@ checkip() { [ -n "$(find "$ipfile" -mmin -60 2>/dev/null)" ]; }
 checkip ||
 	{ ( exec >/dev/null 2>&1; lock=/tmp/sb-iplocate-$(id -u).lock
 		mkdir "$lock" || exit
-		trap 'rmdir "$lock"' EXIT; tries=0; while [ $tries -ne 100 ]; do
+		trap 'rmdir "$lock"' EXIT
+		trap 'exit 129' HUP
+		trap 'exit 130' INT
+		trap 'exit 143' TERM
+		tries=0; while [ $tries -ne 100 ]; do
 			getip && break ||
 				{ tries=$((tries+1)); sleep .1; }
 		done

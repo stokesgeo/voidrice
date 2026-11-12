@@ -1,0 +1,3 @@
+# Default machine-local work is not public dotfile configuration.
+*
+!.gitignore

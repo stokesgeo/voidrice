@@ -1,0 +1,101 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080" viewBox="0 0 1920 1080">
+  <title>Vertrice — OpenBSD keys and daily workflows</title>
+  <desc>Desktop reference for the shipped cwm bindings. Super means the Windows key. S means Shift and C means Control. Plus joins keys held together.</desc>
+  <rect width="1920" height="1080" fill="#171b20"/>
+  <g font-family="DejaVu Sans Mono, Menlo, monospace" fill="#eee8da">
+    <text x="80" y="112" font-size="64">VERTRICE</text>
+    <text x="82" y="158" font-size="25" fill="#c4ae80">OPENBSD / CWM</text>
+    <text x="1838" y="105" text-anchor="end" font-size="26">Super = Windows key</text>
+    <text x="1838" y="150" text-anchor="end" font-size="23" fill="#aeb7c1">S = Shift   C = Control   + = hold together</text>
+    <path d="M80 192H1840" stroke="#b88961" stroke-width="2"/>
+
+    <g font-size="26" fill="#c4ae80">
+      <text x="80" y="250">OPEN / FIND</text>
+      <text x="690" y="250">WINDOWS / GROUPS</text>
+      <text x="1300" y="250">SYSTEM / MEDIA</text>
+    </g>
+    <g font-size="25">
+      <g fill="#eee8da">
+        <text x="80" y="310" data-bind="4-Return">Super+Enter</text>
+        <text x="80" y="357" data-bind="4-d">Super+d</text>
+        <text x="80" y="404" data-bind="4-a">Super+a</text>
+        <text x="80" y="451" data-bind="4-r">Super+r</text>
+        <text x="80" y="498" data-bind="4-w">Super+w</text>
+        <text x="80" y="545" data-bind="4S-w">Super+S+w</text>
+        <text x="80" y="592" data-bind="4S-Return">Super+S+Enter</text>
+        <text x="80" y="639" data-bind="4-F1">Super+F1</text>
+      </g>
+      <g fill="#aeb7c1">
+        <text x="335" y="310">Terminal here</text>
+        <text x="335" y="357">Run menu</text>
+        <text x="335" y="404">Pi assistant</text>
+        <text x="335" y="451">Files (lf)</text>
+        <text x="335" y="498">Qutebrowser</text>
+        <text x="335" y="545">Chromium</text>
+        <text x="335" y="592">Scratch terminal</text>
+        <text x="335" y="639">All hotkeys</text>
+      </g>
+      <g fill="#eee8da">
+        <text x="690" y="310" data-bind="4-j 4-k">Super+j / k</text>
+        <text x="690" y="357" data-bind="4-t">Super+t</text>
+        <text x="690" y="404" data-bind="4-space">Super+Space</text>
+        <text x="690" y="451" data-bind="4-f">Super+f</text>
+        <text x="690" y="498" data-bind="4-q">Super+q</text>
+        <text x="690" y="545" data-bind="4-1">Super+1..9</text>
+        <text x="690" y="592" data-bind="4S-1">Super+S+1..9</text>
+        <text x="690" y="639" data-bind="4-Tab">Super+Tab</text>
+      </g>
+      <g fill="#aeb7c1">
+        <text x="945" y="310">Cycle windows</text>
+        <text x="945" y="357">Tile vertically</text>
+        <text x="945" y="404">Make master</text>
+        <text x="945" y="451">Full screen</text>
+        <text x="945" y="498">Close window</text>
+        <text x="945" y="545">Show group</text>
+        <text x="945" y="592">Send to group</text>
+        <text x="945" y="639">Previous group</text>
+      </g>
+      <g fill="#eee8da">
+        <text x="1300" y="310" data-bind="4-BackSpace">Super+Backspace</text>
+        <text x="1300" y="357" data-bind="4S-F11">Super+S+F11</text>
+        <text x="1300" y="404" data-bind="4-F3">Super+F3</text>
+        <text x="1300" y="451" data-bind="4-F8">Super+F8</text>
+        <text x="1300" y="498" data-bind="4-F9 4-F10">Super+F9 / F10</text>
+        <text x="1300" y="545" data-bind="4-p">Super+p</text>
+        <text x="1300" y="592" data-bind="4-minus 4-equal">Super+- / =</text>
+        <text x="1300" y="639" data-bind="4S-m">Super+S+m</text>
+      </g>
+      <g fill="#aeb7c1">
+        <text x="1570" y="310">Lock / power</text>
+        <text x="1570" y="357">Join Wi-Fi</text>
+        <text x="1570" y="404">Displays</text>
+        <text x="1570" y="451">Day / night</text>
+        <text x="1570" y="498">Mount / unmount</text>
+        <text x="1570" y="545">Play / pause</text>
+        <text x="1570" y="592">Volume - / +</text>
+        <text x="1570" y="639">Mute</text>
+      </g>
+    </g>
+    <path d="M80 688H1840" stroke="#48515b"/>
+    <g font-size="26" fill="#c4ae80">
+      <text x="80" y="747">WRITE WITH PI</text>
+      <text x="690" y="747">MOVE / RESIZE</text>
+      <text x="1300" y="747">FIND YOUR WAY</text>
+    </g>
+    <g font-size="25" fill="#eee8da">
+      <text x="80" y="797">In your work folder:</text>
+      <text x="80" y="843">ipe-pi FILE</text>
+      <text x="80" y="889">,pp  line / selection + Pi pane</text>
+      <text x="80" y="935">:w   explicitly save the page</text>
+      <text x="690" y="797">Super+drag       move</text>
+      <text x="690" y="843">Super+right-drag resize</text>
+      <text x="690" y="889" data-bind="4S-t">Super+S+t       tile horizontally</text>
+      <text x="690" y="935" data-bind="4S-F2">Super+S+F2      full-screen writing</text>
+      <text x="1300" y="797">man vertrice    full manual</text>
+      <text x="1300" y="843" data-bind="4S-F1">Super+S+F1      manual picker</text>
+      <text x="1300" y="889" data-bind="4-0">Super+0         show all groups</text>
+      <text x="1300" y="935" data-bind="4-b">Super+b         status notice</text>
+    </g>
+    <text x="80" y="1020" font-size="22" fill="#aeb7c1">Keys: ~/.config/cwm/cwmrc     |     IPE edits do not save automatically.</text>
+  </g>
+</svg>

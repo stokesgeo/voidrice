@@ -1,4 +1,4 @@
--- mpvSockets: one IPC socket per mpv instance, removed on exit.
+-- mpvSockets: one IPC socket per mpv instance, removed on normal shutdown.
 -- mpv loads it from scripts/ by itself.
 --
 -- Source: https://github.com/wis/mpvSockets, commit be9b7ca8, MIT License,
@@ -38,12 +38,26 @@ if cache == nil or cache == "" then
 end
 local dir = utils.join_path(cache, "mpvSockets")
 
-mp.command_native({
+local created = mp.command_native({
     name = "subprocess",
     args = {"mkdir", "-p", "-m", "700", dir},
     playback_only = false,
     capture_stderr = true,
 })
+if not created or created.status ~= 0 then
+    mp.msg.error("Cannot create private IPC directory; IPC disabled")
+    return
+end
+local secured = mp.command_native({
+    name = "subprocess",
+    args = {"chmod", "700", dir},
+    playback_only = false,
+    capture_stderr = true,
+})
+if not secured or secured.status ~= 0 then
+    mp.msg.error("Cannot secure IPC directory; IPC disabled")
+    return
+end
 
 local socket = utils.join_path(dir, tostring(utils.getpid()))
 mp.set_property("options/input-ipc-server", socket)

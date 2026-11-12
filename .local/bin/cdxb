@@ -8,7 +8,9 @@
 # paths in ~/.config/cdxb/grants and those from -r, -w and add. The deny
 # list hides its paths even then, as it does /etc/hostname.* (wireless
 # keys). The protected paths (Codex's and cdxb's settings, your dotfiles,
-# ~/.config, ~/.cache) are never writable. A session's walls are in
+# ~/.config, ~/.cache, Pi's application) are never writable. Pi's agent
+# state is hidden, including its executable extensions and account state.
+# A session's walls are in
 # ~/.cache/cdxb/PID/walls. Codex proposes a settings file by writing it
 # whole to $CDXB_OUTBOX; you see the diff and apply it with y.
 # Setuid programs cannot run in the box: `cdxb doas` asks a relay outside
@@ -54,11 +56,37 @@ fi
 # path WHAT P: P with ~ expanded and links resolved, as unveil sees it.
 # A control character is refused: a newline would add a wall.
 path() {
-	typeset p=$2
+	typeset p=$2 leaf
 	case $p in "~"|"~/"*) p=$HOME${p#"~"} ;; esac
-	[ -e "$p" ] && p=$(readlink -f -- "$p")
+	if [ "$1" = Pi ]; then
+		case $p in file://*) die "Pi file URL overrides are not supported: use a filesystem path" ;; esac
+		case $p in /*) ;; *) p=$(pwd -P)/$p ;; esac
+	fi
+	if [ "$1" = Pi ] && [ -L "$p" ] && [ ! -e "$p" ]; then die "Pi path is a dangling symlink: $p"; fi
+	if [ -e "$p" ]; then p=$(readlink -f -- "$p") || die "$1: cannot resolve $p"
+	elif [ -d "${p%/*}" ]; then
+		# unveil also accepts a missing final name in an existing directory.
+		leaf=${p##*/}
+		p=$(readlink -f -- "${p%/*}") || die "$1: cannot resolve parent of $p"
+		p=$p/$leaf
+	fi
 	case $2$p in *[[:cntrl:]]*) die "$1: a control character in the path" ;; esac
 	print -r -- "$p"
+}
+
+# Pi's Node join/resolve removes dot components before following links. Some
+# session directory scans also use the raw spelling; lists protects both.
+pipath() {
+	typeset p=$1 q='' part
+	case $p in \~|\~/*) p=$HOME${p#\~} ;; esac
+	case $p in file://*) die "Pi file URL overrides are not supported: use a filesystem path" ;; esac
+	case $p in /*) ;; *) p=$(pwd -P)/$p ;; esac
+	while [ -n "$p" ]; do
+		part=${p%%/*}
+		case $p in */*) p=${p#*/} ;; *) p= ;; esac
+		case $part in ''|.) ;; ..) q=${q%/*} ;; *) q=$q/$part ;; esac
+	done
+	print -r -- "${q:-/}"
 }
 
 # list FILE: a grants or deny file without its comments and blank lines.
@@ -80,6 +108,8 @@ protected() {
 	typeset f
 	print -r -- "- $state"
 	print -r -- "rx $HOME/.local/bin"
+	print -r -- "$pirun" | while IFS= read -r f; do print -r -- "rx $f"; done
+	print -r -- "$pideny" | while IFS= read -r f; do print -r -- "- $f"; done
 	for f in "$cfg" "$share" "$HOME/.local/src" "$HOME/.profile" "$HOME/.xsession" \
 	    "$HOME/.xprofile" "$conf/shell" "$conf/ksh" "$conf/x11"; do print -r -- "r $f"; done
 	for f in config.toml AGENTS.md AGENTS.override.md .env hooks.json rules skills plugins; do
@@ -99,9 +129,37 @@ r $HOME/.local/share/vertrice.git"
 
 # lists: $deny and $prot, the denied and protected paths, links resolved.
 lists() {
+	typeset p location raw
 	[ -r "$cfg/deny" ] || die "no deny list at $cfg/deny: restore it from the dotfiles"
+	# Hide the whole Pi tree: settings/packages can name executable resources,
+	# and account/session files must not be reopened by an explicit read grant.
+	# Honor the alternate agent directory inherited by this launcher as well.
+	pideny=$(path Pi "$HOME/.pi") || exit
+	if [ -d "$HOME/.pi" ]; then
+		p=$(path Pi "$HOME/.pi/agent") || exit
+		pideny="$pideny
+$p"
+	fi
+	pirun=$(path Pi "$HOME/.local/share/vertrice-pi") || exit
+	for p in "$PI_CODING_AGENT_DIR" "$PI_CODING_AGENT_SESSION_DIR" "$PI_PACKAGE_DIR"; do
+		[ -n "$p" ] || continue
+		location=$p
+		p=$(pipath "$location") || exit
+		p=$(path Pi "$p") || exit
+		{ [ -e "$p" ] || [ -d "${p%/*}" ]; } || die "Pi directory parent does not exist: $p"
+		raw=$(path Pi "$location") || exit
+		if [ "$raw" != "$p" ] && { [ -e "$raw" ] || [ -d "${raw%/*}" ]; }; then p="$p
+$raw"; fi
+		if [ "$location" = "$PI_CODING_AGENT_DIR" ] || [ "$location" = "$PI_CODING_AGENT_SESSION_DIR" ]; then
+			pideny="$pideny
+$p"
+		else pirun="$pirun
+$p"; fi
+	done
 	deny=$(list "$cfg/deny" | while read -r p; do path deny "$p"; done) || exit
-	prot=$({ protected; dotfiles; } | while read -r perms p; do path protected "$p"; done) || exit
+	deny="$deny
+$pideny"
+	prot=$({ protected; dotfiles; } | while IFS= read -r p; do path protected "${p#* }"; done) || exit
 }
 
 # ok PERMS PATH: PATH may be granted. Never a denied path; for rw, neither a
@@ -116,12 +174,25 @@ ok() {
 	return 1
 }
 
-# wall PERMS PATH: one unveil line; "-" hides. A missing path is unveiled
-# by name if its folder exists, so the box cannot make it.
-wall() { { [ -e "$2" ] || [ -d "${2%/*}" ]; } && print -r -- "${1#-}:$2"; }
+# wall PERMS PATH: one unveil line; "-" hides. A missing final name can be
+# unveiled if its parent exists; permissions without c prevent creation.
+wall() {
+	typeset p
+	{ [ -e "$2" ] || [ -d "${2%/*}" ]; } || return 0
+	p=$(path wall "$2") || return
+	# Automatic grants obey denied ancestors too, including resolved links.
+	[ "$1" = - ] || ! under "$p" "$deny" || return 0
+	print -r -- "${1#-}:$p"
+}
 
 # mine PERMS PATH: a grant. rw is read, write, run, create and remove.
-mine() { if [ "$1" = rw ]; then wall rwxc "$2"; else wall r "$2"; fi; }
+mine() {
+	if [ "$1" = rw ]; then wall rwxc "$2"
+	# Pi's application gets rx below. Do not first unveil the same name with
+	# r: unveil cannot later add x to an existing entry.
+	elif print -r -- "$pirun" | grep -qxF -- "$2"; then return 0
+	else wall r "$2"; fi
+}
 
 # homewalls, for -H: home read and run, so nothing at its top is made,
 # removed or swapped; each folder in it may change, but one with protected
@@ -131,12 +202,13 @@ homewalls() {
 	wall rx "$H"
 	for e in "$H"/* "$H"/.[!.]* "$H"/..?*; do
 		[ -d "$e" ] && [ ! -L "$e" ] && ! under "$e" "$prot" || continue
-		if deep "$e" "$prot"; then wall r "$e"; else wall rwxc "$e"; fi
+		if deep "$e" "$prot" || holds "$e" "$pideny
+$pirun"; then wall r "$e"; else wall rwxc "$e"; fi
 	done
 }
 
-# walls: the session's unveil lines. The most specific path wins; for the
-# same path, the last line.
+# walls: the session's unveil lines. More-specific paths can make exceptions
+# below hidden parents; user-denied ancestors never receive such grants.
 walls() {
 	typeset perms p
 	[ -n "$Hflag" ] && homewalls
@@ -153,11 +225,10 @@ walls() {
 	[ "$dir" = "$H" ] || mine rw "$dir"
 	while IFS= read -r p; do mine "${p%% *}" "${p#* }"; done <"$S/added"
 	print -r -- "$deny" | while IFS= read -r p; do wall - "$p"; done
-	{ protected; [ -z "$Hflag" ] || dotfiles; } | while read -r perms p; do wall "$perms" "$p"; done
-	print -r -- "rwc:$S/tmp"
-	print -r -- "rwc:$outbox"
-	[ -z "$dflag" ] || print -r -- "rw:$S/doas.sock
-rx:$box"
+	{ protected; [ -z "$Hflag" ] || dotfiles; } | while IFS= read -r p; do wall "${p%% *}" "${p#* }"; done
+	wall rwc "$S/tmp"
+	wall rwc "$outbox"
+	if [ -n "$dflag" ]; then wall rw "$S/doas.sock"; wall rx "$box"; fi
 }
 
 # review: each proposal is renamed out of the outbox into a private folder
@@ -268,6 +339,15 @@ dir=$(path dir "${1:-.}") || exit
 [ $# -gt 0 ] && shift
 [ -d "$dir" ] || die "$dir: not a directory"
 lists
+# These paths are needed to run, not optional grants. Refuse a conflicting
+# deny before building, seeding Codex settings or starting a doas relay.
+for p in /bin /sbin /usr /etc /var/run/ld.so.hints /dev/random /dev/urandom \
+    /dev/null /dev/tty /dev/ptm "$HOME/.codex" "$S/tmp" "$outbox" "$box" "$codex"; do
+	p=$(path runtime "$p") || exit
+	under "$p" "$deny" && die "required runtime path $p is beneath a deny entry; cannot start"
+done
+[ -z "$dflag" ] || ! under "$S/doas.sock" "$deny" || die "required doas socket is on the deny list; cannot start"
+[ -z "$Hflag" ] || ! under "$H" "$deny" || die "home is on the deny list; cannot use -H"
 # Codex's -c below quotes dir: no quote or backslash in it.
 case $dir in /|*[\"\\]*) die "$dir: not /, nor a path with a quote or backslash" ;; esac
 [ "$dir" != "$H" ] || [ -n "$Hflag" ] || die "$dir is your home: add -H to mean it"
@@ -296,13 +376,15 @@ set -A cargs -- "$@"	# your Codex arguments, kept for a restart
 while :; do
 	review
 	rm -f -- "$S/restart"
-	walls >"$S/walls"
+	walls >"$S/walls" || die "cannot build walls"
 	set -A argv --
 	while IFS= read -r w; do argv[${#argv[*]}]=-u; argv[${#argv[*]}]=$w; done <"$S/walls"
 	# TMPDIR and the GitHub token are set for the box alone.
 	(cd -- "$dir" && export TMPDIR=$S/tmp && gittoken && exec "$box" "${argv[@]}" -- "$codex" -c "$project" "$@")
+	status=$?
 	[ -e "$S/restart" ] || break
 	set -- resume --last "${cargs[@]}"
 	say "starting again with the new paths; the conversation resumes"
 done
 review
+exit "$status"

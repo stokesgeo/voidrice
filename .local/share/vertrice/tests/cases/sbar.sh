@@ -89,8 +89,8 @@ t_sbar_cwm_bar() {
 
 # The xinitrc picks the bar's terminal by $TERMINAL, then runs cwm.
 t_sbar_session_start() {
-	sed -n '/^\[ "\$WM" = dwm \]/,$p' "$REPO/.config/x11/xinitrc" |
-		sed 's/^exec "\$@" cwm.*/echo cwm/' >"$T/tail"
+	sed -n '/^if \[ "\$WM" = dwm \]/,$p' "$REPO/.config/x11/xinitrc" |
+		sed 's/^[[:space:]]*"\$@" cwm.*/echo cwm/' >"$T/tail"
 	grep -q '^echo cwm' "$T/tail" || fail "cannot cut the session tail from xinitrc"
 	for term in xterm st; do
 		: >"$VT_STATE/log"

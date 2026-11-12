@@ -27,8 +27,16 @@ fi
 # named vbar for cwmrc's gap, ignore and autogroup lines; it is wider than
 # the screen, and the rest is cut off. st and xterm spell the options apart.
 [ -n "$SSH_AUTH_SOCK" ] || set -- ssh-agent
-[ "$WM" = dwm ] && { sbar & exec "$@" dwm; }
-if [ "$TERMINAL" = st ]; then st -n vbar -T vbar -g 300x1+0-0 -e sbar -t &
-else xterm -name vbar -T vbar -geometry 300x1+0-0 -e sbar -t &
+# Keep ownership of session jobs: xenodm does not stop them for us.
+trap 'kill "$themepid" "$hotplugpid" "$barpid" 2>/dev/null' EXIT
+trap 'exit' HUP INT TERM
+if [ "$WM" = dwm ]; then
+	sbar & barpid=$!
+	"$@" dwm
+else
+	if [ "$TERMINAL" = st ]; then st -n vbar -T vbar -g 300x1+0-0 -e sbar -t &
+	else xterm -name vbar -T vbar -geometry 300x1+0-0 -e sbar -t &
+	fi
+	barpid=$!
+	"$@" cwm -c "$XDG_CONFIG_HOME/cwm/cwmrc"
 fi
-exec "$@" cwm -c "$XDG_CONFIG_HOME/cwm/cwmrc"

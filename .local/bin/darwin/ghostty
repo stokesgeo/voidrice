@@ -3,8 +3,8 @@
 # ghostty on the Mac, as the scripts call $TERMINAL: a new window in this
 # directory, running the command after -e if one is given. Ghostty's own
 # command cannot open a window on macOS; open(1) starts another Ghostty
-# instead. What open starts gets no environment from here, so the command
-# runs under a login sh, which reads the profile. Each Ghostty started so
+# instead. The command runs under a login sh to reload the profile's PATH
+# and defaults. Each Ghostty started so
 # quits with its last window, or it stays on, windowless.
 
 case ${1:-} in +*) exec /Applications/Ghostty.app/Contents/MacOS/ghostty "$@" ;; esac

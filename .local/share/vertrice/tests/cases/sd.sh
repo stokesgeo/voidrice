@@ -188,7 +188,10 @@ t_sd_proc_cwd_compiles() {
 	if [ "$VT_HOST" = OpenBSD ]; then
 		cp "$c" "$REPO/.local/src/sd/Makefile" "$T/" || fail "cannot copy"
 		make -C "$T" >/dev/null || fail "make failed"
-		eq "its own cwd" "$T" "$("$T/proc-cwd" $$)"
+		# $$ inside a subshell still names the runner, not this case's shell.
+		"$VT_SH" -c '"$1" $$ >"$2"; :' sh "$T/proc-cwd" "$T/cwd" ||
+			fail "proc-cwd failed"
+		eq "its own cwd" "$T" "$(cat "$T/cwd")"
 		return
 	fi
 	command -v cc >/dev/null 2>&1 || skip "no C compiler"

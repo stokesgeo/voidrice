@@ -6,7 +6,8 @@
 # last run.
 # The ticks come from sysctl kern.cp_time2.N for each N below hw.ncpu, which
 # counts every CPU configured, SMT threads too. With SMT off (the default)
-# those threads are offline (hw.ncpuonline leaves them out) but still get a bar.
+# those threads are offline (hw.ncpuonline leaves them out). Unchanged counters
+# get an idle bar, including the first run when there is no history.
 
 # The previous run's ticks, kept to take the difference.
 cache="${XDG_CACHE_HOME:-$HOME/.cache}"/cpubarscache
@@ -39,7 +40,7 @@ echo "$stats" | while read -r row; do
 		else printf "%d\n", (1 - (idle - $3)  / (total - $2))*100 /12.5 }}' \
 		id="$id" total="$total" idle="$idle")" in
 
-		"0") printf "▁";;
+		"idle"|"0") printf "▁";;
 		"1") printf "▂";;
 		"2") printf "▃";;
 		"3") printf "▄";;

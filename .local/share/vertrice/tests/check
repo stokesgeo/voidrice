@@ -1,7 +1,8 @@
 #!/bin/ksh
 
 # check: run once on the X220 after the first boot, as you, inside X.
-# Confirms what the mocks in this suite stand in for. Changes nothing.
+# Confirms native interfaces behind the mocks. Creates scratch and builds
+# helpers in installed source directories; review before running on a live seat.
 
 fails=0
 try() {	# try "label" command...: PASS if the command succeeds

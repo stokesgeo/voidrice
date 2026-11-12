@@ -1,0 +1,4 @@
+# OpenBSD: preserve normal HTML opening; the profile selects the text renderer.
+# NeoMutt's default mailcap_sanitize must stay enabled for MIME parameters.
+text/html; /usr/local/lib/mutt-wizard/openfile %s ; nametemplate=%s.html
+text/html; html-to-text %s 1024 %{charset}; nametemplate=%s.html; copiousoutput;

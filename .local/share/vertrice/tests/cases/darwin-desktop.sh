@@ -127,8 +127,10 @@ t_darwin_desktop_bar() {
 	logged "^sketchybar --bar position=bottom height=$gap "
 	want=$(sed -n 's/^blocks="\(.*\)"$/\1/p' "$REPO/.local/bin/statusbar/sbar" | sed 's/ sb-cpu / /')
 	# Right-hand items are added right to left.
-	got=$(sed -n 's/^sketchybar --add item \(sb-[a-z]*\) right .*/\1/p' "$VT_STATE/log" |
-		awk '{ l = $0 " " l } END { sub(/ $/, "", l); print l }')
+	got=$(awk '/^sketchybar / { while (match($0, /--add item sb-[a-z]+ right/)) {
+		item=substr($0,RSTART,RLENGTH); sub(/^--add item /,"",item); sub(/ right$/,"",item)
+		l=item " " l; $0=substr($0,RSTART+RLENGTH)
+	} } END { sub(/ $/,"",l); print l }' "$VT_STATE/log")
 	eq "sbar's blocks" "$want" "$got"
 	for b in $got; do
 		case $b in
@@ -137,13 +139,14 @@ t_darwin_desktop_bar() {
 		sb-volume) seconds=0 ;;
 		*) seconds=60 ;;
 		esac
-		logged "^sketchybar --add item $b right --set $b script=$REPO/.config/sketchybar/block update_freq=$seconds --subscribe $b mouse.clicked mouse.scrolled\$"
+		logged "^sketchybar .*--add item $b right --set $b script=$REPO/.config/sketchybar/block update_freq=$seconds --subscribe $b mouse.clicked mouse.scrolled( |\$)"
 		[ -x "$REPO/.local/bin/statusbar/$b" ] || fail "no block $b"
 	done
-	logged '^sketchybar --add event appearance AppleInterfaceThemeChangedNotification .* script=theme auto '
+	logged '^sketchybar .*--add event appearance AppleInterfaceThemeChangedNotification .* script=theme auto '
 	logged '^sketchybar --update$'
 	logged '^theme auto$'
 	eq 'appearance before first update' 'theme auto' "$(tail -n 2 "$VT_STATE/log" | head -n 1)"
+	eq 'one initialization batch plus final update' 2 "$(nlogged '^sketchybar ')"
 }
 
 # Names stay readable; duplicate names and spaces resolve to exact bundles.
@@ -193,6 +196,27 @@ t_darwin_desktop_network_help() {
 # aerospace.toml: Super is cmd-alt-ctrl, as karabiner.json makes Caps
 # Lock; each key once; none of macOS's diagnostics keys; each command one
 # AeroSpace has; each script run by name one this repository has.
+aerospace_commands_valid() {
+	python3 -c 'import sys,tomllib
+b=tomllib.load(open(sys.argv[1],"rb"))["mode"]["main"]["binding"]
+for value in b.values():
+    for command in value if isinstance(value,list) else [value]:
+        print(command.split()[0])' "$1" >"$T/native-commands" || return 1
+	while read -r c; do
+		case $c in
+		close|exec-and-forget|focus|fullscreen|layout|move|move-node-to-workspace|reload-config|resize|volume|workspace|workspace-back-and-forth) ;;
+		*) return 1 ;;
+		esac
+	done <"$T/native-commands"
+}
+
+t_darwin_command_validator_rejects_bad_input() {
+	printf '[mode.main.binding]\nx = "not-a-native-command"\n' >"$T/invalid.toml"
+	if aerospace_commands_valid "$T/invalid.toml"; then fail 'invalid native command accepted'; fi
+	printf 'not TOML at all\n' >"$T/invalid.toml"
+	if aerospace_commands_valid "$T/invalid.toml" 2>/dev/null; then fail 'invalid TOML accepted'; fi
+}
+
 t_darwin_desktop_keys() {
 	a=$REPO/.config/aerospace/aerospace.toml
 	if command -v python3 >/dev/null 2>&1; then
@@ -214,14 +238,11 @@ t_darwin_desktop_keys() {
 		*) fail "unknown key $k" ;;
 		esac
 	done
-	sed -n "s/^cmd-[^=]* = '*\([a-z-]*\).*/\1/p" "$a" | sort -u | while read -r c; do
-		case $c in
-		close|exec-and-forget|focus|fullscreen|layout|move|move-node-to-workspace|reload-config|resize|volume|workspace|workspace-back-and-forth) ;;
-		*) fail "not an AeroSpace command: $c" ;;
-		esac
-	done
-	for s in $(sed -n 's/.*aerospace\/run \([a-z][a-z-]*\).*/\1/p' "$a" | sort -u); do
-		case $s in mpc|sketchybar) continue ;; esac
+	# Arrays contain separate native commands; parse TOML rather than guessing
+	# the first command from its source spelling.
+	aerospace_commands_valid "$a" || fail 'invalid AeroSpace command or TOML'
+	for s in $(sed -n 's/.*aerospace\/run \([a-z][a-z0-9-]*\).*/\1/p' "$a" | sort -u); do
+		case $s in mpc|sketchybar|python3) continue ;; esac
 		[ -f "$REPO/.local/bin/$s" ] || [ -f "$REPO/.local/bin/statusbar/$s" ] ||
 			fail "run names $s, which is not in .local/bin"
 	done

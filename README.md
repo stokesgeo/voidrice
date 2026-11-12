@@ -1,32 +1,27 @@
 # vertrice
 
-vertrice is [voidrice](https://github.com/LukeSmithxyz/voidrice), Luke
-Smith's dotfiles, ported to OpenBSD and set up for a ThinkPad X220. It keeps
-voidrice's layout: scripts in `~/.local/bin`, configuration in `~/.config`,
-dmenu for every menu, one status line. It uses the base system first: ksh,
-cwm with voidrice's keys, and xterm. A package is added only for a feature
-base does not have.
+[voidrice](https://github.com/LukeSmithxyz/voidrice) ported to OpenBSD for
+ThinkPads X220 and X210AI: ksh, cwm, xterm, dmenu and a small shell-script
+desktop. Base system first; packages supply what base does not.
 
-It tracks the latest OpenBSD release or -current. It has been tested
-against mocked OpenBSD commands, not yet on an X220.
+The same repository also supports Apple-silicon Macs with Ghostty, AeroSpace
+and SketchyBar. Each system checks out only its selected files.
 
-The same repository installs on a Mac with Apple silicon: Ghostty,
-AeroSpace with the same keys, SketchyBar running the same status blocks,
-and choose for the menus. See "The Mac" in `man vertrice`.
+## Install on OpenBSD
 
-## Install
+Vertrice configures an existing OpenBSD installation. It is not an OS or
+firmware installer. Package and Pi installation need network access.
 
-These commands are for a fresh home. On an existing Mac, review and merge
-the selected files first: a forced checkout replaces existing dotfiles,
-including shell, editor and desktop settings. Keep local launchers and
-author-owned configuration. Install packages and activate the desktop
-only after that merge.
+For a prepared setup USB, read its `README.txt` and start `SETUP` with base
+`sh` as the normal user. Use local root authentication when requested. The USB
+checks its payload, stages it on the native filesystem and asks before system
+changes and home-file replacement. Keep the reported backup/staging paths.
 
-As root on a fresh system:
+For a manual install into a fresh home, first install Git as root:
 
     pkg_add git
 
-As your user:
+Then, as the normal user:
 
     git clone --bare https://github.com/stokesgeo/voidrice.git ~/.local/share/vertrice.git
     cd ~/.local/share/vertrice.git
@@ -34,87 +29,90 @@ As your user:
     git --work-tree=$HOME checkout -f
     git config status.showUntrackedFiles no
 
-The third line picks this system's files, so each machine holds only
-what it uses. This README, the spec and the test suite stay in the
-repository.
+**A forced checkout replaces selected files.** For an existing home, preserve
+and merge local configuration first. The manual procedure above does not make
+the setup USB's recovery copies.
 
-Then read `~/.local/bin/vertrice-install`, the system half, and run it as
-root. The first time there is no doas rule yet: `su -`, then
-`sh /home/YOU/.local/bin/vertrice-install`. Later:
+Read `~/.local/bin/vertrice-install`, then run it as root. With configured doas:
 
     doas sh ~/.local/bin/vertrice-install
 
-Reboot. Optional packages (mail, news, torrents, the dictionary and others),
-then the dictionary:
+Otherwise use `su` and the script's absolute path. Return to the normal user
+before installing Pi:
 
-    doas pkg_add -l ~/.local/share/openbsd/pkglist.extra
-    doas sh ~/.local/bin/vertrice-dict
+    sh ~/.local/bin/openbsd/vertrice-pi-setup
 
-Update with `config pull origin master`. After an update that changes
-`~/.local/share/openbsd`, run the installer again; if it changes
-`sparse-checkout` there, run the second and third lines above again.
+The installer checks doas/pf syntax and stops on failure. Earlier package,
+service and configuration changes can remain; there is no automatic rollback.
+Run setup locally: installing its firewall can interrupt existing inbound SSH.
 
-## Documentation
+Review local settings, then reboot when ready. Use a separate working copy of
+[POST-INSTALL.md](.local/share/vertrice/POST-INSTALL.md) per machine. It covers
+fresh login, hardware, private account sign-in, daily use and recovery.
 
-On the Mac, run the installer as your user. Existing display, sleep and
-password-delay settings are preserved. The system menu's display-off action
-uses that recovery window; it does not promise immediate locking.
-The installer stops on required failures;
-packages and files installed does not mean permissions or a fresh login
-have been verified. Caps held supplies Command+Option+Control; adding
-Shift supplies Hyper. Caps+Fn+F1 shows readable actions, also available
-from the application picker. Missing optional terminal programs produce
-a clear notification.
-The Mac installer accepts `--keep-shell` to retain an existing login shell.
-Without it, oksh remains the default.
-On macOS 27, grant AeroSpace and Karabiner-Core-Service Device Control
-and Data Access. Enable both Karabiner background services and its Driver
-Extension in Login Items. Script-launched terminals start with one fresh
-window; scratchpad lookup tolerates Ghostty's bell marker.
+## Daily use
 
-Mac update counts live in the user cache. Calendar and Reminders open from
-the clock; Network Settings opens from the network item. The route icon
-does not establish internet or remote-host reachability. The bar uses
-events and block-specific intervals rather than polling every item at
-five seconds.
+The default OpenBSD wallpaper is a hotkey and workflow guide. It fits without
+cropping on different screen shapes. A saved `~/.local/share/bg` choice takes
+precedence; `setbg ~/.local/share/vertrice/KEYS.png` selects the guide explicitly.
+The guide reflects the shipped cwm keys; Super+F1 reads your current bindings.
 
-`man vertrice` is the reference: the install and what the installer
-changes in `/etc`, the session, the keys, the machine settings, the tools
-and the Codex box. Super+F1 lists the keys from `~/.config/cwm/cwmrc`.
+- Super+F1: keys; Super+a: Pi; `ipe-pi FILE`: live writing seat.
+- Super+w: qutebrowser for the human; Super+Shift+w: Chromium for agents.
+- W3m: terminal browser and HTML text rendering. `TERMINAL_BROWSER` selects
+  w3m, lynx or elinks; install the selected package and start a fresh login.
+- `man vertrice`: desktop, administration, writing, media and backups.
+- [OPENBSD.md](.local/share/vertrice/OPENBSD.md): purpose and operating principles.
+- [Pi capabilities](.local/share/vertrice/PI_CAPABILITIES.md): local tools and
+  unavailable remote services.
 
-On the X220, after the first boot, run `~/.local/share/vertrice/tests/check`
-once, inside X. The regression suite, `.local/share/vertrice/tests/run`,
-runs from a clone of the repository.
+Optional packages are listed in `.local/share/openbsd/pkglist.extra`. Choose
+the workflows you want; applications still need their data and account setup.
+Dictionary setup uses `vertrice-dict` after its optional packages are present.
+Language compilers need their own toolchains. TeX build/cleanup is explicit,
+not an action performed when closing an editor.
 
-What vertrice is and why, in short: [OPENBSD.md](.local/share/vertrice/OPENBSD.md).
-For agents, the spec and the decisions: [SPEC.md](.local/share/vertrice/SPEC.md).
+Pi is the default assistant. Its user setup installs locked Pi 1.5.0 with npm
+lifecycle scripts disabled and preserves existing settings. Sign in locally;
+no provider credentials belong on the setup USB. The launcher does not install
+software on startup. Codex is deprecated and absent from the OpenBSD package
+lists; retained cdxb code is not required for Pi. Updating a list does not
+uninstall an existing package.
 
-## What differs from voidrice
+Pi runs with normal user access. Admin approval and separate subagent contexts
+are not OS sandboxes. No remote ingestion, device-delivery or task-sync
+service is installed. Read the IPE README for explicit save and recovery rules.
 
-| | voidrice | vertrice |
-|---|---|---|
-| Shell | zsh | ksh |
-| Window manager | dwm | cwm, with dwm's keys; dwm with `WM=dwm` |
-| Terminal | st | xterm |
-| Root | sudo | doas |
-| Status bar | dwmblocks | sbar: drawn by dwm, or a one-line terminal under cwm; Super+b as a notice |
-| Sound | PipeWire | sndio |
-| Wi-Fi | nmtui | `dmenuwifi`, Super+Shift+F11 |
-| Download queue | task-spooler | nq |
-| Archives | tar, unzip, 7z, unrar | bsdtar |
-| Updates | pacman | syspatch and `pkg_add -u`, counted in the bar |
-| Camera and microphone | on | off; `rectoggle`, Super+Ctrl+F11 |
-| Touchpad | on | off; the TrackPoint scrolls |
-| Backups | none | `bk`: dump(8) to a USB disk |
-| Reminders | none | calendar(1), mailed by the nightly daily(8) run |
-| Dictionary | none | `dict` and `roget`, from dictd on localhost |
-| Codex | none | `cdxb`: Codex in an unveil(2) box |
-| Key list, Super+F1 | the LARBS guide | the cwmrc in dmenu |
+## Updates
+
+`config` is Git pointed at the bare repository with HOME as its work tree.
+Inspect local changes and the configured remote before pulling with
+`config pull origin master`. Preserve owner settings and review selected-file
+replacements. Changes under `.local/share/openbsd` may require the system
+installer; sparse-selection changes require reapplying the selection before
+checkout. Do not rerun setup blindly to repair an unexplained failure.
+
+## macOS
+
+Review and merge selected files before checkout on an existing Mac. Run the
+installer as your user, not root; `--keep-shell` retains your login shell.
+See the manual's Mac section for desktop permissions and keys. Existing sleep
+and password-delay settings are preserved; display-off does not promise locking.
+
+## Development
+
+Tests and qualification records are not installed desktop requirements.
+Run `.local/share/vertrice/tests/run` from a repository checkout. Developer
+hardware checks need review and an explicitly chosen target; they are not part
+of normal first boot.
+
+The repository contains public code, general defaults and tests. Personal
+profiles, task records, account settings and private development notes are not
+release material. Review the staged tree and run a redacted secret scan before
+publication; deleting a file at the tip does not remove it from Git history.
 
 ## Credits
 
-vertrice is built on voidrice by [Luke Smith](https://lukesmith.xyz) and
-voidrice's contributors; most of the scripts and configs are theirs. The
-license is unchanged: GNU GPL version 3 (see [LICENSE](LICENSE)).
-
-Default desktop artwork: Thomas Thiemeyer, *The Road to Samarkand*.
+Built on voidrice by Luke Smith and its contributors. GNU GPL version 3;
+see [LICENSE](LICENSE). Retained artwork and Mac default: Thomas Thiemeyer,
+*The Road to Samarkand*. The OpenBSD default is the Vertrice key guide.

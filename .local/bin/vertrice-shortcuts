@@ -1,0 +1,33 @@
+#!/bin/sh
+
+# Generate the four active bookmark outputs, without shadowing Apple's CLI.
+config=${XDG_CONFIG_HOME:-$HOME/.config}
+shell_shortcuts=$config/shell/shortcutrc
+shell_env_shortcuts=$config/shell/shortcutenvrc
+lf_shortcuts=$config/lf/shortcutrc
+vim_shortcuts=$config/nvim/shortcuts.vim
+rm -f "$lf_shortcuts" "$vim_shortcuts"
+printf '# vim: filetype=sh\nalias ' >"$shell_shortcuts"
+printf '# vim: filetype=sh\n' >"$shell_env_shortcuts"
+
+generate() {
+	awk -v kind="$1" -v shell="$shell_shortcuts" -v env="$shell_env_shortcuts" \
+	    -v lf="$lf_shortcuts" -v vim="$vim_shortcuts" '
+	NF && !/^[[:space:]]*#/ {
+		gsub("[[:space:]]*#.*$", "")
+		if (kind == "dirs") {
+			printf "%s=\"cd %s && ls -A\" \\\n", $1, $2 >> shell
+			printf "map C%s cd \"%s\" \n", $1, $2 >> lf
+		} else {
+			printf "%s=\"$EDITOR %s\" \\\n", $1, $2 >> shell
+			printf "map E%s $$EDITOR \"%s\" \n", $1, $2 >> lf
+		}
+		printf "[ -n \"%s\" ] && export %s=\"%s\" \n", $1, $1, $2 >> env
+		printf "cmap ;%s %s\n", $1, $2 >> vim
+	}'
+}
+
+# Owner-authored paths retain their existing environment expansion. Strip
+# comments before eval; disabled zsh/fish/vifm/qutebrowser outputs are gone.
+eval "echo \"$(sed 's/[[:space:]]*#.*//' "$config/shell/bm-dirs")\"" | generate dirs
+eval "echo \"$(sed 's/[[:space:]]*#.*//' "$config/shell/bm-files")\"" | generate files

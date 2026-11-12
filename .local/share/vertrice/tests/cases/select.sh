@@ -36,23 +36,29 @@ takes_all() {
 }
 
 mac_only='^\.config/(aerospace|ghostty|karabiner|sketchybar)/|^\.local/(bin|share)/darwin/|^\.config/mpd/osx\.conf$'
-x220_only='^\.config/(cdxb|cwm|dunst|wal|zathura)/|^\.config/mpd/sndio\.conf$|^\.config/x11/x|^\.local/((bin|share)/openbsd|src)/|^\.x(profile|session)$|^\.calendar/|^\.local/bin/(bk|cdxb|mounter|unmounter|remaps|dmenuwifi|rectoggle|vertrice-dict|statusbar/sb-cpu)$|/tests/check$'
+x220_only='^\.config/(cdxb|cwm|dunst|wal|zathura)/|^\.config/mutt/mailcap$|^\.config/mpd/sndio\.conf$|^\.config/x11/x|^\.local/((bin|share)/openbsd|src)/|^\.x(profile|session)$|^\.calendar/|^\.local/bin/(bk|cdxb|mounter|unmounter|remaps|dmenuwifi|rectoggle|vertrice-dict|statusbar/sb-cpu)$|/tests/check$'
 
 t_select_x220() {
 	sel
 	none "the X220 takes none of the Mac's" "$mac_only" "$T/x220"
+	none "the X220 takes no tests or development records" '^\.local/share/vertrice/(tests/|DEVELOPMENT\.md$)|^\.local/share/openbsd/pi/mcp\.example\.json$' "$T/x220"
 	eq "the X220 takes nothing repo-only" "" "$(comm -12 "$T/x220" "$T/repo")"
 	takes_all "the X220" "$T/x220" .profile .config/cwm/cwmrc .config/x11/xinitrc \
 		.local/bin/openbsd/dmenu .local/bin/vertrice-install .local/bin/cdxb \
 		.local/share/openbsd/sparse-checkout .local/share/openbsd/pkglist \
 		.local/share/man/man7/vertrice.7 .local/share/vertrice/OPENBSD.md \
-		.local/share/vertrice/tests/check .local/src/sd/proc-cwd.c \
+		.local/share/vertrice/POST-INSTALL.md \
+		.local/share/vertrice/KEYS.png \
+		.local/src/sd/proc-cwd.c \
 		.calendar/calendar .local/bin/statusbar/sb-cpu \
-		.config/mpd/mpd.conf .config/mpd/sndio.conf
+		.config/mpd/mpd.conf .config/mpd/sndio.conf .config/mutt/mailcap
 }
 
 t_select_mac() {
 	sel
+	none "the Mac takes no tests or development records" '^\.local/share/vertrice/(tests/|DEVELOPMENT\.md$)' "$T/mac"
+	none "the Mac takes no OpenBSD post-install checklist" '^\.local/share/vertrice/POST-INSTALL\.md$' "$T/mac"
+	none "the Mac takes no OpenBSD key wallpaper" '^\.local/share/vertrice/KEYS\.png$' "$T/mac"
 	none "the Mac takes none of the X220's" "$x220_only" "$T/mac"
 	eq "the Mac takes nothing repo-only" "" "$(comm -12 "$T/mac" "$T/repo")"
 	takes_all "the Mac" "$T/mac" .profile .config/aerospace/aerospace.toml \
@@ -71,9 +77,9 @@ t_select_mac() {
 t_select_mac_runs() {
 	sel
 	a=$REPO/.config/aerospace/aerospace.toml
-	for s in $(sed -n 's/.*aerospace\/run \([a-z][a-z-]*\).*/\1/p' "$a" | sort -u) \
+	for s in $(sed -n 's/.*aerospace\/run \([a-z][a-z0-9-]*\).*/\1/p' "$a" | sort -u) \
 	    $(sed -n 's/^blocks="\(.*\)"$/\1/p' "$REPO/.config/sketchybar/sketchybarrc") theme; do
-		case $s in mpc|sketchybar) continue ;; esac
+		case $s in mpc|sketchybar|python3) continue ;; esac # package executables
 		grep -Eqx "\.local/bin/(statusbar/)?$s" "$T/mac" || fail "the Mac does not take $s"
 	done
 }
@@ -108,6 +114,8 @@ t_select_home_half() {
 t_select_every_file() {
 	sel
 	eq "in no list" "" "$(sort -u "$T/x220" "$T/mac" "$T/repo" | comm -23 "$T/all" -)"
-	takes_all "repo-only" "$T/repo" README.md LICENSE .local/share/vertrice/SPEC.md \
-		.local/share/vertrice/tests/run
+	takes_all "repo-only" "$T/repo" README.md LICENSE \
+		.local/share/vertrice/tests/run .local/share/vertrice/tests/check \
+		.local/share/openbsd/pi/mcp.example.json
+	takes_all "repo-only wallpaper sources" "$T/repo" .local/share/vertrice/KEYS.svg .local/share/bg
 }

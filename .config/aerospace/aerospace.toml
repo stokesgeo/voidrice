@@ -23,10 +23,14 @@ after-startup-command = ['exec-and-forget ~/.config/aerospace/run sketchybar']
 exec-on-workspace-change = ['/bin/sh', '-c', 'sketchybar --trigger aerospace_workspace_change']
 gaps.outer.bottom = 24
 
+# One-shot membership checks; unchanged focus does not rebuild the tree.
+on-focus-changed = ['exec-and-forget ~/.config/aerospace/run python3 ~/.config/aerospace/master-layout']
+
 # Windows that float, as under cwm: the scratchpads and writemode's full
 # screen. Ghostty has no instance name; floatterm sets the title.
 on-window-detected = [
 	{ if = 'test %{window-title} = spterm || test %{window-title} = spcalc || test %{window-title} = write', run = 'layout floating' },
+	{ if = 'true', run = 'exec-and-forget ~/.config/aerospace/run python3 ~/.config/aerospace/master-layout' },
 ]
 
 [mode.main.binding]
@@ -35,11 +39,11 @@ on-window-detected = [
 cmd-alt-ctrl-j = 'focus --wrap-around dfs-next' # Focus next window
 cmd-alt-ctrl-k = 'focus --wrap-around dfs-prev' # Focus previous window
 cmd-alt-ctrl-q = 'close' # Close window
-cmd-alt-ctrl-t = 'layout h_tiles' # Tile side by side
+cmd-alt-ctrl-t = ['layout h_tiles', 'exec-and-forget ~/.config/aerospace/run python3 ~/.config/aerospace/master-layout --force'] # Master left, stack right (halves)
 cmd-alt-ctrl-shift-t = 'layout v_tiles' # Tile vertically
-cmd-alt-ctrl-space = 'layout floating tiling' # Float or tile window
-cmd-alt-ctrl-f = 'fullscreen --no-outer-gaps' # Fullscreen over bar
-cmd-alt-ctrl-shift-u = 'fullscreen' # Fullscreen with bar
+cmd-alt-ctrl-space = ['layout floating tiling', 'exec-and-forget ~/.config/aerospace/run python3 ~/.config/aerospace/master-layout'] # Float or tile window
+cmd-alt-ctrl-f = ['fullscreen --no-outer-gaps', 'exec-and-forget ~/.config/aerospace/run python3 ~/.config/aerospace/master-layout'] # Fullscreen over bar
+cmd-alt-ctrl-shift-u = ['fullscreen', 'exec-and-forget ~/.config/aerospace/run python3 ~/.config/aerospace/master-layout'] # Fullscreen with bar
 cmd-alt-ctrl-h = 'resize smart -100' # Shrink window
 cmd-alt-ctrl-l = 'resize smart +100' # Grow window
 cmd-alt-ctrl-shift-h = 'move left' # Move window left

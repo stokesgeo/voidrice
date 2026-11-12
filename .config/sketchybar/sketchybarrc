@@ -14,11 +14,10 @@
 
 blocks="sb-music sb-news sb-mailbox sb-updates sb-memory sb-volume sb-battery sb-internet sb-words sb-clock"
 
-sketchybar --bar position=bottom height=24 \
+set -- --bar position=bottom height=24 \
 	--default label.font="IBM Plex Mono:Regular:13.0" icon.drawing=off \
-	padding_left=4 padding_right=4
-
-sketchybar --add event aerospace_workspace_change \
+	padding_left=4 padding_right=4 \
+	--add event aerospace_workspace_change \
 	--add item workspace left \
 	--set workspace script='sketchybar --set "$NAME" label="$(aerospace list-workspaces --focused)"' \
 	--subscribe workspace aerospace_workspace_change
@@ -32,16 +31,16 @@ for b in $(printf '%s\n' $blocks | tail -r); do
 	sb-volume) seconds=0 ;;
 	*) seconds=60 ;;
 	esac
-	sketchybar --add item "$b" right \
+	set -- "$@" --add item "$b" right \
 		--set "$b" script="$CONFIG_DIR/block" update_freq="$seconds" \
 		--subscribe "$b" mouse.clicked mouse.scrolled
 done
-sketchybar --subscribe sb-volume volume_change \
+set -- "$@" --subscribe sb-volume volume_change \
 	--subscribe sb-battery power_source_change system_woke \
 	--subscribe sb-internet system_woke
 
 # macOS posts this notice when it turns light or dark.
-sketchybar --add event appearance AppleInterfaceThemeChangedNotification \
+sketchybar "$@" --add event appearance AppleInterfaceThemeChangedNotification \
 	--add item theme left --set theme drawing=off script='theme auto' \
 	--subscribe theme appearance
 

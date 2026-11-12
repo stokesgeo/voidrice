@@ -14,6 +14,7 @@ echo "Enter the artist/author:"; read -r author
 echo "Enter the publication year:"; read -r year
 
 inputaudio="$1"
+timecodes="$2"
 ext="${1##*.}"
 
 # Get a safe file name from the book.
@@ -28,24 +29,32 @@ escbook="$(echo "$booktitle" | iconv -c -f UTF-8 -t ASCII//TRANSLIT | tr -d '[:p
 # (OpenBSD's wc pads the count with spaces.)
 total="$(wc -l < "$2" | tr -d ' ')"
 
-cmd="ffmpeg -i \"$inputaudio\" -nostdin -y"
+# Keep filenames and tags as individual arguments, never shell source.
+set -- ffmpeg -i "$inputaudio" -nostdin -y
+track=0 start='' title='' esctitle=''
 
 while read -r x;
 do
     end="$(echo "$x" | cut -d'	' -f1)"
-    file="$escbook/$(printf "%.2d" "$track")-$esctitle.$ext"
+    file="./$escbook/$(printf "%.2d" "$track")-$esctitle.$ext"
     if [ -n "$start" ]; then
-	cmd="$cmd -metadata artist=\"$author\" -metadata title=\"$title\" -metadata album=\"$booktitle\" -metadata year=\"$year\" -metadata track=\"$track\" -metadata total=\"$total\" -ss \"$start\" -to \"$end\" -vn -c:a copy \"$file\" "
+	set -- "$@" -metadata "artist=$author" -metadata "title=$title" \
+	    -metadata "album=$booktitle" -metadata "year=$year" \
+	    -metadata "track=$track" -metadata "total=$total" \
+	    -ss "$start" -to "$end" -vn -c:a copy "$file"
     fi
     title="$(echo "$x" | cut -d'	' -f2-)"
     esctitle="$(echo "$title" | iconv -c -f UTF-8 -t ASCII//TRANSLIT | tr -d '[:punct:]' | tr '[:upper:]' '[:lower:]' | tr ' ' '-' | sed -E "s/-+/-/g;s/(^-|-\$)//g")"
     track="$((track+1))"
     start="$end"
-done < "$2"
+done < "$timecodes"
 
 # Last track must be added out of the loop.
 # (It has no next line to give its end time.)
-file="$escbook/$(printf "%.2d" "$track")-$esctitle.$ext"
-cmd="$cmd -metadata artist=\"$author\" -metadata title=\"$title\" -metadata album=\"$booktitle\" -metadata year=\"$year\" -metadata track=\"$track\" -metadata total=\"$total\" -ss \"$start\" -vn -c copy \"$file\""
+file="./$escbook/$(printf "%.2d" "$track")-$esctitle.$ext"
+set -- "$@" -metadata "artist=$author" -metadata "title=$title" \
+    -metadata "album=$booktitle" -metadata "year=$year" \
+    -metadata "track=$track" -metadata "total=$total" \
+    -ss "$start" -vn -c copy "$file"
 
-eval "$cmd"
+"$@"

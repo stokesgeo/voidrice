@@ -5,7 +5,7 @@
 
 last() {
 	find ~/writing -name '.?*' -prune -o -type f \( -name '*.md' -o -name '*.txt' \) \
-		-exec ls -t {} + 2>/dev/null | head -n 1
+		-exec stat -f '%.9Fm %N' {} + 2>/dev/null | sort -nr | head -n 1 | cut -d ' ' -f 2-
 }
 [ "$1" = -l ] && { f=$(last); [ -n "$f" ] && echo "$f"; exit; }
 f=${1:-$(last)}

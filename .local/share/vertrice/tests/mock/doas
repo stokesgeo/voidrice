@@ -12,6 +12,9 @@ echo "doas $*" >>"$VT_STATE/log"
 rc=$(cat "$VT_STATE/rc.doas" 2>/dev/null || echo 0)
 [ "$rc" -eq 0 ] || { echo "doas: Authentication failed" >&2; exit "$rc"; }
 [ "$1" = true ] && exit 0
+# rm is a forwarding guard, not a fake executable. Never delegate privileged
+# deletions through it to the real host rm; tests assert the logged intent.
+[ "$1" = rm ] && exit 0
 if [ -x "$VT_MOCKS/$1" ]; then
 	cmd=$1; shift
 	exec "$VT_MOCKS/$cmd" "$@"

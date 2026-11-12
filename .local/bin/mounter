@@ -63,7 +63,7 @@ getmount() {
 mountpart() {
 	typeset part=$1 type=$2 disk=${1%?} dev=/dev/$1 duid u g
 	duid=$(duidof "$disk")
-	if [ -n "$duid" ] && doas mount "$duid.${part#$disk}" 2>/dev/null; then
+	if [ -n "$duid" ] && doas mount -o nosuid,nodev "$duid.${part#$disk}" 2>/dev/null; then
 		notify-send "💾 Drive mounted." "$part mounted from fstab."
 		exit 0
 	fi

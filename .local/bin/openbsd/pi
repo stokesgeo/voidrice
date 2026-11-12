@@ -1,0 +1,10 @@
+#!/bin/sh
+# Native general-user Pi. Not the experimental work-folder box.
+set -eu
+app=$HOME/.local/share/vertrice-pi
+if [ ! -x "$app/node_modules/.bin/pi" ]; then
+	echo 'pi: user installation missing; vertrice-pi-setup must finish first.' >&2
+	exit 1
+fi
+umask 077
+exec "$app/node_modules/.bin/pi" "$@"

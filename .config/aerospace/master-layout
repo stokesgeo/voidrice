@@ -1,0 +1,110 @@
+#!/usr/bin/env python3
+"""One-shot native AeroSpace tree shaping; no titles, focus moves or polling."""
+import fcntl
+import hashlib
+import json
+import os
+from pathlib import Path
+import shlex
+import subprocess
+import sys
+
+FORMAT = "%{window-id}%{tab}%{window-layout}%{tab}%{window-is-fullscreen}"
+TILED = {"h_tiles", "v_tiles", "h_accordion", "v_accordion"}
+
+
+def aerospace(*args):
+    env = dict(os.environ)
+    env.pop("AEROSPACE_WINDOW_ID", None)
+    env.pop("AEROSPACE_WORKSPACE", None)
+    result = subprocess.run([os.environ.get("AEROSPACE_BIN", "aerospace"), *args],
+                            env=env, text=True, capture_output=True, timeout=10)
+    if result.returncode:
+        raise RuntimeError("AeroSpace command failed")
+    return result.stdout.strip()
+
+
+def parse_rows(text):
+    rows = []
+    for line in text.splitlines():
+        fields = line.split("\t")
+        if len(fields) != 3 or not fields[0].isdigit() or int(fields[0]) < 1 or fields[2] not in ("true", "false"):
+            raise RuntimeError("Invalid window metadata")
+        rows.append({"id": int(fields[0]), "layout": fields[1], "fullscreen": fields[2] == "true"})
+    if len({row["id"] for row in rows}) != len(rows):
+        raise RuntimeError("Duplicate window metadata")
+    return rows
+
+
+def selection(rows, cached, force=False):
+    if any(row["fullscreen"] or "fullscreen" in row["layout"] for row in rows):
+        return None
+    ids = sorted(row["id"] for row in rows if row["layout"] in TILED)
+    if not force and cached.get("ids") == ids:
+        return None
+    master = cached.get("master")
+    if master not in ids:
+        master = ids[0] if ids else None
+    return {"ids": ids, "master": master}
+
+
+def commands(workspace, state):
+    ids = state["ids"]
+    if not ids:
+        return []
+    ordered = [state["master"], *(value for value in ids if value != state["master"])]
+    ws = shlex.quote(workspace)
+    output = [f"flatten-workspace-tree --workspace {ws}", f"layout --workspace {ws} --root h_tiles"]
+    # Push leaves to the left in reverse desired order; boundary stop is crucial.
+    for wid in reversed(ordered):
+        output += [f"move --window-id {wid} --boundaries workspace --boundaries-action stop --fail-if-fullscreen --fail-if-macos-native-fullscreen left"] * (len(ids) - 1)
+    if len(ids) > 2:
+        output.append(f"join-with --window-id {ordered[1]} right")
+        for wid in ordered[3:]:
+            output.append(f"move --window-id {wid} --boundaries workspace --boundaries-action stop --fail-if-fullscreen --fail-if-macos-native-fullscreen left")
+    output.append(f"balance-sizes --workspace {ws}")
+    return output
+
+
+def main():
+    force = sys.argv[1:] == ["--force"]
+    if sys.argv[1:] and not force:
+        raise RuntimeError("Unknown layout action")
+    cache_dir = Path.home() / ".cache/vertrice-master-layout"
+    cache_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
+    with (cache_dir / "lock").open("a") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        workspace = aerospace("list-workspaces", "--focused")
+        if not workspace or workspace == "scratch":
+            return
+        path = cache_dir / (hashlib.sha256(workspace.encode()).hexdigest() + ".json")
+        try:
+            cached = json.loads(path.read_text())
+            if not isinstance(cached, dict):
+                cached = {}
+        except (OSError, ValueError):
+            cached = {}
+        rows = parse_rows(aerospace("list-windows", "--workspace", workspace, "--format", FORMAT))
+        state = selection(rows, cached, force)
+        if state is None:
+            return
+        batch = commands(workspace, state)
+        if batch:
+            aerospace("eval", " && ".join(batch))
+            actual = parse_rows(aerospace("list-windows", "--workspace", workspace, "--format", FORMAT))
+            if any(r["fullscreen"] or "fullscreen" in r["layout"] for r in actual):
+                return
+            if sorted(r["id"] for r in actual if r["layout"] in TILED) != state["ids"]:
+                return
+        temporary = path.with_suffix(".new")
+        temporary.write_text(json.dumps(state))
+        temporary.chmod(0o600)
+        temporary.replace(path)
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except (RuntimeError, OSError, subprocess.SubprocessError):
+        print("Master layout check unavailable", file=sys.stderr)
+        sys.exit(1)

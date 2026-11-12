@@ -9,9 +9,9 @@ XTerm*faceName: IBM Plex Mono
 XTerm*faceSize: 10
 XTerm*metaSendsEscape: true
 XTerm*selectToClipboard: true
-!! xterm's default minus SetSelection: programs may set the clipboard (OSC 52,
-!! Codex's /copy from the cdxb box) but never read it.
-XTerm*disallowedWindowOps: GetChecksum,GetIconTitle,GetSelection,GetWinTitle,SetXprop
+/* OpenBSD builds xterm without OSC 52 clipboard access (OPT_PASTE64=0).
+   Keep the other window queries and property changes blocked. */
+XTerm*disallowedWindowOps: GetChecksum,GetIconTitle,GetWinTitle,SetXprop
 !! xlock: blank the screen.
 XLock.mode: blank
 

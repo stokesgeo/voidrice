@@ -4,7 +4,7 @@
 # services. Read it, then run it as root:
 #	doas sh ~/.local/bin/vertrice-install
 # Before doas.conf exists, use: su -, then sh ~you/.local/bin/vertrice-install
-# It is safe to run again, except for the two appends at the end.
+# It stops on failure; a second run keeps configuration lines once.
 #
 # The home half comes first, as you, once root has run pkg_add git. It puts
 # this script and the files it installs in your home. The third line, before
@@ -20,27 +20,61 @@
 # A Mac runs its own install, as you, not root.
 [ "$(uname)" = Darwin ] && exec sh "$(dirname "$0")/../share/darwin/install" "$@"
 
+set -e
+cron_tmp=
+trap 'rm -f /etc/doas.new; [ -z "$cron_tmp" ] || rm -rf "$cron_tmp"' EXIT
+
 # Root runs this, so "you" is found as the owner of the script. Root's mail
 # goes to you.
 u=$(stat -f %Su "$0")
 cd "$(dirname "$0")/../share/openbsd" || exit
 pkg_add -l pkglist			# the optional rest: pkg_add -l pkglist.extra
-# Each config is checked before it goes live, so a typo cannot lock you out.
+# The joined doas rules and pf rules are syntax-checked before installation.
+# Parsing does not establish that the rules preserve access.
 # doas.conf is the two rule files joined; doas -C parses the result.
-cat doas.conf doas-agent.conf >/etc/doas.new && doas -C /etc/doas.new && install -m 640 /etc/doas.new /etc/doas.conf; rm -f /etc/doas.new
+cat doas.conf doas-agent.conf >/etc/doas.new
+doas -C /etc/doas.new
+install -m 640 /etc/doas.new /etc/doas.conf
+rm -f /etc/doas.new
 install -m 644 root.kshrc /root/.kshrc
 install -m 644 login.conf.d/staff /etc/login.conf.d/staff
 # pfctl -n only parses. The rules load only if they parse.
-pfctl -nf pf.conf && install -m 600 pf.conf /etc/pf.conf && pfctl -f /etc/pf.conf
+pfctl -nf pf.conf
+install -m 600 pf.conf /etc/pf.conf
+pfctl -f /etc/pf.conf
 # apmd(8) runs /etc/apm/suspend on suspend; hibernate shares the script.
-mkdir -p /etc/apm && install -m 755 apm-suspend /etc/apm/suspend && ln -sf suspend /etc/apm/hibernate
+mkdir -p /etc/apm
+install -m 755 apm-suspend /etc/apm/suspend
+ln -sf suspend /etc/apm/hibernate
 install -m 755 hotplug-attach /etc/hotplug/attach
 # It writes each new disk's name here, for hotplug-watch. Made once: a
 # second run must not look like an attach.
 [ -e /var/db/hotplug-disk ] || install -m 644 /dev/null /var/db/hotplug-disk
-# Each crontab is rewritten without our old line, then with the current one,
-# so a second run does not double it. Other entries stay.
-(crontab -l | grep -v /var/db/updates; cat updates.cron) | crontab -
+# Stage the read and replacement separately. Only OpenBSD's exact absent-table
+# diagnostic (status 1, no output) means an empty table; other failures stop.
+cron_tmp=$(mktemp -d "${TMPDIR:-/tmp}/vertrice-install.XXXXXXXXXX")
+if LC_ALL=C crontab -l >"$cron_tmp/old" 2>"$cron_tmp/error"; then :
+else
+	rc=$?
+	cron_user=$(id -un)
+	printf 'crontab: no crontab for %s\n' "$cron_user" >"$cron_tmp/absent"
+	if [ "$rc" -ne 1 ] || [ -s "$cron_tmp/old" ] || ! cmp -s "$cron_tmp/error" "$cron_tmp/absent"; then
+		cat "$cron_tmp/error" >&2
+		echo 'vertrice-install: cannot read crontab; not replacing it' >&2
+		exit 1
+	fi
+fi
+# Own only the marked job and the exact legacy shipped job/comment, not
+# unrelated commands mentioning /var/db/updates. crontab checks syntax itself.
+legacy='~	*/4	*	*	*	-ns (syspatch -c; pkg_add -u -n -v | grep "^Adding.*->" | sort -u) >/var/db/updates'
+comment='# /var/db/updates: what syspatch and pkg_add -u would install, one a line; sb-updates counts them.'
+awk -v legacy="$legacy" -v comment="$comment" '
+	$0 != legacy && $0 != comment && $0 !~ / # vertrice-update-count$/ { print }
+' "$cron_tmp/old" >"$cron_tmp/new"
+cat updates.cron >>"$cron_tmp/new"
+crontab "$cron_tmp/new"
+rm -rf "$cron_tmp"
+cron_tmp=
 # Mail for root, from cron and daily(8), reaches you unless an alias exists.
 grep -q '^root:' /etc/mail/aliases || echo "root: $u" >>/etc/mail/aliases; newaliases
 # rcctl fails on a service that is not installed, so base and packages are
@@ -52,7 +86,11 @@ rcctl set apmd flags -z 7
 # obsdfreqd(1) pairs are on AC, on battery. -T: above this many degrees C,
 # the top speed drops until the CPU cools.
 rcctl set obsdfreqd flags -m 100,50 -r 50,90 -T 85,65
-# These two append. A second run repeats the lines; the last line read wins.
-cat wsconsctl.conf >>/etc/wsconsctl.conf
-cat fbtab >>/etc/fbtab
+# Keep existing settings and add each shipped line only once.
+for f in wsconsctl.conf fbtab; do
+	touch "/etc/$f"
+	while IFS= read -r line; do
+		grep -Fqx -- "$line" "/etc/$f" || printf '%s\n' "$line" >>"/etc/$f"
+	done <"$f"
+done
 echo "Done. Reboot to load it all."

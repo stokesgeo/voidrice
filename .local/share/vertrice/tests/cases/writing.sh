@@ -104,6 +104,27 @@ t_writing_writemode() {
 	logged "^xterm -name write -fullscreen -e nvim -c silent! Goyo $HOME/writing/a.md\$"
 }
 
+t_writing_writemode_relative_file() {
+	mkdir -p "$T/drafts"
+	printf 'caller-owned prose\n' >"$T/drafts/a page.md"
+	writemode 'drafts/a page.md'
+	logged "^xterm -name write -fullscreen -e nvim -c silent! Goyo $T/drafts/a page\.md\$"
+	[ ! -e "$HOME/writing/drafts/a page.md" ] || fail 'created a different writing file'
+}
+
+t_writing_latest_global_sort() {
+	wr_files
+	# Multiple stat batches can arrive out of order. Sort every record, not
+	# each batch; retain spaces and subsecond timestamp differences.
+	cat >"$T/bin/stat" <<'EOF'
+#!/bin/sh
+printf '100.100000000 %s\n100.900000000 %s\n' "$HOME/writing/old.md" "$HOME/writing/part one/new.txt"
+EOF
+	printf '#!/bin/sh\nprintf "%%s\\n" "$HOME/writing/old.md"\n' >"$T/bin/ls"
+	chmod +x "$T/bin/stat" "$T/bin/ls"
+	eq 'globally newest record' "$HOME/writing/part one/new.txt" "$(proof -l)"
+}
+
 t_writing_cwm_key() {
 	# Super+Shift+F2 was free: bound once, to writemode. cwm -n and the
 	# function-name check (config.sh) cover the rest of the line.

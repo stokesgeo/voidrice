@@ -2,13 +2,18 @@
 
 # bk full|incr: dump(8) /home to the backup disk mounted on /mnt/backup.
 # dump -u records each run in /etc/dumpdates: `dump -W` shows the last ones.
-# Restore test: gzip -dc FILE | restore -tf - | less
+# Restore test: restore -tf FILE | less
+# Write directly, so dump handles destination errors without a gzip pipeline.
+# Keep every attempt, including .part files if dump or finalization fails.
 
 case $1 in full) l=0 ;; incr) l=1 ;; *) echo "usage: bk full|incr" >&2; exit 2 ;; esac
 [ -t 0 ] || exec floatterm floatterm 80x16 "$0" "$@"
 mount | grep -q ' on /mnt/backup ' || { notify-send "💾 Mount the backup disk first (Super+F9)."; exit 1; }
 mkdir -p -m 700 /mnt/backup/dump || exit
-f=/mnt/backup/dump/$(hostname -s)-$(date +%Y%m%d-%H%M)-l$l.dump.gz
-set -o pipefail
-doas dump -${l}au -f - /home | gzip >"$f.part" && mv "$f.part" "$f" && notify-send "💾 Backup done." "${f##*/}" ||
-	{ rm -f "$f.part"; notify-send "💾 Backup failed."; exit 1; }
+d=$(mktemp -d "/mnt/backup/dump/$(hostname -s)-$(date +%Y%m%d-%H%M)-l$l.XXXXXXXXXX") || exit
+f=$d/home.dump
+doas dump -${l}au -f "$f.part" /home ||
+	{ notify-send "💾 Backup failed." "Attempt kept at $f.part"; exit 1; }
+mv "$f.part" "$f" ||
+	{ notify-send "💾 Backup finalization failed." "Completed dump kept at $f.part"; exit 1; }
+notify-send "💾 Backup done." "$f"

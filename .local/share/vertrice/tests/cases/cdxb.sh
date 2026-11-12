@@ -6,6 +6,7 @@
 # cdxb_setup: a home with the dotfiles' grants and deny list, a project
 # with a git directory, and the mocks.
 cdxb_setup() {
+	unset PI_CODING_AGENT_DIR PI_CODING_AGENT_SESSION_DIR PI_PACKAGE_DIR
 	mkdir -p "$HOME/.config/cdxb" "$HOME/.config/shell" "$HOME/.local/bin" \
 		"$HOME/.local/share/openbsd/codex" "$HOME/src/proj/.git/hooks" \
 		"$HOME/Documents" "$T/src"
@@ -29,6 +30,7 @@ while [ $# -gt 0 ]; do
 	*) break ;;
 	esac
 done
+[ ! -f "$VT_STATE/cdxb.helper.rc" ] || exit "$(cat "$VT_STATE/cdxb.helper.rc")"
 exec "$@"
 EOF
 	printf '#!/bin/sh\nexit 0\n' >"$T/fakecodex"
@@ -57,6 +59,344 @@ wall() {
 nowall() {
 	grep -qFx -- "$2" "$VT_STATE/walls" || return 0
 	fail "$1: unwanted wall [$2]"
+}
+
+# Pi is the general assistant, outside this deprecated box. Never expose its
+# agent state or let Codex plant code for Pi's next start. Fixtures only:
+# the helper logs policy; these cases do not assert kernel enforcement.
+cdxb_pi_setup() {
+	cdxb_setup
+	mkdir -p "$HOME/.pi/agent/extensions" "$HOME/.pi/agent/sessions" \
+		"$HOME/.local/share/vertrice-pi/node_modules"
+	for f in auth.json settings.json AGENTS.md; do : >"$HOME/.pi/agent/$f"; done
+	: >"$HOME/.pi/agent/sessions/fixture.jsonl"
+	ln -s .pi "$HOME/pi-link"
+	cd "$HOME/src/proj" || fail "no project"
+}
+
+t_cdxb_pi_home_walls() {
+	cdxb_pi_setup
+	cdxb -H "$HOME" </dev/null >/dev/null 2>&1 || fail "cdxb failed"
+	wall "Pi state hidden" ":$HOME/.pi"
+	nowall "Pi not writable" "rwxc:$HOME/.pi"
+	wall "Pi application read/run" "rx:$HOME/.local/share/vertrice-pi"
+	wall "runtime ancestor read-only" "r:$HOME/.local"
+	wall "unrelated projects writable" "rwxc:$HOME/src"
+	wall "Codex runtime unchanged" "r:$HOME/.codex/config.toml"
+}
+
+t_cdxb_pi_write_and_cwd_refused() {
+	cdxb_pi_setup
+	for p in "$HOME/.pi" "$HOME/.pi/agent" "$HOME/.pi/agent/extensions" \
+	    "$HOME/.pi/agent/settings.json" "$HOME/pi-link/agent" \
+	    "$HOME/.local/share/vertrice-pi" "$HOME/.local/share"; do
+		out=$(cdxb -w "$p" 2>&1 </dev/null) && fail "Pi write accepted: $p"
+		if [ -d "$p" ]; then
+			out=$(cdxb "$p" 2>&1 </dev/null) && fail "Pi cwd accepted: $p"
+		fi
+	done
+	notlogged '^codex-box -u'
+	return 0
+}
+
+t_cdxb_pi_private_read_refused() {
+	cdxb_pi_setup
+	for p in "$HOME/.pi" "$HOME/.pi/agent/auth.json" \
+	    "$HOME/.pi/agent/sessions" "$HOME/.pi/agent/sessions/fixture.jsonl" \
+	    "$HOME/pi-link/agent/auth.json"; do
+		out=$(cdxb -r "$p" 2>&1 </dev/null) && fail "Pi private read accepted: $p"
+		has "private path refused" 'deny list' "$out"
+	done
+	notlogged '^codex-box -u'
+	return 0
+}
+
+t_cdxb_pi_grants_filtered() {
+	cdxb_pi_setup
+	printf 'rw ~/.pi\nr ~/.pi/agent/auth.json\nr ~/.pi/agent/sessions\nrw ~/pi-link\nrw ~/.local/share/vertrice-pi\n' >>"$HOME/.config/cdxb/grants"
+	cdxb -r "$HOME/.local/share/vertrice-pi" </dev/null >/dev/null 2>&1 || fail "cdxb failed"
+	wall "Pi agent hidden without -H" ":$HOME/.pi"
+	wall "application read/run without -H" "rx:$HOME/.local/share/vertrice-pi"
+	nowall "no r then rx permission widening" "r:$HOME/.local/share/vertrice-pi"
+	nowall "private grant not reopened" "r:$HOME/.pi/agent/auth.json"
+	nowall "session grant not reopened" "r:$HOME/.pi/agent/sessions"
+	nowall "link grant not writable" "rwxc:$HOME/.pi"
+	nowall "application not writable" "rwxc:$HOME/.local/share/vertrice-pi"
+	wall "ordinary project unchanged" "rwxc:$HOME/src/proj"
+}
+
+t_cdxb_pi_add_refused() {
+	cdxb_pi_setup
+	cat >"$T/fakecodex" <<'EOF'
+#!/bin/sh
+case $* in *resume*) exit 0 ;; esac
+for p in "$HOME/.pi" "$HOME/pi-link/agent/extensions" "$HOME/.local/share/vertrice-pi" "$HOME/.local/share"; do
+	cdxb add "$p" 2>>"$VT_STATE/add.err" && echo "added Pi write" >>"$VT_STATE/log"
+done
+cdxb add -r "$HOME/.pi/agent/auth.json" 2>>"$VT_STATE/add.err" && echo "added Pi read" >>"$VT_STATE/log"
+exit 0
+EOF
+	cdxb </dev/null >/dev/null 2>&1 || fail "cdxb failed"
+	notlogged '^added Pi'
+	grep -q 'deny list' "$VT_STATE/add.err" || fail "missing private refusal"
+	grep -q 'protected' "$VT_STATE/add.err" || fail "missing runtime refusal"
+	eq "no restart after refused adds" 1 "$(nlogged '^codex-box -u')"
+}
+
+t_cdxb_pi_symlink_and_missing_state() {
+	cdxb_pi_setup
+	mv "$HOME/.pi" "$HOME/private-pi"
+	ln -s private-pi "$HOME/.pi"
+	cdxb -H "$HOME" </dev/null >/dev/null 2>&1 || fail "cdxb failed"
+	wall "resolved state hidden" ":$HOME/private-pi"
+	nowall "resolved state not writable" "rwxc:$HOME/private-pi"
+	out=$(cdxb -w "$HOME/private-pi" 2>&1 </dev/null) && fail "resolved write accepted"
+	rm "$HOME/.pi"
+	# No ~/.pi yet: home must not become writable so it can be planted later.
+	cdxb -H "$HOME" </dev/null >/dev/null 2>&1 || fail "missing state failed"
+	wall "missing Pi name hidden" ":$HOME/.pi"
+	nowall "home not replaceable" "rwxc:$HOME"
+	return 0
+}
+
+t_cdxb_pi_alternate_agent_dir() {
+	cdxb_pi_setup
+	mkdir -p "$HOME/alternate/state/agent/sessions" "$HOME/alternate/project"
+	: >"$HOME/alternate/state/agent/auth.json"
+	export PI_CODING_AGENT_DIR="$HOME/alternate/state/agent"
+	cdxb -H "$HOME" </dev/null >/dev/null 2>&1 || fail "alternate failed"
+	wall "alternate state hidden" ":$PI_CODING_AGENT_DIR"
+	wall "alternate ancestor read-only" "r:$HOME/alternate"
+	for p in "$HOME/alternate" "$HOME/alternate/state" "$PI_CODING_AGENT_DIR"; do
+		out=$(cdxb -w "$p" 2>&1 </dev/null) && fail "alternate writable: $p"
+	done
+	out=$(cdxb -r "$PI_CODING_AGENT_DIR/auth.json" 2>&1 </dev/null) && fail "alternate auth readable"
+	cdxb "$HOME/alternate/project" </dev/null >/dev/null 2>&1 || fail "unrelated sibling refused"
+	wall "sibling project writable" "rwxc:$HOME/alternate/project"
+	return 0
+}
+
+t_cdxb_pi_alternate_locations() {
+	cdxb_pi_setup
+	mkdir -p "$HOME/alternate/agent" "$HOME/session-store" "$HOME/app-parent/pi"
+	: >"$HOME/alternate/agent/auth.json"
+	: >"$HOME/session-store/fixture.jsonl"
+	ln -s app-parent/pi "$HOME/app-link"
+	export PI_CODING_AGENT_DIR=\~/alternate/agent \
+		PI_CODING_AGENT_SESSION_DIR='../../session-store' PI_PACKAGE_DIR="$HOME/app-link"
+	# Resolve relative overrides against the launcher's cwd, not the project arg.
+	cdxb -H "$HOME" </dev/null >/dev/null 2>&1 || fail "alternate locations failed"
+	wall "tilde agent dir hidden" ":$HOME/alternate/agent"
+	wall "relative sessions hidden" ":$HOME/session-store"
+	wall "direct child state ancestor read-only" "r:$HOME/alternate"
+	nowall "direct child ancestor not writable" "rwxc:$HOME/alternate"
+	wall "symlink package resolved read/run" "rx:$HOME/app-parent/pi"
+	wall "package ancestor read-only" "r:$HOME/app-parent"
+	for p in "$HOME/app-parent" "$HOME/app-parent/pi" "$HOME/app-link"; do
+		out=$(cdxb -w "$p" 2>&1 </dev/null) && fail "alternate application writable: $p"
+	done
+	out=$(cdxb -r "$HOME/session-store/fixture.jsonl" 2>&1 </dev/null) && fail "alternate session readable"
+	return 0
+}
+
+t_cdxb_pi_denied_runtime_stays_hidden() {
+	cdxb_pi_setup
+	printf '%s\n' \~/.local/share/vertrice-pi >>"$HOME/.config/cdxb/deny"
+	cdxb -H "$HOME" </dev/null >/dev/null 2>&1 || fail "cdxb failed"
+	wall "owner deny hides Pi runtime" ":$HOME/.local/share/vertrice-pi"
+	nowall "read/run does not reopen deny" "rx:$HOME/.local/share/vertrice-pi"
+	# The Pi state deny is mandatory even with an older/empty owner list.
+	: >"$HOME/.config/cdxb/deny"
+	out=$(cdxb -r "$HOME/.pi/agent/auth.json" 2>&1 </dev/null) && fail "empty deny exposed Pi"
+	return 0
+}
+
+t_cdxb_pi_missing_alternate_parent_refused() {
+	cdxb_pi_setup
+	export PI_CODING_AGENT_DIR="$HOME/not-created/agent"
+	out=$(cdxb 2>&1 </dev/null) && fail "unresolvable alternate accepted"
+	has "explain missing ancestor" 'Pi directory parent does not exist' "$out"
+	notlogged '^codex-box -u'
+	return 0
+}
+
+t_cdxb_pi_trailing_blank_locations() {
+	cdxb_pi_setup
+	mkdir -p "$HOME/pi-state " "$HOME/pi-app "
+	: >"$HOME/pi-state /auth.json"
+	export PI_CODING_AGENT_DIR="$HOME/pi-state " PI_PACKAGE_DIR="$HOME/pi-app "
+	cdxb -H "$HOME" </dev/null >/dev/null 2>&1 || fail "blank paths failed"
+	wall "private path retains blank" ":$HOME/pi-state "
+	wall "runtime path retains blank" "rx:$HOME/pi-app "
+	nowall "no writable private path" "rwxc:$HOME/pi-state "
+	out=$(cdxb -r "$HOME/pi-state /auth.json" 2>&1 </dev/null) && fail "blank path auth exposed"
+	out=$(cdxb -w "$HOME/pi-app " 2>&1 </dev/null) && fail "blank path runtime writable"
+	return 0
+}
+
+t_cdxb_pi_linked_agent_and_application() {
+	cdxb_pi_setup
+	mv "$HOME/.pi/agent" "$HOME/agent-state"
+	ln -s ../agent-state "$HOME/.pi/agent"
+	mv "$HOME/.local/share/vertrice-pi" "$HOME/pi-application"
+	ln -s ../../pi-application "$HOME/.local/share/vertrice-pi"
+	cdxb -H "$HOME" </dev/null >/dev/null 2>&1 || fail "linked locations failed"
+	wall "linked agent hidden" ":$HOME/agent-state"
+	wall "linked application read/run" "rx:$HOME/pi-application"
+	nowall "linked application not writable" "rwxc:$HOME/pi-application"
+	out=$(cdxb -r "$HOME/agent-state/auth.json" 2>&1 </dev/null) && fail "linked auth exposed"
+	out=$(cdxb -w "$HOME/pi-application" 2>&1 </dev/null) && fail "linked application writable"
+	return 0
+}
+
+t_cdxb_pi_dangling_links_refused() {
+	cdxb_setup
+	cd "$HOME/src/proj" || fail "no project"
+	ln -s missing-agent "$HOME/.pi"
+	out=$(cdxb 2>&1 </dev/null) && fail "dangling Pi root accepted"
+	has "fail closed" 'Pi path is a dangling symlink' "$out"
+	rm "$HOME/.pi"
+	mkdir "$HOME/.pi"
+	ln -s ../missing-agent "$HOME/.pi/agent"
+	out=$(cdxb 2>&1 </dev/null) && fail "dangling agent accepted"
+	rm "$HOME/.pi/agent"
+	ln -s ../../missing-app "$HOME/.local/share/vertrice-pi"
+	out=$(cdxb 2>&1 </dev/null) && fail "dangling application accepted"
+	notlogged '^codex-box -u'
+	return 0
+}
+
+t_cdxb_pi_target_lexical_paths() {
+	cdxb_pi_setup
+	mkdir -p "$HOME/alias-parent" "$HOME/elsewhere/child" "$HOME/elsewhere/agent" \
+		"$HOME/alias-parent/agent" "$HOME/alias-parent/sessions" "$HOME/alias-parent/application"
+	ln -s ../elsewhere/child "$HOME/alias-parent/link"
+	export PI_CODING_AGENT_DIR="$HOME/alias-parent/link/../agent" \
+		PI_CODING_AGENT_SESSION_DIR="$HOME/alias-parent/link/../sessions" \
+		PI_PACKAGE_DIR="$HOME/alias-parent/link/../application"
+	cdxb -H "$HOME" </dev/null >/dev/null 2>&1 || fail "lexical paths failed"
+	wall "Node-normalized agent hidden" ":$HOME/alias-parent/agent"
+	wall "Node-normalized sessions hidden" ":$HOME/alias-parent/sessions"
+	wall "Node-normalized package protected" "rx:$HOME/alias-parent/application"
+	wall "raw directory scan also hidden" ":$HOME/elsewhere/agent"
+	out=$(cdxb -w "$HOME/alias-parent/agent" 2>&1 </dev/null) && fail "real agent writable"
+	out=$(cdxb -r "$HOME/alias-parent/sessions" 2>&1 </dev/null) && fail "real sessions readable"
+	# Tilde expansion in normalizePath uses Node join(), with the same lexical rule.
+	PI_CODING_AGENT_DIR=\~/alias-parent/link/../agent
+	cdxb </dev/null >/dev/null 2>&1 || fail "tilde lexical paths failed"
+	wall "tilde lexical agent hidden" ":$HOME/alias-parent/agent"
+	unset PI_CODING_AGENT_SESSION_DIR PI_PACKAGE_DIR
+	PI_CODING_AGENT_DIR=../agent
+	cd "$HOME/alias-parent/link" || fail "symlink cwd unavailable"
+	cdxb </dev/null >/dev/null 2>&1 || fail "relative physical cwd failed"
+	wall "relative base is physical launch cwd" ":$HOME/elsewhere/agent"
+	return 0
+}
+
+t_cdxb_pi_target_file_urls_refused() {
+	cdxb_pi_setup
+	mkdir -p "$HOME/url-state"
+	# A misleading relative spelling must not hide the fact Pi uses a file URL.
+	mkdir -p "file://$HOME/url-state"
+	for name in PI_CODING_AGENT_DIR PI_CODING_AGENT_SESSION_DIR PI_PACKAGE_DIR; do
+		out=$(env "$name=file://$HOME/url-state" cdxb -w "$HOME/url-state" "$HOME/Documents" 2>&1 </dev/null) &&
+			fail "URL override accepted: $name"
+		has "clear fail-closed URL limit" 'Pi file URL overrides are not supported' "$out"
+	done
+	notlogged '^codex-box -u'
+	return 0
+}
+
+t_cdxb_child_status_survives_review_cleanup() {
+	cdxb_setup
+	cat >"$T/fakecodex" <<'EOF'
+#!/bin/sh
+echo 'child ran' >>"$VT_STATE/log"
+printf 'r ~/Documents\n' >"$CDXB_OUTBOX/grants"
+exit "$(cat "$VT_STATE/cdxb.child.rc")"
+EOF
+	cd "$HOME/src/proj" || fail "no project"
+	for want in 0 7 42; do
+		rm -f "$state/proposals/grants"
+		printf '%s\n' "$want" >"$VT_STATE/cdxb.child.rc"
+		out=$(cdxb 2>&1 </dev/null); got=$?
+		eq "child status after review and exit trap" "$want" "$got"
+		has "post-session review still runs" 'a proposal waits: run cdxb review in a terminal' "$out"
+		[ -f "$state/proposals/grants" ] || fail "proposal lost"
+		[ -z "$(ls -d "$state"/[0-9]* 2>/dev/null)" ] || fail "exit trap left session directory"
+	done
+	eq "all children ran" 3 "$(nlogged '^child ran$')"
+}
+
+t_cdxb_helper_status_survives_cleanup() {
+	cdxb_setup
+	printf '#!/bin/sh\necho "unexpected child" >>"$VT_STATE/log"\n' >"$T/fakecodex"
+	cd "$HOME/src/proj" || fail "no project"
+	for want in 0 73 126; do
+		printf '%s\n' "$want" >"$VT_STATE/cdxb.helper.rc"
+		out=$(cdxb 2>&1 </dev/null); got=$?
+		eq "helper status after review and exit trap" "$want" "$got"
+		[ -z "$(ls -d "$state"/[0-9]* 2>/dev/null)" ] || fail "exit trap left session directory"
+	done
+	eq "all helpers ran" 3 "$(nlogged '^codex-box -u')"
+	notlogged '^unexpected child$'
+}
+
+t_cdxb_denied_automatic_ancestors() {
+	cdxb_setup
+	mkdir -p "$HOME/.config/git" "$HOME/.config/private" "$HOME/.codex"
+	printf 'fixture-token\n' >"$HOME/.config/cdxb/github-token"
+	echo '~/.config' >>"$HOME/.config/cdxb/deny"
+	cd "$HOME/src/proj" || fail "no project"
+	for flags in '' -H; do
+		out=$(cdxb $flags "$HOME/src/proj" 2>&1 </dev/null) || fail "cdxb failed: $out"
+		wall "denied ancestor hidden" ":$HOME/.config"
+		if grep -E '^[a-z]+:' "$VT_STATE/walls" | grep -F ":$HOME/.config"; then
+			fail "automatic config grant reopened denied ancestor"
+		fi
+		wall "unrelated runtime works" "r:$HOME/.codex/config.toml"
+		has "token helper disabled" 'github-token is on the deny list' "$out"
+	done
+}
+
+t_cdxb_denied_runtime_refused() {
+	cdxb_setup
+	cd "$HOME/src/proj" || fail "no project"
+	cp "$HOME/.config/cdxb/deny" "$T/deny.original"
+	for p in "$XDG_CACHE_HOME" "$HOME/.codex" "$CDXB_SRC" /usr /etc /dev; do
+		cp "$T/deny.original" "$HOME/.config/cdxb/deny"
+		printf '%s\n' "$p" >>"$HOME/.config/cdxb/deny"
+		out=$(cdxb -d 2>&1 </dev/null) && fail "denied runtime accepted: $p"
+		has "clear conflict" 'required runtime path' "$out"
+		has "deny explanation" 'beneath a deny entry' "$out"
+	done
+	notlogged '^codex-box'
+	[ ! -e "$HOME/.codex/config.toml" ] || fail "settings seeded despite denial"
+}
+
+t_cdxb_denied_automatic_symlink() {
+	cdxb_setup
+	mkdir -p "$HOME/private" "$HOME/.codex"
+	ln -s "$HOME/private" "$HOME/.config/git"
+	echo '~/private' >>"$HOME/.config/cdxb/deny"
+	cd "$HOME/src/proj" || fail "no project"
+	cdxb </dev/null >/dev/null 2>&1 || fail "cdxb failed"
+	nowall "resolved denied automatic grant skipped" "r:$HOME/private"
+	nowall "link spelling not granted either" "r:$HOME/.config/git"
+}
+
+t_cdxb_denied_missing_child_beneath_symlink() {
+	cdxb_setup
+	mv "$HOME/.config" "$HOME/private"
+	ln -s private "$HOME/.config"
+	echo '~/private' >>"$HOME/.config/cdxb/deny"
+	cd "$HOME/src/proj" || fail "no project"
+	cdxb </dev/null >/dev/null 2>&1 || fail "cdxb failed"
+	# ksh and x11 do not exist: unveil can still grant their names through
+	# the existing symlinked parent. Neither spelling may reopen the deny.
+	for p in "$HOME/.config/ksh" "$HOME/.config/x11" "$HOME/private/ksh" "$HOME/private/x11"; do
+		nowall "missing child under denied parent" "r:$p"
+	done
 }
 
 t_cdxb_control_chars_refused() {
@@ -262,8 +602,10 @@ t_cdxb_doas_client_relay() {
 	# The Mac has neither accept4 nor SOCK_CLOEXEC; OpenBSD and Linux do.
 	mac=
 	[ "$VT_HOST" = Darwin ] && mac="-DSOCK_CLOEXEC=0 -Daccept4(a,b,c,d)=accept(a,b,c)"
+	sandbox=
+	[ "$VT_HOST" = OpenBSD ] || sandbox="-Dpledge(a,b)=0 -Dunveil(a,b)=0"
 	# shellcheck disable=SC2086
-	cc -Wall -Wextra -Werror -D_GNU_SOURCE -D'pledge(a,b)=0' -D'unveil(a,b)=0' $mac \
+	cc -Wall -Wextra -Werror -D_GNU_SOURCE $sandbox $mac \
 		-DDOAS="\"$T/fakedoas\"" -o "$T/cb" \
 		"$REPO/.local/src/codex-box/codex-box.c" 2>"$T/cc.out" ||
 		fail "codex-box.c does not build: $(cat "$T/cc.out")"

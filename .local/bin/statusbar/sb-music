@@ -6,7 +6,9 @@
 filter() { sed "/^volume:/d;s/\\[paused\\].*/⏸/g;/\\[playing\\].*/d;/^ERROR/,\$d" | paste -sd ' ' -;}
 
 # Keep sb-mpdup running so the bar follows mpd at once.
-pgrep -f sb-mpdup >/dev/null 2>&1 || sb-mpdup >/dev/null 2>&1 &
+if ! pgrep -f sb-mpdup >/dev/null 2>&1; then
+	sb-mpdup >/dev/null 2>&1 &
+fi
 
 case $BLOCK_BUTTON in
 	1) mpc status | filter ; detach "$TERMINAL" -e ncmpcpp ;;

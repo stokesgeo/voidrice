@@ -44,14 +44,14 @@ t_sb_cpu() {
 }
 
 t_sb_cpubars() {
-	eq "first run: no history, no bars" "🪨" "$(sb-cpubars)"
+	eq "first run: idle bar per index" "🪨▁▁▁▁" "$(sb-cpubars)"
 	[ -f "$XDG_CACHE_HOME/cpubarscache" ] || fail "no cache written"
 	# cpu0: 100 ticks, 50 idle: half load. cpu2: 100 ticks, none idle.
 	# cpu1 and cpu3 are offline SMT threads: their counters do not move.
 	setsysctl kern.cp_time2.0 1050,0,500,0,100,10050
 	setsysctl kern.cp_time2.2 3100,0,1000,0,200,5000
-	eq "second run: one bar per moving core" "🪨▅█" "$(sb-cpubars)"
-	eq "no movement since: no bars" "🪨" "$(sb-cpubars)"
+	eq "moving cores keep their positions" "🪨▅▁█▁" "$(sb-cpubars)"
+	eq "no movement since: idle bars" "🪨▁▁▁▁" "$(sb-cpubars)"
 }
 
 t_sb_internet() {
@@ -184,6 +184,29 @@ t_sb_music() {
 	waitfor 2 grep -q '^sb-mpdup' "$VT_STATE/log" || fail "sb-mpdup not started"
 }
 
+t_sb_music_watcher_detached() {
+	printf '#!/bin/sh\nexit 1\n' >"$T/bin/pgrep"
+	cat >"$T/bin/sb-mpdup" <<'EOF'
+#!/bin/sh
+echo $$ >"$VT_STATE/watcher.pid"
+exec "$VT_REAL_SLEEP" 10
+EOF
+	chmod +x "$T/bin/pgrep" "$T/bin/sb-mpdup"
+	printf '%s\n' 'Song' '[playing] #1/1' 'volume: 80%' >"$VT_STATE/out.mpc"
+	# A real watcher waits indefinitely. It must not retain the bar's pipe.
+	(sb-music | cat >"$T/music"; touch "$T/finished") & reader=$!
+	finished=no
+	waitfor 2 test -e "$T/finished" && finished=yes
+	if waitfor 2 test -s "$VT_STATE/watcher.pid"; then
+		kill "$(cat "$VT_STATE/watcher.pid")" 2>/dev/null || :
+	else
+		fail "fixture watcher did not start"
+	fi
+	wait "$reader"
+	[ "$finished" = yes ] || fail "watcher held the status output pipe open"
+	eq "music output" Song "$(cat "$T/music")"
+}
+
 # sb-doppler's pick: stock dmenu has no -r (the mock refuses it), so the
 # answer is checked against the list instead.
 t_sb_doppler_pick() {
@@ -204,9 +227,30 @@ t_sb_doppler_pick() {
 
 # The key sheet is Super+F1: the cwmrc's bind lines in dmenu.
 t_cwmrc_key_sheet() {
-	has "Super+F1" "grep ^bind ~/.config/cwm/cwmrc | dmenu" \
+	has "Super+F1" "grep ^bind ~/.config/cwm/cwmrc | expand -t 4 | dmenu" \
 		"$(awk '$2 == "4-F1"' "$REPO/.config/cwm/cwmrc")"
 	eq "sb-help-icon" "❓" "$(sb-help-icon)"
+}
+
+t_cwm_optional_launchers() {
+	cat >"$T/bin/ifinstalled" <<'EOF'
+#!/bin/sh
+echo "ifinstalled $*" >>"$VT_STATE/log"
+exit "${VT_OPTIONAL_RC:-1}"
+EOF
+	chmod +x "$T/bin/ifinstalled"
+	ln -s "$VT_MOCKS/_log" "$T/bin/passmenu"
+	for pair in 4-e:neomutt 4S-e:abook 4-c:profanity 4S-n:newsboat 4S-d:pass; do
+		key=${pair%:*}; program=${pair#*:}
+		body=$(awk -v key="$key" '$2 == key' "$REPO/.config/cwm/cwmrc" | cut -d "'" -f2)
+		: >"$VT_STATE/log"
+		TERMINAL=xterm "$VT_SH" -c "$body" || :
+		logged "^ifinstalled $program\$"
+		notlogged '^xterm|^passmenu'
+		: >"$VT_STATE/log"
+		VT_OPTIONAL_RC=0 TERMINAL=xterm "$VT_SH" -c "$body"
+		if [ "$program" = pass ]; then logged '^passmenu'; else logged "^xterm -e $program\$"; fi
+	done
 }
 
 # sb-help-icon's left click: the manual in a terminal, not the LARBS PDF.

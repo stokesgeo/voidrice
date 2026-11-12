@@ -8,6 +8,7 @@
 /.xprofile
 /.xsession
 /.calendar/
+/.pi/agent/
 
 # All but the Mac's desktop and its sound output for mpd.
 /.config/
@@ -24,8 +25,12 @@
 !/.local/share/darwin/
 !/.local/share/vertrice/
 /.local/share/vertrice/OPENBSD.md
+/.local/share/vertrice/PI_CAPABILITIES.md
+/.local/share/vertrice/POST-INSTALL.md
+/.local/share/vertrice/KEYS.png
 /.local/share/vertrice/reading
-/.local/share/vertrice/tests/check
+!/.local/share/openbsd/pi/mcp.example.json
+!/.local/share/bg
 
 # The C helpers: the Codex box and sd's proc-cwd.
 /.local/src/

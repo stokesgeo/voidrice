@@ -148,8 +148,9 @@ and
 .El
 .Pp
 Reboot afterwards.
-Running it again is safe: the appended lines repeat, and the last one
-read wins.
+Reruns do not duplicate the shipped wsconsctl.conf and fbtab lines.
+The installer stops on failed commands and validates doas/pf files before
+installation; earlier changes are not rolled back if a later step fails.
 .Pp
 The optional packages (mail, news, passwords, torrents, downloads, the
 dictionary and others) are in a second list:
@@ -204,6 +205,8 @@ in the profile runs dwm instead, with
 .Ic sbar
 writing the status line; dwm and st are built by hand into
 .Pa ~/.local/src .
+When the window manager exits, the session stops its palette loop,
+USB watcher and status bar.
 .Pp
 The xprofile sets the wallpaper and palette, starts mpd and dunst,
 runs
@@ -213,12 +216,47 @@ starts
 which locks the screen after ten idle minutes or when the pointer
 rests in the top-left corner, and shows a notice when a USB disk is
 attached or a backup is due.
+.Pp
+The default
+.Ox
+wallpaper is a cwm hotkey and workflow guide, fitted without cropping.
+A saved
+.Pa ~/.local/share/bg
+choice takes precedence.
+To select the guide explicitly, use
+.Ic setbg ~/.local/share/vertrice/KEYS.png .
 .Ss Keys
 The key list is
 .Pa ~/.config/cwm/cwmrc ;
 .Ic 4-F1
 shows it in dmenu.
 In its notation 4 is Super, S is Shift and C is Control.
+Mail, contacts, chat, news and password shortcuts report when their
+optional program is not installed; installed programs still need
+their account setup.
+.Pp
+Super+w opens qutebrowser, the human default selected by
+.Ev BROWSER
+in the profile.
+Chromium is for agents;
+Super+Shift+w opens its
+.Ox
+program
+.Ic chrome .
+Check rendering and input on the machine without disabling its sandbox
+or TLS checks.
+.Pp
+W3m is the
+.Ox
+terminal browser.
+.Ev TERMINAL_BROWSER
+selects it for Newsboat's comma-w action, the URL menu, LF HTML previews
+and HTML mail auto-view.
+The shared
+.Ic html-to-text
+adapter supplies w3m, lynx or elinks with its width and charset options.
+Change the one profile variable and start a fresh login session to switch;
+install the chosen native package first.
 voidrice's dwm keys are kept: groups are dwm's tags, and windows float
 until
 .Ic 4-t
@@ -264,6 +302,37 @@ when that file exists.
 .Ic remaps :
 the keyboard and TrackPoint settings again.
 .El
+.Ss Pi and the live writing seat
+After the system install, run
+.Ic vertrice-pi-setup
+as the ordinary user.
+It installs the locked Pi runtime and seeds absent settings;
+it preserves existing settings.
+Provider sign-in is separate: never give passwords or API keys to an agent
+conversation.
+.Pp
+Super+a opens Pi.
+From the intended work directory,
+.Ic ipe-pi Ar file
+opens the page with a retained Pi terminal beside it.
+In the editor,
+.Ic ,pp
+shows or hides that terminal and captures the current whole line;
+visual mode captures selected whole lines.
+Pi reads the live unsaved page, not a disk copy.
+Revision-checked edits do not save;
+.Ic :w
+or an explicitly requested save writes the working file.
+.Pp
+.Ic :IpeBackup
+snapshots modified named buffers without saving the working files;
+.Ic :IpeBackupPath
+shows the recovery paths.
+Snapshots normalize to LF plus a final newline and are not exact-format
+backups; unnamed editing and recovery are not supported by the Pi binding.
+See
+.Pa ~/.config/ipe-pi/README.md
+for the connection, recovery and refusal rules.
 .Ss Machine settings
 .Bl -tag -width Ds
 .It Touchpad
@@ -331,9 +400,7 @@ at 01:30 calls
 .Ql calendar -a
 and mails you the lines for today and tomorrow; on Friday, through
 Monday.
-Codex in
-.Ic cdxb
-may add reminders there.
+Pi can add reminders there when requested.
 A Mac uses Reminders instead; see
 .Sx The Mac .
 .Ss Dictionary
@@ -357,7 +424,7 @@ write a level 0 or level 1
 .Xr dump 8
 of
 .Pa /home ,
-compressed, to
+uncompressed, to
 .Pa /mnt/backup/dump .
 Mount the backup disk on
 .Pa /mnt/backup
@@ -377,8 +444,16 @@ line in
 the
 .Ox
 installer writes 1, a daily reminder; set it to 7 for a weekly one.
-Read a dump back with
+New backups are uncompressed
+.Pa home.dump
+files in a private directory per attempt.
+Read one back with
+.Ic restore -tf Ar file .
+Old compressed backups are retained; list those with
 .Ic gzip -dc Ar file | Ic restore -tf - .
+Failed attempts remain as
+.Pa home.dump.part ;
+that suffix alone does not establish that a dump is complete.
 .Ss Writing
 .Bl -tag -width "writemode" -compact
 .It Ic spellcheck Ar file
@@ -456,9 +531,16 @@ would install to
 counts it in the status line;
 .Ic sb-popupgrade
 installs the updates in a terminal.
-On a Mac a launchd agent writes the same file from
+On a Mac a launchd agent writes
+.Pa ${XDG_CACHE_HOME:-$HOME/.cache}/updates
+from
 .Ic brew outdated .
-.Ss Codex in a box
+.Ss Legacy Codex box
+Codex is deprecated and is not installed by the
+.Ox
+package lists.
+The retained code below is optional legacy material, not the default assistant.
+.Pp
 .Ic cdxb
 runs Codex from your own terminal in a box made with
 .Xr unveil 2
@@ -550,6 +632,20 @@ Karabiner-Elements makes Caps Lock Escape when tapped and Super when
 held: Command, Option and Control together.
 Shift adds the fourth modifier, Hyper.
 The keys follow the cwmrc's Super and Shift layers.
+.Pp
+AeroSpace keeps a half-width master on the left and equal rows on the right.
+Two windows share halves; three use a half and two quarters.
+Super+t repairs this shape.
+The surviving master stays master when another window opens.
+Ordinary focus changes preserve manual sizing.
+Floating and scratch windows are excluded; fullscreen prevents rebuilding.
+A silent background close, hide, minimize or native fullscreen exit can wait
+for the next focus event or Super+t.
+Native command batches are not atomic.
+The helper requires Python 3 and AeroSpace 0.21.3 or compatible commands.
+The experimental laptop gesture trial is separate from these public defaults;
+physical gestures and a fresh login still require acceptance.
+.Pp
 The top row of a Mac keyboard sets brightness, volume and media, so the
 keys on F1 to F8 need Fn held as well, unless standard function keys are
 turned on in System Settings, Keyboard.
@@ -606,10 +702,6 @@ at login and every four hours, and
 runs
 .Ic newsup
 every 30 minutes once newsboat is installed;
-.It
-checks that the screen asks for your password as soon as the display
-sleeps, with
-.Xr sysadminctl 8 ;
 .It
 opens AeroSpace, which starts SketchyBar;
 .It
@@ -722,7 +814,7 @@ the Mac's files.
 .It Pa ~/.local/bin/darwin/
 The Mac's commands in place of dmenu, xclip, notify-send, xdg-open,
 setbg, spell, maim and xdotool's type; and
-.Ic shortcuts ,
+.Ic vertrice-shortcuts ,
 which runs the one in
 .Pa ~/.local/bin ,
 not Apple's.
@@ -760,8 +852,10 @@ searches the standard path first, then
 .Pa ~/.local/share/man .
 .It Pa ~/.local/share/vertrice/reading
 Small base programs worth reading: the manual first, then the source.
-.It Pa ~/.local/share/vertrice/tests/check
-The check to run once on the X220.
+.It Pa ~/.local/share/vertrice/POST-INSTALL.md
+The
+.Ox
+configuration and daily-use checklist; keep a working copy per machine.
 .It Pa ~/.local/share/vertrice/OPENBSD.md
 What vertrice is and why, in short.
 .It Pa /var/db/updates
@@ -839,23 +933,14 @@ voidrice:
 .Nm
 was ported from Luke Smith's voidrice in 2026.
 .Sh CAVEATS
-.Nm
-has been tested off the machine, against mocked
-.Ox
-commands, and not yet on an X220.
-Not yet run there: the installer, the suspend lock on a lid close,
-.Xr dump 8
-and
-.Xr restore 8
-on the backup disk, the update count's reading of
-.Ic pkg_add -u -n -v ,
-the dictionary build, mpd's sound output from the included
-.Pa sndio.conf ,
-the Codex box's walls and the TrackPoint scroll.
-Nothing has run on a Mac yet: the Mac install, its agents and its
-desktop are tested only against mocks.
+Check hardware, account sign-in, locking, suspend/resume, sound and backup
+restore on the affected machine.
+A successful installer or running process does not verify those outcomes.
 .Pp
-After the first boot, run
-.Pa ~/.local/share/vertrice/tests/check ,
-once, as the user, inside X.
-It changes nothing and prints PASS or FAIL for each item.
+Use a working copy of
+.Pa ~/.local/share/vertrice/POST-INSTALL.md
+on
+.Ox
+to record configuration and daily-use checks.
+Developer tests and qualification history stay in the repository, not the
+normal installed home.

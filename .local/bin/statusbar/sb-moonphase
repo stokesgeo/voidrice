@@ -19,7 +19,11 @@ getmoon() { route -n get default >/dev/null 2>&1 &&
 checkmoon ||
 	( ( exec >/dev/null 2>&1; lock=/tmp/sb-moonphase-$(id -u).lock
 		mkdir "$lock" || exit
-		trap 'rmdir "$lock"' EXIT; tries=0; while [ $tries -ne 100 ]; do
+		trap 'rmdir "$lock"' EXIT
+		trap 'exit 129' HUP
+		trap 'exit 130' INT
+		trap 'exit 143' TERM
+		tries=0; while [ $tries -ne 100 ]; do
 			# shellcheck disable=SC2015
 			getmoon && break ||
 				{ tries=$((tries+1)); sleep .1; }

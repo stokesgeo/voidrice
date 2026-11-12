@@ -13,6 +13,7 @@ inst_setup() {
 	derived .local/bin/vertrice-install x/bin/vertrice-install \
 		"s|/etc/|$R/etc/|g; s|/root/|$R/root/|g; s|/var/db/hotplug-disk|$R/var/db/hotplug-disk|g" >/dev/null
 	for m in rcctl stat newaliases; do ln -s "$VT_MOCKS/_log" "$T/bin/$m"; done
+	printf '#!/bin/sh\necho user\n' >"$T/bin/id"; chmod +x "$T/bin/id"
 	echo puffy >"$VT_STATE/out.stat"	# stat -f %Su: the checkout's owner
 	printf '0\t*\t*\t*\t*\t/usr/bin/newsyslog\n' >"$VT_STATE/crontab.user"
 	printf '0\t9\t*\t*\t1\tlogger monday\n' >"$VT_STATE/crontab.puffy"
@@ -71,7 +72,7 @@ t_install_twice() {
 	inst_setup; inst; inst
 	cmp -s "$joined" "$R/etc/doas.conf" || fail "agent rules dropped: $(cat "$R/etc/doas.conf")"
 	eq "one update job" 1 "$(grep -c '^~.*/var/db/updates' "$VT_STATE/crontab.user")"
-	eq "one update comment" 1 "$(grep -c '^#.*/var/db/updates' "$VT_STATE/crontab.user")"
+	eq "one owned update marker" 1 "$(grep -c ' # vertrice-update-count$' "$VT_STATE/crontab.user")"
 	eq "no calendar job" 0 "$(grep -c calendar "$VT_STATE/crontab.puffy")"
 	eq "the owner's own job kept" 1 "$(grep -c 'logger monday' "$VT_STATE/crontab.puffy")"
 	eq "one root alias" 1 "$(grep -c '^root:' "$R/etc/mail/aliases")"
@@ -87,6 +88,115 @@ t_install_doas_rejected() {
 	eq "doas.conf unchanged" 'permit persist :wheel' "$(cat "$R/etc/doas.conf")"
 }
 
+# Failure injection is local to this fixture, not the shared command mocks.
+inst_cron_mock() {
+	cat >"$T/bin/crontab" <<'EOF'
+#!/bin/sh
+if [ "$1" = -l ] && [ -e "$VT_STATE/cron.read.rc" ]; then
+	echo 'crontab -l' >>"$VT_STATE/log"
+	cat "$VT_STATE/cron.read.out" 2>/dev/null
+	cat "$VT_STATE/cron.read.err" >&2
+	exit "$(cat "$VT_STATE/cron.read.rc")"
+fi
+if [ "$1" != -l ] && [ -e "$VT_STATE/cron.write.fail" ]; then
+	echo 'crontab write rejected' >>"$VT_STATE/log"
+	exit 1
+fi
+exec "$VT_MOCKS/crontab" "$@"
+EOF
+	chmod +x "$T/bin/crontab"
+}
+
+t_install_cron_absent() {
+	inst_setup
+	rm "$VT_STATE/crontab.user"
+	inst || fail "absent table rejected: $(cat "$T/out")"
+	eq "new table" "$(cat "$data/updates.cron")" "$(cat "$VT_STATE/crontab.user")"
+	inst || fail "repeat failed"
+	eq "repeat unchanged" "$(cat "$data/updates.cron")" "$(cat "$VT_STATE/crontab.user")"
+}
+
+t_install_cron_read_failure() {
+	inst_setup; inst_cron_mock
+	cp "$VT_STATE/crontab.user" "$T/cron.original"
+	printf 'crontab: /var/cron/tabs/root: Permission denied\n' >"$VT_STATE/cron.read.err"
+	echo 1 >"$VT_STATE/cron.read.rc"
+	inst && fail "read failure accepted"
+	cmp -s "$T/cron.original" "$VT_STATE/crontab.user" || fail "table replaced"
+	has "clear read error" 'cannot read crontab; not replacing it' "$(cat "$T/out")"
+	notlogged '^crontab /'
+	notlogged '^rcctl'
+}
+
+t_install_cron_partial_read_refused() {
+	inst_setup; inst_cron_mock
+	cp "$VT_STATE/crontab.user" "$T/cron.original"
+	echo 'crontab: no crontab for user' >"$VT_STATE/cron.read.err"
+	echo 'partial table' >"$VT_STATE/cron.read.out"
+	echo 1 >"$VT_STATE/cron.read.rc"
+	inst && fail "partial failed read accepted as absent"
+	cmp -s "$T/cron.original" "$VT_STATE/crontab.user" || fail "table replaced"
+}
+
+t_install_cron_wrong_absent_status() {
+	inst_setup; inst_cron_mock
+	echo 'crontab: no crontab for user' >"$VT_STATE/cron.read.err"
+	echo 2 >"$VT_STATE/cron.read.rc"
+	inst && fail "wrong absent status accepted"
+	notlogged '^crontab /'
+}
+
+t_install_cron_absent_diagnostic_must_be_exact() {
+	inst_setup; inst_cron_mock
+	echo 1 >"$VT_STATE/cron.read.rc"
+	for message in 'crontab: no crontab for someone-else' 'crontab: no crontab for user (read error)' ''; do
+		printf '%s\n' "$message" >"$VT_STATE/cron.read.err"
+		inst && fail "nonexact absent diagnostic accepted: $message"
+	done
+	notlogged '^crontab /'
+}
+
+t_install_cron_unrelated_and_legacy() {
+	inst_setup
+	printf '0 1 * * * cp /var/db/updates /tmp/update-history\n# monitor /var/db/updates\n' >>"$VT_STATE/crontab.user"
+	sed 's/ # vertrice-update-count$//; s|>/var/db/updates|>/var/db/updates.custom|' "$data/updates.cron" >>"$VT_STATE/crontab.user"
+	cp "$VT_STATE/crontab.user" "$T/cron.unrelated"
+	# The exact formerly shipped entry and comment; a modified job is not ours.
+	printf '%s\n' '# /var/db/updates: what syspatch and pkg_add -u would install, one a line; sb-updates counts them.' >>"$VT_STATE/crontab.user"
+	sed 's/ # vertrice-update-count$//' "$data/updates.cron" >>"$VT_STATE/crontab.user"
+	printf '0 2 * * * logger old-job # vertrice-update-count\n' >>"$VT_STATE/crontab.user"
+	inst || fail "migration failed"
+	{ cat "$T/cron.unrelated"; cat "$data/updates.cron"; } >"$T/cron.expected"
+	cmp -s "$T/cron.expected" "$VT_STATE/crontab.user" || fail "unrelated entries lost or legacy retained"
+	inst || fail "repeat migration failed"
+	cmp -s "$T/cron.expected" "$VT_STATE/crontab.user" || fail "repeat changed table"
+}
+
+t_install_cron_generation_failure() {
+	inst_setup
+	cp "$VT_STATE/crontab.user" "$T/cron.original"
+	rm "$data/updates.cron"
+	inst && fail "missing shipped job accepted"
+	cmp -s "$T/cron.original" "$VT_STATE/crontab.user" || fail "table replaced on generation failure"
+	notlogged '^crontab /'
+}
+
+t_install_cron_filter_failure() {
+	inst_setup
+	printf '#!/bin/sh\nexit 1\n' >"$T/bin/awk"; chmod +x "$T/bin/awk"
+	inst && fail "filter failure accepted"
+	notlogged '^crontab /'
+}
+
+t_install_cron_install_failure() {
+	inst_setup; inst_cron_mock
+	cp "$VT_STATE/crontab.user" "$T/cron.original"
+	: >"$VT_STATE/cron.write.fail"
+	inst && fail "crontab install failure accepted"
+	cmp -s "$T/cron.original" "$VT_STATE/crontab.user" || fail "table replaced despite rejection"
+	notlogged '^rcctl'
+}
+
 t_install_pf_rejected() {
 	inst_setup
 	printf 'pass\n' >"$R/etc/pf.conf"
@@ -94,6 +204,37 @@ t_install_pf_rejected() {
 	inst
 	eq "pf.conf unchanged" pass "$(cat "$R/etc/pf.conf")"
 	notlogged '^pfctl -f'
+}
+
+t_install_package_failure_stops() {
+	inst_setup
+	echo 1 >"$VT_STATE/rc.pkg_add"
+	if inst; then fail "package failure reported success"; fi
+	notlogged '^doas -C'
+	[ ! -e "$R/etc/pf.conf" ] || fail "configuration changed after package failure"
+}
+
+t_install_doas_failure_stops() {
+	inst_setup
+	echo 1 >"$VT_STATE/rc.doas"
+	if inst; then fail "doas validation failure reported success"; fi
+	notlogged '^pfctl'
+}
+
+t_install_pf_failure_stops() {
+	inst_setup
+	echo 1 >"$VT_STATE/rc.pfctl"
+	if inst; then fail "pf validation failure reported success"; fi
+	notlogged '^rcctl'
+}
+
+t_install_appends_once() {
+	inst_setup; inst
+	cp "$R/etc/wsconsctl.conf" "$T/wsconsctl.first"
+	cp "$R/etc/fbtab" "$T/fbtab.first"
+	inst
+	cmp -s "$T/wsconsctl.first" "$R/etc/wsconsctl.conf" || fail "wsconsctl.conf duplicated on rerun"
+	cmp -s "$T/fbtab.first" "$R/etc/fbtab" || fail "fbtab duplicated on rerun"
 }
 
 t_install_staff_class() {
@@ -124,19 +265,38 @@ block return out log proto {tcp udp} user _pbuild" \
 # /etc/apm/suspend: a fake xidle in $T records the signal it gets. SIGUSR1
 # is what makes the real one start xlock; anything else would kill it.
 t_apm_suspend_locks() {
-	# The fake xidle is a script; the Mac names its process after the
-	# interpreter, so pkill -x xidle cannot find it there.
-	[ "$VT_HOST" = Darwin ] && skip "the Mac names a script's process sh"
-	cat >"$T/xidle" <<'EOF'
-#!/bin/sh
-trap 'echo USR1 >"$0.got"; exit 0' USR1
-trap 'echo TERM >"$0.got"; exit 0' TERM
-while :; do sleep 0.1; done
+	command -v cc >/dev/null 2>&1 || skip "no C compiler for the named xidle fixture"
+	# A real executable has the process name that pkill -x matches.
+	cat >"$T/xidle.c" <<'EOF'
+#include <signal.h>
+#include <stdio.h>
+#include <unistd.h>
+
+static volatile sig_atomic_t received;
+static void caught(int sig) { received = sig; }
+int main(void) {
+    FILE *f;
+    sigset_t blocked, previous;
+    sigemptyset(&blocked);
+    sigaddset(&blocked, SIGUSR1);
+    sigaddset(&blocked, SIGTERM);
+    sigprocmask(SIG_BLOCK, &blocked, &previous);
+    signal(SIGUSR1, caught);
+    signal(SIGTERM, caught);
+    f = fopen("xidle.ready", "w");
+    if (!f) return 1;
+    fclose(f);
+    while (!received) sigsuspend(&previous);
+    f = fopen("xidle.got", "w");
+    if (!f) return 1;
+    fputs(received == SIGUSR1 ? "USR1\n" : "TERM\n", f);
+    return fclose(f) != 0;
+}
 EOF
-	chmod +x "$T/xidle"
+	cc -o "$T/xidle" "$T/xidle.c" || fail "cannot build xidle fixture"
 	"$T/xidle" &
 	track $!
-	waitfor 2 "$VT_REAL_PGREP" -x xidle || fail "fake xidle never started"
+	waitfor 2 test -e "$T/xidle.ready" || fail "fake xidle never installed its handlers"
 	VT_SLEEP=0 sh "$REPO/.local/share/openbsd/apm-suspend"
 	logged '^pkill -USR1 -x xidle$'
 	waitfor 2 test -e "$T/xidle.got" || fail "xidle got no signal"

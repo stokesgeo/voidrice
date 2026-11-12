@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "ingestion": {
+      "url": "https://ingestion.example.invalid/mcp",
+      "headers": {"Authorization": "Bearer ${PI_INGEST_TOKEN}"},
+      "enabled": false,
+      "description": "Owner-provisioned constrained ingestion service. Returns admission/reader status and untrusted-derived digests, never raw external content.",
+      "exposure": "direct"
+    }
+  }
+}

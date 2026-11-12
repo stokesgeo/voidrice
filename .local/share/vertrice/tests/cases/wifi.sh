@@ -55,3 +55,21 @@ t_wifi_key_opens_terminal() {
 	"$VT_KSH" "$REPO/.local/bin/dmenuwifi"
 	logged "^xterm -name floatterm -geometry 64x4 -e $REPO/\\.local/bin/dmenuwifi\$"
 }
+
+t_wifi_restores_terminal_on_signal() {
+	wifi_setup
+	answers "🔒 cafe net"
+	cat >"$T/bin/stty" <<'EOF'
+#!/bin/sh
+case $1 in
+	-g) echo saved-terminal-state ;;
+	-echo) kill -TERM "$PPID" ;;
+	saved-terminal-state) echo terminal-restored >>"$VT_STATE/log" ;;
+	*) exit 1 ;;
+esac
+EOF
+	chmod +x "$T/bin/stty"
+	wifi_run ''
+	logged '^terminal-restored$'
+	notlogged '^doas ifconfig iwn0 join'
+}

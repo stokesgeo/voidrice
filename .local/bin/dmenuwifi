@@ -16,7 +16,17 @@ nets=$(doas ifconfig "$if" scan | awk '/^\t\tnwid / {
 chosen=$(print -r -- "$nets" | dmenu -i -l 10 -p "Join which network?") || exit 1
 print -r -- "$nets" | grep -qxF -- "$chosen" || exit 1
 name=${chosen#* } key=
-[ "${chosen%% *}" = 🔒 ] && { print -n "Key for $name: "; stty -echo; IFS= read -r key; stty echo; print; }
+if [ "${chosen%% *}" = 🔒 ]; then
+	print -n "Key for $name: "
+	tty_state=$(stty -g) || exit 1
+	trap 'stty "$tty_state"' EXIT
+	trap 'exit 1' HUP INT TERM
+	stty -echo || exit 1
+	IFS= read -r key || exit 1
+	stty "$tty_state" || exit 1
+	trap - EXIT HUP INT TERM
+	print
+fi
 doas ifconfig "$if" join "$name" ${key:+wpakey "$key"} || { notify-send "📶 Join failed." "$name"; exit 1; }
 doas ifconfig "$if" inet autoconf	# dhcpleased(8) asks for an address
 notify-send "📶 Joining $name"

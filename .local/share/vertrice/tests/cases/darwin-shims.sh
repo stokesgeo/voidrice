@@ -287,27 +287,28 @@ EOF
 	opened "git skipped" "$T/repo/sub"
 }
 
-# Apple's shortcuts(1) is in /usr/bin, before ~/.local/bin: the profile,
-# ref and nvim must still reach vertrice's.
+# Bookmark generation has its own name; do not shadow Apple's shortcuts(1).
 t_darwin_shortcuts() {
 	mac
 	argmock shortcuts
-	printf '#!/bin/sh\nexec %s "%s" "$@"\n' "$VT_SH" "$REPO/.local/bin/shortcuts" >"$T/vshortcuts"
+	printf '#!/bin/sh\nexec %s "%s" "$@"\n' "$VT_SH" "$REPO/.local/bin/vertrice-shortcuts" >"$T/vshortcuts"
 	chmod +x "$T/vshortcuts"
 	mkdir -p "$HOME/.local/bin" "$XDG_CONFIG_HOME/shell" "$XDG_CONFIG_HOME/lf" "$XDG_CONFIG_HOME/nvim"
-	ln -s "$T/vshortcuts" "$HOME/.local/bin/shortcuts"
+	ln -s "$T/vshortcuts" "$HOME/.local/bin/vertrice-shortcuts"
 	ln -s "$REPO/.config/shell/bm-dirs" "$XDG_CONFIG_HOME/shell/bm-dirs"
 	ln -s "$REPO/.config/shell/bm-files" "$XDG_CONFIG_HOME/shell/bm-files"
-	shortcuts
+	vertrice-shortcuts
 	notlogged '^shortcuts\|'
 	[ -s "$XDG_CONFIG_HOME/shell/shortcutrc" ] || fail "no shortcutrc"
+	shortcuts list
+	logged '^shortcuts|list$'
 }
 
 t_darwin_profile() {
 	home_setup
 	mkdir -p "$HOME/.local/bin/darwin"
 	mac
-	out=$("$VT_SH" -c '. "$HOME/.profile"; printf "%s\n" "$PATH" "$TERMINAL"' 2>&1) ||
+	out=$("$VT_SH" -c '. "$HOME/.profile"; printf "%s\n" "$PATH" "$TERMINAL" "$TERMINAL_BROWSER"' 2>&1) ||
 		fail "profile failed: $out"
 	path=$(printf '%s\n' "$out" | sed -n 1p)
 	case $path in "$HOME/.local/bin/darwin:/opt/homebrew/bin:/opt/homebrew/opt/libarchive/bin:"*) ;;
@@ -316,6 +317,7 @@ t_darwin_profile() {
 	eq "darwin once" 1 "$(printf '%s\n' "$path" | tr ':' '\n' | grep -c '/\.local/bin/darwin$')"
 	has "statusbar on PATH" ":$HOME/.local/bin/statusbar" "$path"
 	eq "the terminal" ghostty "$(printf '%s\n' "$out" | sed -n 2p)"
+	eq "legacy terminal browser unchanged" lynx "$(printf '%s\n' "$out" | sed -n 3p)"
 }
 
 t_darwin_profile_off_mac() {
@@ -433,7 +435,7 @@ t_darwin_sb_refresh() {
 
 t_darwin_sb_memory() {
 	mac
-	setsysctl hw.memsize=17179869184
+	setsysctl hw.memsize 17179869184
 	cat >"$T/bin/vm_stat" <<'EOF'
 #!/bin/sh
 cat <<'E'
@@ -576,12 +578,12 @@ t_darwin_otp_sync_time() {
 	logged '\|🕙 Time sync\|\+0.012 \+/- 0.004 time.apple.com 17.253.4.125\|$'
 }
 
-# A terminal from with_tty; the update count is in the case's cache.
+# A terminal with Enter supplied; the update count is in the case's cache.
 t_darwin_popupgrade() {
 	mac
 	echo 'git' >"$XDG_CACHE_HOME/updates"
 	up=$(derived .local/bin/statusbar/sb-popupgrade sb-popupgrade "s|/var/db/updates|$T/updates|g")
-	printf '\n' | with_tty "$up"
+	printf '\n' | pty "$VT_SH $up" >"$T/tty.out" 2>&1
 	logged '^brew\|update\|$'
 	logged '^brew\|upgrade\|$'
 	notlogged '^doas'

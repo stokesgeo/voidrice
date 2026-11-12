@@ -185,5 +185,5 @@ map <c-l> unselect
 
 
 # Source Bookmarks
-# (generated from bm-dirs by the shortcuts script)
+# (generated from bm-dirs by vertrice-shortcuts)
 source "~/.config/lf/shortcutrc"

@@ -1,5 +1,5 @@
 # You can add comments to these files with #
-# Directory bookmarks: key, then path. The shortcuts script turns each into
+# Directory bookmarks: key, then path. vertrice-shortcuts turns each into
 # a shell alias, an lf key and a vim command; the ref alias reloads them.
 # Paths pass through eval, so $VAR expands; comments are cut first.
 cac ${XDG_CACHE_HOME:-$HOME/.cache}

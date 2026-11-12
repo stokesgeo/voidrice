@@ -1,0 +1,13 @@
+#!/bin/sh
+# Existing scope cases supply file's MIME result. Native MIME discrimination
+# itself is tested separately; this adapter preserves their fixture contract.
+while [ "$#" -gt 0 ]; do
+	case $1 in
+	-b|--brief|-L|--dereference) shift ;;
+	--) shift; break ;;
+	*) break ;;
+	esac
+done
+# Unlike OpenBSD file, File::MimeInfo recognizes directories as directories.
+if [ -d "$1" ]; then printf '%s\n' inode/directory; exit 0; fi
+file -bL --mime-type -- "$@" | cut -d';' -f1

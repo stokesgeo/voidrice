@@ -17,10 +17,10 @@
 # (edits the block). Only a bar that sets $BLOCK_BUTTON, such as dwmblocks,
 # sends clicks; sbar sets none.
 #
-# Blocks that fetch from the net (sb-forecast, sb-iplocate, sb-moonphase,
-# sb-price) share one pattern. On a stale cache they print an empty line
-# and fetch in the background, one fetcher at a time (a mkdir lock), then
-# call sb-refresh.
+# sb-forecast, sb-iplocate and sb-moonphase share one pattern; sb-price does
+# too with a nonempty fourth argument (unless middle-clicked to update now).
+# They fetch stale data in the background, one fetcher at a time (a mkdir
+# lock), then call sb-refresh.
 
 # A caught signal ends the wait below; the loop then redraws.
 trap : USR1

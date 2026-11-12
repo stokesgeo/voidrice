@@ -1,0 +1,90 @@
+{
+  "schema": 1,
+  "selection": "Public OpenBSD tools and operating instructions",
+  "files": [
+    {
+      "path": "AGENTS.md",
+      "sha256": "ed98267dffdbc33df5528ea2b825c16e810457333bf0b6d798a8cb405eb78903"
+    },
+    {
+      "path": "agents/worker.md",
+      "sha256": "42b3ad3d0936db32d65ba05109f61c04573b5ea1ac1a8de792ca6307f413fee6"
+    },
+    {
+      "path": "agents/scout.md",
+      "sha256": "34f5c8d64ab4c60c4bf12f5a190e74896b6f86134e2bda5ab8b537cd13b00353"
+    },
+    {
+      "path": "agents/reviewer.md",
+      "sha256": "ca735d3a7b4df758a7ce4ccf7a7d598e880c46aba9338a85aaa10973d2312005"
+    },
+    {
+      "path": "agents/reader.md",
+      "sha256": "c1476eacea389a9548d49dadca8671176cfc9e98c63238c31530036a943bc1b8"
+    },
+    {
+      "path": "skills/maintain/SKILL.md",
+      "sha256": "3d5535dbbdda0d6ff8b3747a3b65956abb8c8a95d50eb9a66bc8effaaf9a3eaf"
+    },
+    {
+      "path": "skills/research/SKILL.md",
+      "sha256": "2e51863fc5fad790ac172537bfb550fe4bf96b0b95e8c206effa3bf4a4a96ff4"
+    },
+    {
+      "path": "skills/web-video/SKILL.md",
+      "sha256": "f3dadec2c7fc31e646768507622e2ec78b23d974b5614f07a5b2d7a3544a7a06"
+    },
+    {
+      "path": "skills/writing-companion/SKILL.md",
+      "sha256": "d02d60f977fe01c7aee976a7d96a81e401c33c1b910132f7116f029653c68f43"
+    },
+    {
+      "path": "prompts/review.md",
+      "sha256": "81602f9d90c38eba30503e69c3e31ee41bd59487b04aee95ac16d6d699917d39"
+    },
+    {
+      "path": "prompts/handoff.md",
+      "sha256": "0fa8026094a79deeebfd881f89a12df8e603d2ca6c8ce8f227d7d44b5bbc64d2"
+    },
+    {
+      "path": "context/README.md",
+      "sha256": "85b498a00d8ee698d639f8206f1a5f9cf0a7272f92313c477441b9b4f06225c3"
+    },
+    {
+      "path": "context/usage.md",
+      "sha256": "119e6c13ef5a125e92552719866ee179c49c5abf88b981a8fbae8085d26ca392"
+    },
+    {
+      "path": "context/tasks.md",
+      "sha256": "759a919637fcf718d7bea3e82471eddc7af7001c7a047d5fdfce8076cac27360"
+    },
+    {
+      "path": "context/storage-sync.md",
+      "sha256": "97ed2c1deaf022f15511ce012f91cafa37e1966d2a6aab463ff8c8799d5163e1"
+    },
+    {
+      "path": "context/git-flow.md",
+      "sha256": "1a4901ec089cd5849381c05ed07d93b63604057d3f33dd760f58779fc2e5e7c4"
+    },
+    {
+      "path": "context/admin.md",
+      "sha256": "b71c20bcf8101b043edbe0288353a921347dae07c3d87f388a13fb9855d2138b"
+    },
+    {
+      "path": "context/editor.md",
+      "sha256": "59e4bb7117cc76725ba70ac66b7970171695cdca37fe87536059b5134f3fb5f8"
+    },
+    {
+      "path": "context/verification.md",
+      "sha256": "8a3792ec802a88f8c790ad95ed113e40da053ec8d240379a3d7a1f2bec918add"
+    },
+    {
+      "path": "context/capability-boundaries.md",
+      "sha256": "b5c2b3fbf4fa4d993932eee5717c5daf9908d3acd467f057619991c2594e2034"
+    },
+    {
+      "path": "skills/self-maintain/SKILL.md",
+      "sha256": "a05c5a60908b04546ba4869505e931b136f9c53bb1bf9687694ab05d85fc0d46"
+    }
+  ]
+}

@@ -60,8 +60,9 @@ trap 'exit 130' INT TERM
 VT_REAL_PS=$(command -v ps) VT_REAL_SLEEP=$(command -v sleep)
 VT_REAL_RM=$(command -v rm) VT_REAL_DATE=$(command -v date)
 VT_REAL_PGREP=$(command -v pgrep) VT_REAL_BASENAME=$(command -v basename)
+VT_REAL_NVIM=$(command -v nvim)
 export VT_REAL_PS VT_REAL_SLEEP VT_REAL_RM VT_REAL_DATE VT_REAL_PGREP \
-	VT_REAL_BASENAME
+	VT_REAL_BASENAME VT_REAL_NVIM
 
 # The shell and awk the scripts expect. On OpenBSD they are base. Elsewhere,
 # oksh named "sh" runs in sh mode, as OpenBSD's /bin/sh does.
@@ -111,6 +112,7 @@ syspath=$PATH
 # sb-music is left out because it starts sb-mpdup.
 if [ -n "$live" ]; then
 	[ "$os" = OpenBSD ] || { echo "run: --live needs OpenBSD" >&2; exit 2; }
+	unset BLOCK_BUTTON
 	export XDG_CACHE_HOME="$RUN/cache" PATH="$wrap:$syspath"
 	mkdir -p "$XDG_CACHE_HOME"
 	for b in sb-battery sb-brightness sb-cpu sb-cpubars sb-internet \
@@ -148,8 +150,8 @@ for name in $list; do
 	mkdir -p "$T/state" "$T/home" "$T/cache" "$T/bin"
 	(
 		export T VT_STATE="$T/state" HOME="$T/home" XDG_CACHE_HOME="$T/cache" \
-			XDG_CONFIG_HOME="$T/home/.config" TERMINAL=xterm EDITOR=vi \
-			LC_ALL=C TZ=UTC VT_MOCKS="$here/mock" \
+			XDG_CONFIG_HOME="$T/home/.config" XDG_DATA_HOME="$T/home/.local/share" TERMINAL=xterm EDITOR=vi \
+			LC_ALL=C TZ=UTC TERM=dumb VT_MOCKS="$here/mock" \
 			PATH="$T/bin:$here/mock:$wrap${shim:+:$shim}:$syspath"
 		# Nothing from the caller's environment may steer a mock.
 		unset DISPLAY BLOCK_BUTTON LANG APM_L APM_A APM_B WSCONS_BRIGHTNESS \
@@ -165,10 +167,16 @@ for name in $list; do
 	) >"$T/.out" 2>&1 </dev/null &
 	cpid=$!
 	# A hung case must not hang the suite: 30 seconds, then it is killed.
-	( "$VT_REAL_SLEEP" 30; kill "$cpid" ) >/dev/null 2>&1 &
+	(
+		# A foreground sleep delays TERM and leaves two processes per case.
+		trap 'kill "$timer" 2>/dev/null; wait "$timer" 2>/dev/null; exit 0' TERM
+		"$VT_REAL_SLEEP" 30 & timer=$!
+		wait "$timer" && kill -KILL "$cpid"
+	) >/dev/null 2>&1 &
 	wpid=$!
 	wait "$cpid"; rc=$?
 	kill "$wpid" 2>/dev/null
+	wait "$wpid" 2>/dev/null
 	killstate
 	why=
 	if [ -f "$T/.xfail" ]; then

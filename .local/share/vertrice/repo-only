@@ -7,7 +7,8 @@
 /README.md
 /LICENSE
 /FUNDING.yml
-/.local/share/vertrice/SPEC.md
+/.local/share/vertrice/KEYS.svg
+/.local/share/bg
+/.local/share/openbsd/pi/mcp.example.json
 /.local/share/vertrice/repo-only
 /.local/share/vertrice/tests/
-!/.local/share/vertrice/tests/check

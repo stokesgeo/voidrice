@@ -1,0 +1,39 @@
+#!/bin/sh
+
+# One renderer selection for LF and HTML mail. The login profile owns the
+# default; the unset-variable fallback preserves older callers' Lynx behavior.
+# Usage: html-to-text FILE [WIDTH [MIME-CHARSET]]
+[ "$#" -ge 1 ] && [ "$#" -le 3 ] || { echo 'usage: html-to-text FILE [WIDTH [MIME-CHARSET]]' >&2; exit 2; }
+file=$1
+width=${2:-80}
+charset=${3:-}
+browser=${TERMINAL_BROWSER:-lynx}
+
+case $width in ''|*[!0-9]*|0) echo 'html-to-text: width must be a positive integer' >&2; exit 2 ;; esac
+# Charset names are data, never shell code or ELinks configuration syntax.
+case $charset in *[!A-Za-z0-9_.:+-]*) echo 'html-to-text: invalid charset name' >&2; exit 2 ;; esac
+case $charset in [Uu][Ss]-[Aa][Ss][Cc][Ii][Ii]) charset= ;; esac
+case $file in -?*) file=./$file ;; esac
+
+if [ -z "$charset" ]; then
+	charset=ISO-8859-1
+	if [ "${browser##*/}" = w3m ]; then
+		# W3m's Latin-1 default can mask valid UTF-8 in short HTML. Validate
+		# bytes rather than guessing from the page's words or punctuation.
+		command -v iconv >/dev/null 2>&1 || { echo 'html-to-text: iconv is required for w3m charset detection' >&2; exit 127; }
+		if iconv -f UTF-8 -t UTF-8 "$file" >/dev/null 2>&1; then charset=UTF-8; fi
+	fi
+fi
+
+case ${browser##*/} in
+	w3m) exec "$browser" -dump -cols "$width" -o "document_charset=$charset" -O UTF-8 "$file" ;;
+	lynx) exec "$browser" -width="$width" -assume_charset="$charset" -display_charset=utf-8 -dump "$file" ;;
+	elinks)
+		# ELinks -eval sets native options, not shell code. Plain previews must
+		# not execute page scripts or fetch remote CSS from HTML mail.
+		exec "$browser" -no-connect -dump -dump-width "$width" -dump-charset UTF-8 \
+			-eval 'set ecmascript.enable = 0' -eval 'set document.css.enable = 0' \
+			-eval 'set document.html.display_frames = 0' -eval 'set document.html.display_iframes = 0' \
+			-eval "set document.codepage.assume = \"$charset\"" "$file" ;;
+	*) echo "html-to-text: unsupported terminal browser: $browser" >&2; exit 2 ;;
+esac

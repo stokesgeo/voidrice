@@ -7,7 +7,8 @@
 #	If wal is installed and PALETTE=wal, also generates a colorscheme.
 
 # Location of link to wallpaper link.
-bgloc="${XDG_DATA_HOME:-$HOME/.local/share}/bg"
+data="${XDG_DATA_HOME:-$HOME/.local/share}"
+bgloc="$data/bg"
 
 # Give -s as parameter to make notifications silent.
 while getopts "s" o; do case "${o}" in
@@ -16,7 +17,7 @@ esac done
 
 shift $((OPTIND - 1))
 
-trueloc="$(readlink -f "$1")" &&
+[ "$#" -gt 0 ] && trueloc="$(readlink -f "$1")" &&
 if [ -d "$trueloc" ]; then	# No file(1) inode/directory type or shuf(1) here: test -d, sort -R.
 	ln -sf "$(find "$trueloc" -type f \( -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.png' -o -iname '*.gif' \) | sort -R | head -n 1)" "$bgloc" && [ -z "$silent" ] && notify-send -i "$bgloc" "Random Wallpaper chosen."
 else
@@ -26,11 +27,26 @@ else
 	esac
 fi
 
-# pywal is opt-in (PALETTE=wal in the profile); otherwise `theme` sets the colours.
-if [ "$PALETTE" = wal ] && command -v wal >/dev/null 2>&1 ; then
-	wal -n -i "$(readlink -f "$bgloc")" -o "${XDG_CONFIG_HOME:-$HOME/.config}/wal/postrun" >/dev/null 2>&1
+# With no saved choice, use this system's default without creating a user link.
+wallpaper=$bgloc
+if [ ! -e "$wallpaper" ]; then
+	case "$(uname)" in
+		OpenBSD) wallpaper="$data/vertrice/KEYS.png" ;;
+		*) wallpaper="$data/thiemeyer_road_to_samarkand.jpg" ;;
+	esac
 fi
 
-xwallpaper --zoom "$bgloc"
+# pywal is opt-in (PALETTE=wal in the profile); otherwise `theme` sets the colours.
+if [ "$PALETTE" = wal ] && command -v wal >/dev/null 2>&1 ; then
+	wal -n -i "$(readlink -f "$wallpaper")" -o "${XDG_CONFIG_HOME:-$HOME/.config}/wal/postrun" >/dev/null 2>&1
+fi
+
+# Fit the key guide in full; photographs keep the normal cropped fill.
+mode=--zoom
+if [ -f "$data/vertrice/KEYS.png" ] &&
+	[ "$(readlink -f "$wallpaper")" = "$(readlink -f "$data/vertrice/KEYS.png")" ]; then
+	mode=--maximize
+fi
+xwallpaper "$mode" "$wallpaper"
 # If running, dwm hit the key to refresh the color scheme.
-pgrep -x dwm >/dev/null && xdotool key super+F5
+if pgrep -x dwm >/dev/null; then xdotool key super+F5; fi

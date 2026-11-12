@@ -1,7 +1,8 @@
 #!/bin/sh
 
 # A dmenu wrapper script for system functions.
-# zzz and ZZZ go through apmd, whose /etc/apm/suspend locks the screen first.
+# zzz and ZZZ go through apmd; its hook asks xidle to lock, then pauses.
+# This does not confirm that xlock acquired the screen before suspend.
 
 # Mute and pause music while locked. Unmute after only if it was not muted
 # before.

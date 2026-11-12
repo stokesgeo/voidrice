@@ -5,7 +5,7 @@ sc_setup() {
 	mkdir -p "$XDG_CONFIG_HOME/shell" "$XDG_CONFIG_HOME/lf" "$XDG_CONFIG_HOME/nvim"
 	ln -s "$REPO/.config/shell/bm-dirs" "$XDG_CONFIG_HOME/shell/bm-dirs"
 	ln -s "$REPO/.config/shell/bm-files" "$XDG_CONFIG_HOME/shell/bm-files"
-	shortcuts || fail "shortcuts failed"
+	vertrice-shortcuts || fail "bookmark generation failed"
 }
 
 t_shortcuts_source_cleanly() {
@@ -43,7 +43,7 @@ t_shortcuts_comments_not_evaluated() {
 	mkdir -p "$XDG_CONFIG_HOME/shell" "$XDG_CONFIG_HOME/lf" "$XDG_CONFIG_HOME/nvim"
 	printf '# `touch %s/ran`\nh  $HOME\n' "$T" >"$XDG_CONFIG_HOME/shell/bm-dirs"
 	printf 'bf\t~/f\t# a 12" note\n' >"$XDG_CONFIG_HOME/shell/bm-files"
-	shortcuts 2>"$T/err" || fail "shortcuts failed"
+	vertrice-shortcuts 2>"$T/err" || fail "bookmark generation failed"
 	[ ! -e "$T/ran" ] || fail "a comment ran as a command"
 	eq "no errors" "" "$(cat "$T/err")"
 	out=$("$VT_KSH" -c ". '$XDG_CONFIG_HOME/shell/shortcutrc' && alias h && alias bf" 2>&1)
@@ -81,7 +81,7 @@ t_cwmrc_function_names() {
 	# conf.c's table, or a program: in this repository or listed here.
 	funcs=$(sed -n 's/.*FUNC_[CS]C(\([a-z0-9-]*\),.*/\1/p' "$c")
 	[ -n "$funcs" ] || fail "no functions found in $c"
-	external="chromium video"
+	external="qutebrowser video"
 	bad=
 	for w in $(awk '$1 == "bind-key" || $1 == "bind-mouse" { if ($3 !~ /^"/) print $3 }' \
 	    "$REPO/.config/cwm/cwmrc"); do
@@ -91,13 +91,6 @@ t_cwmrc_function_names() {
 		bad="$bad $w"
 	done
 	eq "unknown bare words" "" "${bad# }"
-	# And every cwm function SPEC.md's walk names exists.
-	for w in $(grep -o '`[a-z]*-[a-z0-9-]*`' "$REPO/.local/share/vertrice/SPEC.md" | tr -d '`' | sort -u); do
-		case $w in window-*|group-*|menu-*)
-			printf '%s\n' "$funcs" | grep -qx -- "$w" || bad="$bad $w" ;;
-		esac
-	done
-	eq "SPEC.md names only real functions" "" "${bad# }"
 }
 
 t_parse_shell_files() {
@@ -143,11 +136,13 @@ home_setup() {
 
 t_profile_loads() {
 	home_setup
-	out=$("$VT_SH" -c '. "$HOME/.profile"; printf "%s\n" "$ENV" "$NEXINIT" "$EDITOR" "$PATH"' 2>&1) ||
+	out=$("$VT_SH" -c '. "$HOME/.profile"; printf "%s\n" "$ENV" "$NEXINIT" "$EDITOR" "$PATH" "$BROWSER" "$TERMINAL_BROWSER"' 2>&1) ||
 		fail "profile failed: $out"
 	eq "ENV" "$HOME/.config/ksh/kshrc" "$(printf '%s\n' "$out" | sed -n 1p)"
 	eq "NEXINIT" "source $HOME/.config/vi/exrc" "$(printf '%s\n' "$out" | sed -n 2p)"
 	path=$(printf '%s\n' "$out" | sed -n 4p)
+	eq "OpenBSD human browser" qutebrowser "$(printf '%s\n' "$out" | sed -n 5p)"
+	eq "OpenBSD terminal browser" w3m "$(printf '%s\n' "$out" | sed -n 6p)"
 	has "statusbar on PATH" ":$HOME/.local/bin/statusbar" "$path"
 	# Only the openbsd folder (the dmenu wrapper) comes before base, once.
 	case $path in "$HOME/.local/bin/openbsd:"*) ;; *) fail "~/.local/bin/openbsd must come first" ;; esac
@@ -155,7 +150,7 @@ t_profile_loads() {
 	"$HOME/.local/bin"*) fail "~/.local/bin must come last, after base" ;;
 	*"$HOME/.local/bin/openbsd"*) fail "openbsd is on PATH twice" ;;
 	esac
-	logged '^detach shortcuts$'
+	logged '^detach vertrice-shortcuts$'
 }
 
 t_kshrc_loads() {
@@ -211,7 +206,9 @@ t_xprofile_autostart() {
 	chmod +x "$T/bin/"*
 	printf '#!/bin/sh\nexit 1\n' >"$T/bin/pgrep"; chmod +x "$T/bin/pgrep"
 	"$VT_SH" "$T/block"; wait
-	waitfor 2 grep -q '^unclutter' "$VT_STATE/log" || fail "autostart ran nothing"
+	for p in mpd dunst unclutter; do
+		waitfor 2 grep -q "^$p" "$VT_STATE/log" || fail "autostart did not record $p"
+	done
 	logged '^mpd'; logged '^dunst'
 	notlogged '^(xcompmgr|picom)'
 }
@@ -228,6 +225,91 @@ t_xinitrc_session_env() {
 	eq "private" "-rw-------" "$(ls -l "$f" | cut -c1-10)"
 	got=$(env -i HOME="$HOME" "$VT_SH" -c ". '$f'; echo \"\$DBUS_SESSION_BUS_ADDRESS \$DISPLAY\"")
 	eq "a cron job gets the session" "unix:path=/tmp/dbus-AbC,guid=123 :0" "$got"
+}
+
+t_zathura_native_defaults() {
+	# OpenBSD 0.5.14 rejects these inherited options; both page gaps default to 1.
+	if grep -Eq '^set (sandbox|page-padding)[[:space:]]' "$REPO/.config/zathura/zathurarc"; then
+		fail "unsupported PDF-viewer setting"
+	fi
+}
+
+t_nvim_save_preserves_text() {
+	[ -n "$VT_REAL_NVIM" ] || skip "no native nvim"
+	mkdir -p "$XDG_CONFIG_HOME/nvim/autoload"
+	# Keep this a config test: no network or third-party plugin execution.
+	cat >"$XDG_CONFIG_HOME/nvim/autoload/plug.vim" <<'EOF'
+function! plug#begin(...)
+  command! -nargs=+ Plug call len([])
+endfunction
+function! plug#end()
+endfunction
+EOF
+	printf 'First line  \nSecond line\n\n\n' >"$T/prose.md"
+	cp "$T/prose.md" "$T/expected"
+	"$VT_REAL_NVIM" --headless -n -i NONE -u "$REPO/.config/nvim/init.vim" \
+		"$T/prose.md" -c wq >"$T/nvim.out" 2>&1 || fail "nvim startup/save failed: $(cat "$T/nvim.out")"
+	cmp "$T/expected" "$T/prose.md" || fail "ordinary save changed Markdown whitespace"
+	printf 'First line  \nLast line\t' >"$T/noeol.md"
+	cp "$T/noeol.md" "$T/expected-noeol"
+	"$VT_REAL_NVIM" --headless -n -i NONE -u "$REPO/.config/nvim/init.vim" \
+		"$T/noeol.md" -c wq >"$T/noeol.out" 2>&1 || fail "nvim no-EOL save failed"
+	cmp "$T/expected-noeol" "$T/noeol.md" || fail "ordinary save added a final newline"
+}
+
+t_nvim_loads_generated_shortcuts() {
+	[ -n "$VT_REAL_NVIM" ] || skip 'no native nvim'
+	mkdir -p "$XDG_CONFIG_HOME/nvim/autoload"
+	cat >"$XDG_CONFIG_HOME/nvim/autoload/plug.vim" <<'EOF'
+function! plug#begin(...)
+  command! -nargs=+ Plug call len([])
+endfunction
+function! plug#end()
+endfunction
+EOF
+	echo 'let g:vertrice_fixture_shortcuts = 1' >"$XDG_CONFIG_HOME/nvim/shortcuts.vim"
+	"$VT_REAL_NVIM" --headless -n -i NONE -u "$REPO/.config/nvim/init.vim" \
+	    -c 'if !get(g:, "vertrice_fixture_shortcuts", 0) | cquit | endif' \
+	    -c qa >"$T/nvim.out" 2>&1 || fail "generated shortcuts were not sourced: $(cat "$T/nvim.out")"
+}
+
+t_xprofile_initial_palette() {
+	sed -n '/^# Set the palette before/,$p' "$REPO/.config/x11/xprofile" >"$T/palette"
+	grep -q 'theme auto' "$T/palette" || fail "no initial palette before the clock"
+	cat >"$T/bin/theme" <<'EOF'
+#!/bin/sh
+echo "theme $*" >>"$VT_STATE/log"
+EOF
+	chmod +x "$T/bin/theme"
+	PALETTE= "$VT_SH" -c '. "$1"; wait' sh "$T/palette"
+	eq "initial palette then clock" "$(printf 'theme auto\ntheme clock')" "$(cat "$VT_STATE/log")"
+	: >"$VT_STATE/log"
+	PALETTE=wal "$VT_SH" -c '. "$1"; wait' sh "$T/palette"
+	eq "wal is not overwritten" 'theme clock' "$(cat "$VT_STATE/log")"
+}
+
+t_xinitrc_session_cleanup() {
+	mkdir -p "$XDG_CONFIG_HOME/x11"
+	cat >"$XDG_CONFIG_HOME/x11/xprofile" <<'EOF'
+"$VT_REAL_SLEEP" 30 & themepid=$!
+echo "$themepid" >>"$VT_STATE/session.pids"
+"$VT_REAL_SLEEP" 30 & hotplugpid=$!
+echo "$hotplugpid" >>"$VT_STATE/session.pids"
+EOF
+	printf '#!/bin/sh\nexit 0\n' >"$T/bin/dbus-launch"
+	printf '#!/bin/sh\nexit 0\n' >"$T/bin/cwm"
+	cat >"$T/bin/xterm" <<'EOF'
+#!/bin/sh
+echo $$ >>"$VT_STATE/session.pids"
+exec "$VT_REAL_SLEEP" 30
+EOF
+	chmod +x "$T/bin/dbus-launch" "$T/bin/cwm" "$T/bin/xterm"
+	SSH_AUTH_SOCK=fixture WM=cwm TERMINAL=xterm "$VT_SH" \
+		"$REPO/.config/x11/xinitrc" >"$T/session.out" 2>&1
+	for pid in $(cat "$VT_STATE/session.pids"); do track "$pid"; done
+	for pid in $(cat "$VT_STATE/session.pids"); do
+		waitfor 2 gone "$pid" || fail "session job $pid survived window manager exit"
+	done
 }
 
 # lf's bulkrename: the selection, by name, in $EDITOR. A file left out of

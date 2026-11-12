@@ -18,9 +18,12 @@ if [ "$(uname)" = Darwin ]; then
 		exit 1
 	fi
 else
-	doas syspatch
-	doas pkg_add -u
-	doas rm -f /var/db/updates	# clears sb-updates; root's cron counts again within four hours
+	# Clear sb-updates only after both upgrades; root's cron counts again.
+	if ! { doas syspatch && doas pkg_add -u && doas rm -f /var/db/updates; }; then
+		printf "\nUpgrade failed.\nPress <Enter> to exit window.\n" >&2
+		read -r _
+		exit 1
+	fi
 fi
 
 sb-refresh

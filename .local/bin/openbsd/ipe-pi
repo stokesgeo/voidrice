@@ -1,0 +1,8 @@
+#!/bin/sh
+# Dedicated editor and native Pi terminal; no discovery or existing-editor mutation.
+set -eu
+umask 077
+export NVIM_APPNAME=ipe-pi
+export IPE_PI_AUTOSTART=1
+export IPE_PI_ROOT="$PWD"
+exec nvim "$@"

@@ -10,7 +10,8 @@ url="${1:-$(true | dmenu -p "Paste URL or file path")}"
 
 fetch() { d=$(mktemp -d) && tmpfile=$d/${url##*/} && ftp -MV -o "$tmpfile" "$url"; }	# mktemp -d: a private dir, so no one can plant a file at a guessable /tmp name
 
-case "$(printf "copy url\nnsxiv\nsetbg\nPDF\nbrowser\nlynx\nvim\nmpv\nmpv loop\nmpv float\nqueue download\nqueue yt-dlp\nqueue yt-dlp audio" | dmenu -i -p "Open it with?")" in
+textbrowser=${TERMINAL_BROWSER:-lynx}
+case "$(printf 'copy url\nnsxiv\nsetbg\nPDF\nbrowser\n%s\nvim\nmpv\nmpv loop\nmpv float\nqueue download\nqueue yt-dlp\nqueue yt-dlp audio\n' "$textbrowser" | dmenu -i -p "Open it with?")" in
 	"copy url" ) echo "$url" | xclip -selection clipboard ;;
 	mpv ) detach mpv -quiet "$url" >/dev/null 2>&1 ;;
 	"mpv loop" ) detach mpv -quiet --loop "$url" >/dev/null 2>&1 ;;
@@ -23,5 +24,5 @@ case "$(printf "copy url\nnsxiv\nsetbg\nPDF\nbrowser\nlynx\nvim\nmpv\nmpv loop\n
 	vim ) fetch && detach "$TERMINAL" -e "$EDITOR" "$tmpfile" >/dev/null 2>&1 ;;
 	setbg ) ftp -MV -o "${XDG_CACHE_HOME:-$HOME/.cache}/pic" "$url" && setbg "${XDG_CACHE_HOME:-$HOME/.cache}/pic" ;;
 	browser ) detach "$BROWSER" "$url" >/dev/null 2>&1 ;;
-	lynx ) detach "$TERMINAL" -e lynx "$url" >/dev/null 2>&1 ;;
+	"$textbrowser" ) detach "$TERMINAL" -e "$textbrowser" "$url" >/dev/null 2>&1 ;;
 esac

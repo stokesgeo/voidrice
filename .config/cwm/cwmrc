@@ -104,16 +104,17 @@ bind-key 4-Return	sd	# a terminal in the focused window's folder
 bind-key 4S-Return	"scratch term"
 bind-key 4-apostrophe	"scratch calc"
 bind-key 4-d		menu-exec
-bind-key 4S-d		passmenu
+bind-key 4-a		"sh -c 'exec $TERMINAL -e pi'"
+bind-key 4S-d		"sh -c 'ifinstalled pass && exec passmenu'"
 bind-key 4-w		"sh -c 'exec $BROWSER'"
-bind-key 4S-w		chromium
-bind-key 4-e		"sh -c '$TERMINAL -e neomutt; sb-refresh'"
-bind-key 4S-e		"sh -c 'exec $TERMINAL -e abook'"
+bind-key 4S-w		chrome	# Chromium is for agents; qutebrowser is the human default
+bind-key 4-e		"sh -c 'ifinstalled neomutt && $TERMINAL -e neomutt; sb-refresh'"
+bind-key 4S-e		"sh -c 'ifinstalled abook && exec $TERMINAL -e abook'"
 bind-key 4-r		"sh -c 'exec $TERMINAL -e lfub'"
 bind-key 4S-r		"sh -c 'exec $TERMINAL -e top'"
-bind-key 4-c		"sh -c 'exec $TERMINAL -e profanity'"
+bind-key 4-c		"sh -c 'ifinstalled profanity && exec $TERMINAL -e profanity'"
 bind-key 4-n		"sh -c 'exec $TERMINAL -e nvim -c VimwikiIndex'"
-bind-key 4S-n		"sh -c '$TERMINAL -e newsboat; sb-refresh'"
+bind-key 4S-n		"sh -c 'ifinstalled newsboat && $TERMINAL -e newsboat; sb-refresh'"
 bind-key 4-m		"sh -c 'exec $TERMINAL -e ncmpcpp'"
 bind-key 4-b		sb-show			# the status as a notice, if a window covers the bar
 bind-key 4-grave	dmenuunicode
@@ -141,7 +142,7 @@ bind-key 4S-m		"sh -c 'sndioctl -q output.mute=!; sb-refresh'"
 
 # --- function keys: help, display, theme, mounts, camera, then Print ----
 # Print takes a screenshot; Super+Print records the screen.
-bind-key 4-F1		"sh -c 'grep ^bind ~/.config/cwm/cwmrc | dmenu -i -l 40 -p Keys:'"
+bind-key 4-F1		"sh -c 'grep ^bind ~/.config/cwm/cwmrc | expand -t 4 | dmenu -i -l 40 -p Keys:'"
 bind-key 4S-F1		manpick			# any manual page, picked in dmenu
 bind-key 4-F2		tutorialvids
 bind-key 4S-F2		writemode		# full-screen writing, nvim in Goyo

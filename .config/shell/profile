@@ -22,7 +22,8 @@ export EDITOR="nvim"
 export TERMINAL="xterm"
 export TERMINAL_PROG="xterm"
 export BROWSER="qutebrowser"
-[ "$os" = darwin ] && TERMINAL="ghostty" TERMINAL_PROG="ghostty" BROWSER="safari"
+export TERMINAL_BROWSER="w3m"
+[ "$os" = darwin ] && TERMINAL="ghostty" TERMINAL_PROG="ghostty" BROWSER="safari" TERMINAL_BROWSER="lynx"
 unset os
 
 # Change the default crypto/weather monitor sites.
@@ -72,7 +73,7 @@ export AWT_TOOLKIT="MToolkit wmname LG3D" # May have to install wmname
 export _JAVA_AWT_WM_NONREPARENTING=1      # Fix for Java applications in dwm
 
 # First login: build the bookmark shortcuts from bm-dirs and bm-files.
-[ ! -f "$XDG_CONFIG_HOME/shell/shortcutrc" ] && detach shortcuts >/dev/null 2>&1
+[ ! -f "$XDG_CONFIG_HOME/shell/shortcutrc" ] && detach vertrice-shortcuts >/dev/null 2>&1
 
 # Start graphical server on user's current tty if not already running.
 [ "$(tty)" = "/dev/ttyC0" ] && ! pgrep -x Xorg >/dev/null 2>&1 && exec startx "$XINITRC"

@@ -1,5 +1,6 @@
 #!/bin/sh
 
-# /etc/apm/suspend and hibernate: xidle locks X on USR1; the pause lets xlock cover the screen first.
+# /etc/apm/suspend and hibernate: signal xidle to start its locker, then
+# give it a second to start. Signal delivery is not a lock acknowledgment.
 
 pkill -USR1 -x xidle && sleep 1

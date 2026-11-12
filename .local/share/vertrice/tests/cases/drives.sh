@@ -20,7 +20,7 @@ t_mounter_fat() {
 	eq "offered: the stick only" "$stick" "$(cat "$VT_STATE/menu.1")"
 	eq "where: /mnt/sd2i first" /mnt/sd2i "$(sed -n 1p "$VT_STATE/menu.2")"
 	logged '^doas true$'
-	logged '^doas mount 7b3d0e9f1a2c5b84\.i$'
+	logged '^doas mount -o nosuid,nodev 7b3d0e9f1a2c5b84\.i$'
 	u=$(id -u) g=$(id -g)
 	logged "^mount_msdos -o nosuid,nodev -u $u -g $g /dev/sd2i $T/mnt\$"
 	logged "^notify-send 💾 Drive mounted\. sd2i mounted to $T/mnt\.\$"
@@ -31,6 +31,7 @@ t_mounter_fstab() {
 	echo 7b3d0e9f1a2c5b84.i >"$VT_STATE/fstab"
 	answers "$stick"
 	with_tty mounter
+	logged '^doas mount -o nosuid,nodev 7b3d0e9f1a2c5b84\.i$'
 	logged '^notify-send 💾 Drive mounted\. sd2i mounted from fstab\.$'
 	eq "no second question" 1 "$(cat "$VT_STATE/dmenu.n")"
 	notlogged '^mount_msdos'
@@ -77,7 +78,7 @@ EOF
 	has "offered: the locked volume" "$crypt" "$(cat "$VT_STATE/menu.1")"
 	logged '^doas bioctl -c C -l /dev/sd2a softraid0$'
 	logged '^notify-send 🔓 Decrypted\. sd3 unlocked\.$'
-	logged '^doas mount 5e6f7a8b9c0d1e2f\.a$'
+	logged '^doas mount -o nosuid,nodev 5e6f7a8b9c0d1e2f\.a$'
 	logged "^mount -o nosuid,nodev /dev/sd3a $T/mnt\$"
 	logged "^notify-send 💾 Drive mounted\. sd3a mounted to $T/mnt\.\$"
 }
@@ -269,6 +270,16 @@ t_unmounter_plain_stick() {
 	with_tty unmounter
 	logged '^doas umount /mnt/usb$'
 	notlogged 'Drive locked'
+}
+
+t_unmounter_root_prefix_is_not_other_disk() {
+	mount >/dev/null
+	mounted "/dev/sd10i on /mnt/usb type msdos (local, nodev, nosuid)"
+	answers "💾/mnt/usb (/dev/sd10i)"
+	with_tty unmounter
+	has 'sd10 offered beside root sd1' '💾/mnt/usb (/dev/sd10i)' "$(cat "$VT_STATE/menu.1")"
+	hasnt 'root sd1 excluded' '/dev/sd1a' "$(cat "$VT_STATE/menu.1")"
+	logged '^doas umount /mnt/usb$'
 }
 
 t_unmounter_busy() {

@@ -3,8 +3,8 @@
 # mount(8) mock. With no arguments it lists $VT_STATE/mounts, created from
 # the defaults below on first use, in mount(8)'s form "/dev/sd1a on / type
 # ffs (local)" (known). With arguments it logs the call and succeeds, or
-# exits with $VT_STATE/rc.mount. A lone "DUID.part" argument (an fstab
-# lookup) succeeds only if that line is in $VT_STATE/fstab.
+# exits with $VT_STATE/rc.mount. A "DUID.part" fstab lookup (possibly with
+# -o options) succeeds only if that line is in $VT_STATE/fstab.
 
 f=$VT_STATE/mounts
 [ -f "$f" ] || cat >"$f" <<'EOF'
@@ -17,6 +17,7 @@ EOF
 
 [ $# -eq 0 ] && { cat "$f"; exit 0; }
 echo "mount $*" >>"$VT_STATE/log"
+[ "$1" = -o ] && shift 2
 if [ $# -eq 1 ]; then
 	case $1 in
 	[0-9a-f]*.[a-p])

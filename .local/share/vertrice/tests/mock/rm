@@ -4,12 +4,15 @@
 # remove /dev/null and logs "rm-devnull" when asked to. The suite may run
 # as root in a container, where removing /dev/null would break the host.
 
-a=
-for x; do
+remaining=$#
+requested=$*
+while [ "$remaining" -gt 0 ]; do
+	x=$1; shift
+	remaining=$((remaining - 1))
 	if [ "$x" = /dev/null ]; then
-		echo "rm-devnull $*" >>"$VT_STATE/log"
+		echo "rm-devnull $requested" >>"$VT_STATE/log"
 	else
-		a="$a '$(printf '%s' "$x" | sed "s/'/'\\\\''/g")'"
+		set -- "$@" "$x"
 	fi
 done
-eval "exec \"\$VT_REAL_RM\" $a"
+exec "$VT_REAL_RM" "$@"

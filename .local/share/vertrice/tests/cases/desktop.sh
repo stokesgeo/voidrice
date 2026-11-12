@@ -49,6 +49,16 @@ t_hotplug_login_after_attach() {
 	eq "one notice" 1 "$(attached sd3)"
 }
 
+t_hotplug_stops_with_session() {
+	hp_setup
+	"$VT_SH" "$watch" >/dev/null 2>&1 & pid=$!; track "$pid"
+	waitfor 5 watching || fail "entr never started"
+	kill "$pid"
+	wait "$pid" 2>/dev/null || :
+	stopped() { [ "$(entrs)" -eq 0 ]; }
+	waitfor 2 stopped || fail "entr survived its session job"
+}
+
 t_hotplug_attach_non_disk() {
 	hp_setup
 	"$VT_SH" "$attach" 3 iwn0
@@ -66,6 +76,10 @@ th_setup() {
 		"s|> \"/dev/|>> \"$T/dev/|; s|\"/dev/|\"$T/dev/|g")
 	: >"$T/dev/ttyp3"; : >"$T/dev/ttyq1"; : >"$T/dev/ttyC0"
 	printf '%-8s\n' ttyp3 ttyC0 '??' ttyp3 ttyq1 >"$VT_STATE/ttys"
+	printf '%s\n' 'geo xterm 1 4 / 1 crw-rw-rw- rw ptyp3' \
+		'geo xterm 2 4 / 2 crw-rw-rw- rw ptyq1' >"$VT_STATE/pty-masters"
+	printf '#!/bin/sh\ncat "$VT_STATE/pty-masters"\n' >"$T/bin/fstat"
+	chmod +x "$T/bin/fstat"
 }
 # count TEXT FILE: how often TEXT occurs in FILE.
 count() { awk -v s="$1" '{ n += gsub(s, "") } END { print n + 0 }' "$2"; }
@@ -84,6 +98,14 @@ t_theme_day() {
 	done
 	eq "console untouched" 0 "$(wc -c <"$T/dev/ttyC0" | tr -d ' ')"
 	eq "state" day "$(cat "$XDG_CACHE_HOME/theme")"
+}
+
+t_theme_closed_tty_ignored() {
+	th_setup
+	echo ttyr7 >>"$VT_STATE/ttys"
+	: >"$T/dev/ttyr7"
+	DISPLAY=:0 "$VT_KSH" "$theme" day
+	eq "no terminal master: do not open the stale tty" 0 "$(wc -c <"$T/dev/ttyr7" | tr -d ' ')"
 }
 
 t_theme_no_display() {
@@ -112,6 +134,24 @@ t_theme_auto() {
 		eq "auto at ${c%:*}" "${c#*:}" "$(cat "$XDG_CACHE_HOME/theme")"
 	done
 	"$VT_KSH" "$theme" dusk 2>/dev/null; eq "unknown word: exit 1" 1 "$?"
+}
+
+t_theme_clock_stops_with_session() {
+	th_setup
+	printf '#!/bin/sh\nexit 1\n' >"$T/bin/pgrep"
+	cat >"$T/bin/sleep" <<'EOF'
+#!/bin/sh
+echo $$ >"$VT_STATE/timer.pid"
+exec "$VT_REAL_SLEEP" "$@"
+EOF
+	chmod +x "$T/bin/pgrep" "$T/bin/sleep"
+	DISPLAY=:0 "$VT_KSH" "$theme" clock >/dev/null 2>&1 & pid=$!; track "$pid"
+	waitfor 3 test -s "$VT_STATE/timer.pid" || fail "theme timer never started"
+	timer=$(cat "$VT_STATE/timer.pid"); track "$timer"
+	kill "$pid"
+	waitfor 2 gone "$pid" || fail "theme ignored session termination"
+	wait "$pid" 2>/dev/null || :
+	waitfor 2 gone "$timer" || fail "theme left its timer running"
 }
 
 t_nightlight() {

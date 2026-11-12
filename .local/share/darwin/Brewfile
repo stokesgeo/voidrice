@@ -17,6 +17,8 @@ cask "ghostty"
 cask "nikitabobko/tap/aerospace"
 brew "felixkratz/formulae/sketchybar"
 brew "choose-gui"
+# The one-shot AeroSpace master/stack helper.
+brew "python"
 cask "karabiner-elements"
 cask "font-ibm-plex-mono"
 

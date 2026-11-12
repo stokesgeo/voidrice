@@ -80,22 +80,35 @@ waitfor() {
 
 # pty CMDLINE: run the shell command line CMDLINE under script(1), in a
 # pseudo-terminal, stdin and stdout passed through. util-linux script wants
-# -q and -e; OpenBSD's script has -c only (assumed: OpenBSD script(1) -c,
-# not yet run on the machine); the Mac's takes the command after the file,
-# and types ^D into the terminal when its stdin ends.
-pty() {
+# -q and -e; OpenBSD's exits on stdin EOF, so keep its pipe open until the
+# child exits. The Mac's takes the command after the file.
+pty() (
 	if script --version 2>/dev/null | grep -q util-linux; then
 		script -qec "$1" /dev/null
 	elif [ "$VT_HOST" = Darwin ]; then
 		script -q /dev/null /bin/sh -c "$1"
 	else
-		script -c "$1" /dev/null
+		rm -f "$T/.pty-status" "$T/.pty-ready"
+		mkfifo "$T/.pty-input" || return 1
+		exec 3<>"$T/.pty-input" 4<&0
+		( waitfor 5 test -f "$T/.pty-ready" && cat ) <&4 >&3 3>&- 4<&- &
+		_feeder=$!
+		exec 4<&-
+		# Without a caller tty, script starts with zeroed modes and baud rate.
+		# It also loses the command's exit status, so record it ourselves.
+		_cmd=$(printf '%s' "$1" | sed "s/'/'\\\\''/g")
+		script -c "stty 9600 sane rows 24 columns 80; touch \"\$T/.pty-ready\"; $VT_SH -c '$_cmd'; echo \$? >\"\$T/.pty-status\"" /dev/null <"$T/.pty-input" 3>&-
+		_rc=$(cat "$T/.pty-status" 2>/dev/null) || _rc=1
+		kill "$_feeder" 2>/dev/null
+		wait "$_feeder" 2>/dev/null
+		exec 3>&-
+		rm -f "$T/.pty-input" "$T/.pty-status" "$T/.pty-ready"
+		return "$_rc"
 	fi
-}
+)
 
 # with_tty CMD...: mounter and unmounter reopen themselves in a terminal
-# when stdin is not one. The command's output goes to $T/tty.out; its exit
-# status is not relied on.
+# when stdin is not one. Return the command's status; output goes to $T/tty.out.
 with_tty() {
 	command -v script >/dev/null 2>&1 || skip "no script(1) to provide a terminal"
 	for _a; do printf "'%s' " "$(printf '%s' "$_a" | sed "s/'/'\\\\''/g")"; done >"$T/.ttycmd"

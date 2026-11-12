@@ -1,4 +1,4 @@
-# File bookmarks: key, path, description, separated by tabs. The shortcuts
+# File bookmarks: key, path, description, separated by tabs. vertrice-shortcuts
 # script turns each into a shell alias, an lf key and a vim command.
 # Paths pass through eval, so $VAR expands; comments are cut first.
 

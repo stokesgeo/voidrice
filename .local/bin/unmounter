@@ -8,8 +8,8 @@
 
 # The system disk (sd0, say): the device mounted on /, without its partition letter.
 rootdisk=$(mount | awk '$3 == "/" {sub("/dev/", "", $1); sub("[a-p]$", "", $1); print $1}')
-offered=$(mount | awk -v r="/dev/$rootdisk" '
-	index($1, r) == 1 { next }
+offered=$(mount | awk -v r="$rootdisk" '
+	$1 ~ /^\/dev\// { disk = $1; sub("^/dev/", "", disk); sub("[a-p]$", "", disk); if (disk == r) next }
 	$1 ~ /^simple-mtpfs/	{ printf "📱%s (%s)\n", $3, $1; next }
 	$1 ~ /^\/dev\//		{ printf "💾%s (%s)\n", $3, $1 }')
 chosen=$(print -r -- "$offered" | dmenu -i -p "Unmount which drive?") || exit 1
@@ -26,7 +26,7 @@ notify-send "💾 Drive unmounted." "$mp: safe to remove."
 # volume and fails on a plain stick.
 disk=${dev#/dev/}; disk=${disk%[a-p]}
 case $disk in sd[0-9]*)
-	if ! mount | awk '{print $1}' | grep -q "^/dev/$disk[a-p]\$" &&
+	if ! mount | awk '{print $1}' | grep -q "^/dev/${disk}[a-p]\$" &&
 	    doas bioctl -d "$disk" 2>/dev/null; then
 		notify-send "🔒 Drive locked." "$disk detached."
 	fi

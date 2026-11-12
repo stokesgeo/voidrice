@@ -33,13 +33,13 @@ color article white default bold
 browser linkhandler
 # Links open through linkhandler, which picks a program by link type. A macro
 # opens the selected link another way once: press comma, then its key.
-# , default  t queue download (qndl)  a audio download  v mpv  w lynx
+# , default  t queue download (qndl)  a audio download  v mpv  w terminal browser
 # d dmenuhandler  c copy link  C YouTube comments  p/P PeerTube torrent, 480p/1080p
 macro , open-in-browser
 macro t set browser "qndl" ; open-in-browser ; set browser linkhandler
 macro a set browser "qndl %u 'yt-dlp --embed-metadata -xic -f bestaudio/best --restrict-filenames'" ; open-in-browser ; set browser linkhandler
 macro v set browser "detach mpv" ; open-in-browser ; set browser linkhandler
-macro w set browser "lynx" ; open-in-browser ; set browser linkhandler
+macro w set browser "${TERMINAL_BROWSER:-lynx}" ; open-in-browser ; set browser linkhandler
 macro d set browser "dmenuhandler" ; open-in-browser ; set browser linkhandler
 macro c set browser "echo %u | xclip -r -sel c" ; open-in-browser ; set browser linkhandler
 macro C set browser "youtube-viewer --comments=%u" ; open-in-browser ; set browser linkhandler

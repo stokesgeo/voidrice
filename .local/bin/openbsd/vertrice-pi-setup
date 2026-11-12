@@ -1,0 +1,25 @@
+#!/bin/sh
+# User half, after the system package install. Never install npm as root.
+set -eu
+[ "$(id -u)" != 0 ] || { echo 'vertrice-pi-setup: run as the laptop user, not root.' >&2; exit 1; }
+command -v node >/dev/null
+command -v npm >/dev/null
+umask 077
+app=$HOME/.local/share/vertrice-pi
+data=$HOME/.local/share/openbsd/pi
+mkdir -p "$app" "$HOME/.pi/agent"
+chmod 700 "$app" "$HOME/.pi/agent"
+node "$HOME/.local/share/openbsd/pi/seed-settings.mjs"
+node "$data/check-context.mjs"
+if [ -x "$app/node_modules/.bin/pi" ] &&
+    [ "$("$app/node_modules/.bin/pi" --version)" = 1.5.0 ] &&
+    cmp -s "$data/package-lock.json" "$app/package-lock.json"; then
+	echo 'Pi 1.5.0 already installed.'
+	exit 0
+fi
+install -m 600 "$data/package.json" "$app/package.json"
+install -m 600 "$data/package-lock.json" "$app/package-lock.json"
+npm ci --ignore-scripts --no-audit --no-fund \
+    --registry=https://registry.npmjs.org --prefix="$app"
+[ "$("$app/node_modules/.bin/pi" --version)" = 1.5.0 ]
+echo 'Pi 1.5.0 installed. Account sign-in is separate; no credentials were copied.'

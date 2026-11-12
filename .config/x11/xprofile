@@ -4,8 +4,9 @@
 # If you use startx/xinit like a Chad, this file will also be sourced.
 
 xrandr --dpi 96		# Set DPI. User may want to use a larger number for larger screens.
+# Load the base first: setbg's wal path may merge its palette afterwards.
+xrdb "${XDG_CONFIG_HOME:-$HOME/.config}/x11/xresources"
 setbg &			# set the background with the `setbg` script
-xrdb ${XDG_CONFIG_HOME:-$HOME/.config}/x11/xresources & xrdbpid=$!	# xterm's font and colours
 
 autostart="mpd dunst unclutter"	# sound is sndiod, started by rc(8); no compositor, no transparency
 
@@ -15,12 +16,11 @@ done >/dev/null 2>&1
 
 remaps &			# once: OpenBSD has no udev to redo it on a new keyboard
 pgrep -x xidle >/dev/null || xidle -timeout 600 &	# lock after 10 idle minutes
-hotplug-watch &			# a notice when a USB drive is attached
+hotplug-watch & hotplugpid=$!	# a notice when a USB drive is attached
 # Backup reminder: dump(8) -w lists file systems due for a dump.
 dump -w 2>/dev/null | grep -q /home && notify-send "💾 Backup due." "Mount the backup disk (Super+F9), then bk incr." &
 rm -f "${XDG_CACHE_HOME:-$HOME/.cache}/nightlight"	# the screen starts neutral
 
-# Ensure that xrdb has finished running before moving on to start the WM/DE.
-[ -n "$xrdbpid" ] && wait "$xrdbpid"
-
-theme clock &			# day palette from 07:00, night from 19:00, on top of xresources
+# Set the palette before the first terminal; the clock handles later changes.
+[ "$PALETTE" = wal ] || theme auto
+theme clock & themepid=$!

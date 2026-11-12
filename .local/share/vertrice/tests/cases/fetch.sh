@@ -4,6 +4,10 @@
 # stat -f %Sm -t FMT FILE, as BSD stat: the file's time is now. The blocks
 # refetch when the date differs, so a file just written counts as fresh.
 fx_stat() {
+	# Use this case's lock namespace, never the running desktop's /tmp locks.
+	for _fetch in sb-forecast sb-moonphase sb-iplocate sb-price; do
+		derived ".local/bin/statusbar/$_fetch" "bin/$_fetch" "s|lock=/tmp/|lock=$T/|g" >/dev/null
+	done
 	cat >"$T/bin/stat" <<'EOF'
 #!/bin/sh
 for f; do :; done
@@ -55,7 +59,7 @@ t_fetch_sb_iplocate() {
 	chmod +x "$T/bin/geoiplookup"
 	mkdir -p "$HOME/.local/share/larbs/chars"
 	cp "$REPO/.local/share/larbs/chars/emoji" "$HOME/.local/share/larbs/chars/"
-	ipfile=$XDG_CACHE_HOME/iplocate lock=/tmp/sb-iplocate-$(id -u).lock
+	ipfile=$XDG_CACHE_HOME/iplocate lock=$T/sb-iplocate-$(id -u).lock
 	export VT_SLEEP=0.1
 	echo 1 >"$VT_STATE/rc.ftp"
 	eq "no address: nothing" "" "$(sb-iplocate)"
@@ -96,13 +100,13 @@ offline_returns() {	# NAME LOCK BLOCK [ARG...]
 	eq "$_b prints an empty line" "[]" "$(cat "$T/$_b.out")"
 }
 t_fetch_offline_forecast() {
-	offline_returns sb-forecast "/tmp/sb-forecast-$(id -u).lock" sb-forecast
+	offline_returns sb-forecast "$T/sb-forecast-$(id -u).lock" sb-forecast
 }
 t_fetch_offline_moonphase() {
-	offline_returns sb-moonphase "/tmp/sb-moonphase-$(id -u).lock" sb-moonphase
+	offline_returns sb-moonphase "$T/sb-moonphase-$(id -u).lock" sb-moonphase
 }
 t_fetch_offline_price() {
-	offline_returns sb-price "/tmp/sb-price-$(id -u).lock" sb-price btc-usd Bitcoin B 24
+	offline_returns sb-price "$T/sb-price-$(id -u).lock" sb-price btc-usd Bitcoin B 24
 }
 
 t_fetch_sb_price() {
@@ -312,15 +316,23 @@ t_fetch_scope_highlight() {
 3" "$out"
 }
 
-# lynx gets the pane's width ($2); upstream passed $4, the x position.
+# w3m gets the pane's width ($2); upstream passed $4, the x position.
 t_fetch_scope_html_width() {
+	export TERMINAL_BROWSER=w3m
 	scope=$(scope_path)
-	printf '#!/bin/sh\necho "lynx $*" >>"$VT_STATE/log"\n' >"$T/bin/lynx"
+	printf '#!/bin/sh\necho "w3m $*" >>"$VT_STATE/log"\n' >"$T/bin/w3m"
 	printf '#!/bin/sh\necho text/html\n' >"$T/bin/file"
-	chmod +x "$T/bin/lynx" "$T/bin/file"
+	chmod +x "$T/bin/w3m" "$T/bin/file"
 	: >"$T/page.html"
 	"$VT_SH" "$scope" "$T/page.html" 80 20 41 1 >"$T/out"
-	logged '^lynx -width=80 -display_charset=utf-8 -dump .*/page\.html$'
+	logged '^w3m -dump -cols 80 -o document_charset=UTF-8 -O UTF-8 .*/page\.html$'
+}
+
+t_fetch_mpv_socket_directory_failures() {
+	[ -n "$VT_REAL_NVIM" ] || skip 'no native nvim for Lua fixture'
+	VTC_REPO="$REPO" "$VT_REAL_NVIM" --headless -n -i NONE -u NONE \
+		-l "$REPO/.local/share/vertrice/tests/mpv-socket.lua" >"$T/socket-check" 2>&1 ||
+		fail "socket setup checks failed: $(cat "$T/socket-check")"
 }
 
 # Archives list through bsdtar, by the names ext takes.

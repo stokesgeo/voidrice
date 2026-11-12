@@ -1,0 +1,10 @@
+{
+  "$schema": "https://pi.dev/schemas/settings.schema.json",
+  "shellPath": "/bin/ksh",
+  "externalEditor": "nvim",
+  "theme": "vertrice",
+  "tuiMode": "regular",
+  "defaultProjectTrust": "ask",
+  "enableInstallTelemetry": false,
+  "enableAnalytics": false
+}

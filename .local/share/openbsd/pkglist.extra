@@ -1,5 +1,6 @@
 mutt-wizard
 newsboat
+urlscan
 password-store
 pinentry-dmenu
 pass-otp
@@ -18,3 +19,16 @@ groff
 dictd-client
 dictd-server
 gcide
+abook
+profanity
+djvulibre
+inkscape
+gnome-epub-thumbnailer
+odt2txt
+libreoffice
+gimp
+gtkwave
+calcurse
+sox
+sent
+latexmk

@@ -17,6 +17,7 @@
 !/.config/fontconfig/
 !/.config/mimeapps.list
 !/.config/mpd/sndio.conf
+!/.config/mutt/mailcap
 !/.config/nsxiv/
 !/.config/qutebrowser/
 !/.config/user-dirs.dirs
@@ -56,3 +57,4 @@
 !/.local/share/openbsd/
 !/.local/share/vertrice/
 /.local/share/vertrice/OPENBSD.md
+!/.local/share/bg
