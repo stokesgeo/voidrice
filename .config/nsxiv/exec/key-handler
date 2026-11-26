@@ -3,7 +3,7 @@
 # nsxiv key handler: Ctrl-x, then a key below, acts on the marked images.
 # $1 is the key; nsxiv sends one image path per line on stdin.
 
-while read -r file
+while IFS= read -r file
 do
 	case "$1" in
 		"w" )
@@ -34,7 +34,11 @@ do
 			readlink -f "$file" | tr -d "\n" | xclip -selection clipboard &&
 			notify-send "$(readlink -f "$file") copied to clipboard" & ;;
 		"x" )
-			xclip -selection clipboard -target image/png "$file" && notify-send "Image copied to clipboard" & ;;
+			mime=$(file -b --mime-type -- "$file")
+			case "$mime" in
+				image/*) xclip -selection clipboard -target "$mime" "$file" && notify-send "Image copied to clipboard" ;;
+			esac
+			break ;;
 		"d" )
 			[ "$(printf "No\nYes" | dmenu -i -p "Really delete $file?")" = "Yes" ] &&
 			rm "$file" && notify-send "$file deleted." ;;

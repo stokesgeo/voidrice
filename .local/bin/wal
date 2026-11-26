@@ -1,0 +1,376 @@
+#!/bin/sh
+
+# wal - small POSIX-sh/ImageMagick stand-in for pywal's `wal`.
+# Writes the palette that setbg and theme consume; it never touches DISPLAY.
+
+set -u
+umask 077
+
+prog=wal
+
+usage() {
+	printf 'usage: %s [-n] -i IMAGE [-o POSTRUN]\n' "$prog" >&2
+	exit 2
+}
+
+die() {
+	printf '%s: %s\n' "$prog" "$1" >&2
+	exit 1
+}
+
+img=
+postrun=
+while getopts 'ni:o:' opt; do
+	case $opt in
+	i)	img=$OPTARG ;;
+	o)	postrun=$OPTARG ;;
+	n)	: ;;	# setbg sets the wallpaper itself
+	*)	usage ;;
+	esac
+done
+shift $((OPTIND - 1))
+[ $# -eq 0 ] || usage
+[ -n "$img" ] || usage
+
+conf=${XDG_CONFIG_HOME:-$HOME/.config}
+cache=${XDG_CACHE_HOME:-$HOME/.cache}
+
+command -v convert >/dev/null 2>&1 || die 'convert not found'
+[ -f "$img" ] && [ -r "$img" ] || die "cannot read image: $img"
+
+# Print every #RRGGBB token from convert's txt: output, uppercase and
+# deduplicated. Sorted so the result does not depend on hash order.
+extract() {
+	convert "$img[0]" -resize 25% -colors "$1" -unique-colors -depth 8 txt:- 2>/dev/null |
+	awk '
+	{
+		s = $0
+		while ((i = index(s, "#")) > 0) {
+			t = toupper(substr(s, i + 1, 6))
+			s = substr(s, i + 7)
+			if (t ~ /^[0-9A-F][0-9A-F][0-9A-F][0-9A-F][0-9A-F][0-9A-F]$/)
+				print "#" t
+		}
+	}' | sort -u
+}
+
+colors=$(extract 24) || die 'colour extraction failed'
+count=$(printf '%s\n' "$colors" | awk 'NF { n++ } END { print n + 0 }')
+if [ "$count" -lt 6 ]; then
+	colors=$(extract 32) || die 'colour extraction failed'
+	count=$(printf '%s\n' "$colors" | awk 'NF { n++ } END { print n + 0 }')
+fi
+[ "$count" -ge 6 ] || die "only $count distinct colours in $img"
+
+# The judgement model: pywal `wal` backend's darken/blend model, with the
+# night theme's accent fallbacks.  One program, one colour per input line.
+palette=$(printf '%s\n' "$colors" | awk '
+	# Provenance: pywal wal backend darken/blend model; the night
+	# theme accent fallbacks.
+function hv(c) {
+	c = toupper(c)
+	return c ~ /^[0-9]$/ ? c + 0 : index("ABCDEF", c) + 9
+}
+function chan(h, i) {
+	return hv(substr(h, i, 1)) * 16 + hv(substr(h, i + 1, 1))
+}
+function hex(r, g, b) {
+	r = int(r + 0.5); g = int(g + 0.5); b = int(b + 0.5)
+	if (r < 0) r = 0; if (r > 255) r = 255
+	if (g < 0) g = 0; if (g > 255) g = 255
+	if (b < 0) b = 0; if (b > 255) b = 255
+	return sprintf("#%02X%02X%02X", r, g, b)
+}
+function lin(c) {
+	c = c / 255
+	return c <= 0.03928 ? c / 12.92 : exp(2.4 * log((c + 0.055) / 1.055))
+}
+function lum(r, g, b) {
+	return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b)
+}
+function hlum(h) {
+	return lum(chan(h, 2), chan(h, 4), chan(h, 6))
+}
+function contrast(h1, h2,   a, b, t) {
+	a = hlum(h1); b = hlum(h2)
+	if (a < b) { t = a; a = b; b = t }
+	return (a + 0.05) / (b + 0.05)
+}
+function blend(h1, h2, t,   r, g, b) {
+	r = chan(h1, 2) + (chan(h2, 2) - chan(h1, 2)) * t
+	g = chan(h1, 4) + (chan(h2, 4) - chan(h1, 4)) * t
+	b = chan(h1, 6) + (chan(h2, 6) - chan(h1, 6)) * t
+	return hex(r, g, b)
+}
+function lighten(h, t) {
+	return blend(h, "#FFFFFF", t)
+}
+function hue(h,   r, g, b, mx, mn, d) {
+	r = chan(h, 2); g = chan(h, 4); b = chan(h, 6)
+	mx = r > g ? r : g; if (b > mx) mx = b
+	mn = r < g ? r : g; if (b < mn) mn = b
+	if (mx == mn) return 0
+	d = mx - mn
+	if (mx == r) return (g - b) / d * 60
+	if (mx == g) return (2 + (b - r) / d) * 60
+	return (4 + (r - g) / d) * 60
+}
+function sat(h,   r, g, b, mx, mn) {
+	r = chan(h, 2); g = chan(h, 4); b = chan(h, 6)
+	mx = r > g ? r : g; if (b > mx) mx = b
+	mn = r < g ? r : g; if (b < mn) mn = b
+	return mx == 0 ? 0 : (mx - mn) / mx
+}
+function hdist(a, b,   d) {
+	d = a - b
+	while (d < 0) d += 360
+	while (d >= 360) d -= 360
+	return d > 180 ? 360 - d : d
+}
+function mm(h,   r, g, b, mx, mn) {
+	# chroma: the spread that makes a colour a cast rather than a tint
+	r = chan(h, 2); g = chan(h, 4); b = chan(h, 6)
+	mx = r > g ? r : g; if (b > mx) mx = b
+	mn = r < g ? r : g; if (b < mn) mn = b
+	return mx - mn
+}
+function grey(h,   l, c, v) {
+	# the grey of the same WCAG luminance as h
+	l = hlum(h)
+	c = l <= 0.0031308 ? 12.92 * l : 1.055 * exp(log(l) / 2.4) - 0.055
+	v = int(c * 255 + 0.5)
+	if (v < 0) v = 0; if (v > 255) v = 255
+	return hex(v, v, v)
+}
+function neutral(h, lim,   g, t, s) {
+	if (mm(h) <= lim) return h
+	g = grey(h)
+	for (s = 0.05; s <= 1.0001; s += 0.05) {
+		t = blend(h, g, s)
+		if (mm(t) <= lim) return t
+	}
+	return g
+}
+
+{ c[++n] = $0; L[n] = hlum($0) }
+
+END {
+	if (n < 6) exit 1
+
+	for (i = 2; i <= n; i++) {
+		hc = c[i]; lc = L[i]; j = i - 1
+		while (j >= 1 && L[j] > lc) { c[j + 1] = c[j]; L[j + 1] = L[j]; j-- }
+		c[j + 1] = hc; L[j + 1] = lc
+	}
+
+	# background: the darkest colour, dark enough for 9:1 body text and
+	# low enough in chroma not to cast the whole screen.
+	bg = c[1]
+	if (hlum(bg) > 0.02) {
+		split("0.8 0.6 0.5 0.4 0.3 0.2 0.1 0.05", ks, " ")
+		for (i = 1; i <= 8; i++) {
+			k = ks[i] + 0
+			t = hex(chan(bg, 2) * k, chan(bg, 4) * k, chan(bg, 6) * k)
+			if (hlum(t) <= 0.02) { bg = t; break }
+		}
+	}
+	if (hlum(bg) > 0.02) {
+		base = bg
+		for (s = 0.1; s <= 1.0001; s += 0.1) {
+			bg = blend(base, "#101010", s)
+			if (hlum(bg) <= 0.02) break
+		}
+		if (hlum(bg) > 0.02) bg = "#101010"
+	}
+	if (mm(bg) > 20) {
+		base = bg
+		for (s = 0.05; s <= 1.0001; s += 0.05) {
+			bg = blend(base, "#101010", s)
+			if (mm(bg) <= 20) break
+		}
+	}
+
+	# foreground: the lightest colour tinted toward #EEEEEE until it is
+	# pale (L >= 0.72), low-chroma and readable at 9:1; #EEEEEE otherwise.
+	fg = "#EEEEEE"
+	for (i = 0; i <= 10; i++) {
+		t = blend(c[n], "#EEEEEE", i * 0.1)
+		if (hlum(t) >= 0.72 && mm(t) <= 24 && contrast(bg, t) >= 9.0) {
+			fg = t
+			break
+		}
+	}
+
+	col0 = bg; col15 = fg
+
+	# color7/color8 keep their derivation, then lose the chroma that
+	# makes comments and dim text look like a different hue.
+	col7 = neutral(blend(fg, bg, 0.12), 12)
+	if (hlum(col7) < 0.62) {
+		base = col7
+		for (s = 0.05; s <= 1.0001; s += 0.05) {
+			col7 = blend(base, fg, s)
+			if (hlum(col7) >= 0.62) break
+		}
+	}
+	if (contrast(bg, col7) < 6.0) col7 = neutral(fg, 12)
+
+	share = 0.70
+	col8 = blend(fg, bg, 1 - share)
+	while (contrast(bg, col8) > 5.0 && share > 0.0) {
+		share -= 0.05
+		col8 = blend(fg, bg, 1 - share)
+	}
+	while (contrast(bg, col8) < 4.6 && share < 1.0) {
+		share += 0.05
+		col8 = blend(fg, bg, 1 - share)
+	}
+	col8 = neutral(col8, 12)
+
+	split("0 120 60 240 300 180", hh, " ")
+	split("#f28b82 #8fd18a #e9c46a #79b8ff #d8a0ff #6fd6d6", fb, " ")
+	for (f = 1; f <= 6; f++) {
+		best = 0; bests = 0; bestd = 361
+		for (i = 1; i <= n; i++) {
+			# never the background (1) or the foreground source (n)
+			if (used[i] || i == 1 || i == n) continue
+			st = sat(c[i])
+			if (st < 0.30) continue
+			d = hdist(hue(c[i]), hh[f] + 0)
+			if (d > 30) continue
+			if (best == 0 || st > bests ||
+			    (st == bests && (d < bestd ||
+			     (d == bestd && c[i] < c[best])))) {
+				best = i; bests = st; bestd = d
+			}
+		}
+		if (best) { a = c[best]; used[best] = 1 }
+		else a = fb[f]
+		# accents are card and text colours: clamp into a legible band
+		if (hlum(a) < 0.40) {
+			base = a
+			for (s = 0.05; s <= 1.0001; s += 0.05) {
+				a = lighten(base, s)
+				if (hlum(a) >= 0.40) break
+			}
+		}
+		if (hlum(a) > 0.58) {
+			base = a
+			for (s = 0.05; s <= 1.0001; s += 0.05) {
+				a = blend(base, "#000000", s)
+				if (hlum(a) <= 0.58) break
+			}
+		}
+		if (contrast(bg, a) < 3.0) {
+			base = a
+			for (s = 0.05; s <= 1.0001; s += 0.05) {
+				a = lighten(base, s)
+				if (contrast(bg, a) >= 3.0) break
+			}
+		}
+		acc[f] = a
+	}
+
+	for (f = 1; f <= 6; f++) {
+		b = lighten(acc[f], 0.30)
+		if (hlum(b) < 0.58) {
+			base = b
+			for (s = 0.05; s <= 1.0001; s += 0.05) {
+				b = lighten(base, s)
+				if (hlum(b) >= 0.58) break
+			}
+		}
+		if (hlum(b) > 0.72) {
+			base = b
+			for (s = 0.05; s <= 1.0001; s += 0.05) {
+				b = blend(base, "#000000", s)
+				if (hlum(b) <= 0.72) break
+			}
+		}
+		if (contrast(bg, b) < 4.5) {
+			base = b
+			for (s = 0.05; s <= 1.0001; s += 0.05) {
+				b = lighten(base, s)
+				if (contrast(bg, b) >= 4.5) break
+			}
+		}
+		bright[f] = b
+	}
+
+	printf "background=%s\n", bg
+	printf "foreground=%s\n", fg
+	printf "cursor=%s\n", fg
+	printf "color0=%s\n", col0
+	for (f = 1; f <= 6; f++) printf "color%d=%s\n", f, acc[f]
+	printf "color7=%s\n", col7
+	printf "color8=%s\n", col8
+	for (f = 1; f <= 6; f++) printf "color%d=%s\n", f + 8, bright[f]
+	printf "color15=%s\n", col15
+}')
+[ -n "$palette" ] || die 'palette generation failed'
+
+walldir=$cache/wal
+mkdir -p "$walldir" || die "cannot create $walldir"
+
+# Lower-case is what theme and the templates consume.
+lower() {
+	printf '%s\n' "$1" | tr 'ABCDEF' 'abcdef'
+}
+val() {
+	printf '%s\n' "$palette" | sed -n "s/^$1=//p" | head -n 1
+}
+background=$(lower "$(val background)")
+foreground=$(lower "$(val foreground)")
+cursor=$(lower "$(val cursor)")
+
+{
+	printf '*.background: %s\n' "$background"
+	printf '*.foreground: %s\n' "$foreground"
+	printf '*.cursorColor: %s\n' "$cursor"
+	for i in 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15; do
+		printf '*.color%s: %s\n' "$i" "$(lower "$(val "color$i")")"
+	done
+} > "$walldir/colors.Xresources" || die "cannot write $walldir/colors.Xresources"
+
+# templates: one rendered file per regular file in $conf/wal/templates
+tpl=$conf/wal/templates
+if [ -d "$tpl" ]; then
+	for src in "$tpl"/*; do
+		[ -f "$src" ] || continue
+		out=$walldir/$(basename "$src")
+		sed \
+			-e "s/{background}/$background/g" \
+			-e "s/{foreground}/$foreground/g" \
+			-e "s/{cursor}/$cursor/g" \
+			-e "s/{color0}/$(lower "$(val color0)")/g" \
+			-e "s/{color1}/$(lower "$(val color1)")/g" \
+			-e "s/{color2}/$(lower "$(val color2)")/g" \
+			-e "s/{color3}/$(lower "$(val color3)")/g" \
+			-e "s/{color4}/$(lower "$(val color4)")/g" \
+			-e "s/{color5}/$(lower "$(val color5)")/g" \
+			-e "s/{color6}/$(lower "$(val color6)")/g" \
+			-e "s/{color7}/$(lower "$(val color7)")/g" \
+			-e "s/{color8}/$(lower "$(val color8)")/g" \
+			-e "s/{color9}/$(lower "$(val color9)")/g" \
+			-e "s/{color10}/$(lower "$(val color10)")/g" \
+			-e "s/{color11}/$(lower "$(val color11)")/g" \
+			-e "s/{color12}/$(lower "$(val color12)")/g" \
+			-e "s/{color13}/$(lower "$(val color13)")/g" \
+			-e "s/{color14}/$(lower "$(val color14)")/g" \
+			-e "s/{color15}/$(lower "$(val color15)")/g" \
+			-e "s/{alpha}/100/g" \
+			"$src" > "$out" || die "cannot render template $(basename "$src")"
+	done
+fi
+
+# postrun: run an executable as-is, otherwise through sh. A palette that
+# is written but not applied is a failure for the caller to act on.
+if [ -n "$postrun" ]; then
+	if [ -x "$postrun" ]; then
+		"$postrun" || die "postrun failed: $postrun"
+	else
+		sh "$postrun" || die "postrun failed: $postrun"
+	fi
+fi
+
+exit 0

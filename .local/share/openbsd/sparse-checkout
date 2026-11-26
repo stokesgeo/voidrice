@@ -70,6 +70,7 @@
 /.config/crush/CRUSH.md
 /.config/crush/crushrc
 /.config/crush/skills/coding-workflow/SKILL.md
+/.config/crush/themes/
 
 /.local/bin/
 !/.local/bin/darwin/

@@ -1,15 +1,29 @@
 #!/bin/sh
 
-# $1 is a url; $2 is a command
-# qndl queues the download with nq(1), then strips query junk from the file
-# name; COMMAND defaults to yt-dlp. nq runs jobs one after another; sb-tasks counts them.
+# $1 is a literal URL; $2 is a command split on whitespace, not shell code.
+# nq runs one download-and-notification job at a time; sb-tasks counts them.
 [ -z "$1" ] && exit
-base="$(basename "$1")"
-notify-send "⏳ Queuing $base..."
-cmd="$2"
-[ -z "$cmd" ] && cmd="yt-dlp --embed-metadata -ic"
+label=${1##*/}
+if ! command -v nq >/dev/null 2>&1; then
+	printf '%s\n' 'qndl: nq not found; download not queued' >&2
+	notify-send 'qndl: nq not found; download not queued'
+	exit 127
+fi
+cmd=$2
+[ -n "$cmd" ] || cmd='yt-dlp --embed-metadata -c'
 export NQDIR="${XDG_CACHE_HOME:-$HOME/.cache}/qndl"
-nq -cq $cmd "$1"
-realname="$(echo "$base" | sed -E "s/\?(source|dest).*//;s/%20/ /g")"
-nq -cq mv "$base" "$realname"
-nq -cq notify-send "👍 $realname done."
+notify-send "⏳ Queuing $label..."
+# Split command words without pathname expansion. The URL stays one argument.
+set -f
+nq -cq sh -c '
+	label=$1
+	shift
+	"$@"
+	rc=$?
+	if [ "$rc" -eq 0 ]; then
+		notify-send "👍 $label done."
+	else
+		notify-send "qndl: $label failed (exit $rc)."
+	fi
+	exit "$rc"
+' qndl "$label" $cmd "$1"

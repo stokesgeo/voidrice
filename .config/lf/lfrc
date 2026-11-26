@@ -29,31 +29,70 @@ set autoquit true
 # cmds/functions
 # open picks a program by MIME type; other files go to $OPENER.
 cmd open ${{
-    mime=$(file -b --mime-type "$(readlink -f $f)")	# the Mac's file -i means something else
+    set -f
+    case $(uname) in
+    OpenBSD) case ${f##*.} in
+        [dD][oO][cC][xX]|[oO][dD][tT])
+            lf -remote "send $id echo 'DOCX/ODT: use :docimport (reading) or :docreview (DOCX annotations); original retained.'"
+            exit 0 ;;
+        esac ;;
+    esac
+    mime=$(file -b --mime-type "$(readlink -f "$f")")	# the Mac's file -i means something else
     case ${mime%%;*} in
-	application/vnd.openxmlformats-officedocument.spreadsheetml.sheet) localc $fx ;;
+	application/vnd.openxmlformats-officedocument.spreadsheetml.sheet) case $(uname) in
+		OpenBSD) lf -remote "send $id echo 'No handler configured for this office format.'" ;;
+		*) localc $fx ;;
+		esac ;;
 	image/vnd.djvu|application/vnd.djvu|application/pdf|application/postscript|application/epub*) detach zathura $fx >/dev/null 2>&1 ;;
         text/*|application/json|inode/x-empty|application/x-empty|application/x-subrip) $EDITOR $fx;;
 	image/x-xcf) detach gimp $f >/dev/null 2>&1 ;;
-	image/svg+xml) display -- $f ;;
-	image/*) rotdir $f | grep -iE '\.(png|jpg|jpeg|gif|webp|avif|tif|ico)(_large)*$' |
-		nsxiv -aio 2>/dev/null | while read -r file; do
+	image/svg+xml) case $(uname) in
+		OpenBSD) detach "$BROWSER" "$f" >/dev/null 2>&1 ;;
+		*) display -- "$f" ;;
+		esac ;;
+	image/*) rotdir "$f" | ROTDIR_BASE="${f##*/}" awk '
+		$0 == ENVIRON["ROTDIR_BASE"] ||
+		tolower($0) ~ /\.(png|jpg|jpe|jpeg|gif|webp|avif|bmp|tif|tiff|ico)(_large)*$/
+		' |
+		nsxiv -aio 2>/dev/null | while IFS= read -r file; do
 			[ -z "$file" ] && continue
-			lf -remote "send select \"$file\""
-			lf -remote "send toggle"
+			case "$file" in /*) ;; *) file="$PWD/$file" ;; esac
+			file=$(printf '%s\n' "$file" | sed 's/[\\"]/\\&/g')
+			lf -remote "send $id select \"$file\""
+			lf -remote "send $id toggle"
 		done &
 		;;
 	audio/*|video/x-ms-asf) mpv --audio-display=no $f ;;
 	video/*) detach mpv $f -quiet >/dev/null 2>&1 ;;
 	application/pgp-encrypted) $EDITOR $fx ;;
-	application/vnd.openxmlformats-officedocument.wordprocessingml.document|application/vnd.oasis.opendocument.text|application/vnd.openxmlformats-officedocument.spreadsheetml.sheet|application/vnd.oasis.opendocument.spreadsheet|application/vnd.oasis.opendocument.spreadsheet-template|application/vnd.openxmlformats-officedocument.presentationml.presentation|application/vnd.oasis.opendocument.presentation-template|application/vnd.oasis.opendocument.presentation|application/vnd.ms-powerpoint|application/vnd.oasis.opendocument.graphics|application/vnd.oasis.opendocument.graphics-template|application/vnd.oasis.opendocument.formula|application/vnd.oasis.opendocument.database) detach libreoffice $fx >/dev/null 2>&1 ;;
-        application/octet-stream) case ${f##*.} in
-			doc|docx|xls|xlsx|odt|ppt|pptx) detach libreoffice $fx >/dev/null 2>&1 ;;
+	application/vnd.openxmlformats-officedocument.wordprocessingml.document|application/vnd.oasis.opendocument.text|application/vnd.openxmlformats-officedocument.spreadsheetml.sheet|application/vnd.oasis.opendocument.spreadsheet|application/vnd.oasis.opendocument.spreadsheet-template|application/vnd.openxmlformats-officedocument.presentationml.presentation|application/vnd.oasis.opendocument.presentation-template|application/vnd.oasis.opendocument.presentation|application/vnd.ms-powerpoint|application/vnd.oasis.opendocument.graphics|application/vnd.oasis.opendocument.graphics-template|application/vnd.oasis.opendocument.formula|application/vnd.oasis.opendocument.database) case $(uname) in
+		OpenBSD) lf -remote "send $id echo 'No handler configured for this office format.'" ;;
+		*) detach libreoffice $fx >/dev/null 2>&1 ;;
+		esac ;;
+        application/octet-stream)
+		case ${f##*.} in
+			doc|docx|xls|xlsx|odt|ppt|pptx) case $(uname) in
+				OpenBSD) lf -remote "send $id echo 'No handler configured for this office format.'" ;;
+				*) detach libreoffice $fx >/dev/null 2>&1 ;;
+				esac ;;
 			ghw) detach gtkwave $f >/dev/null 2>&1 ;;
 			ts) detach mpv $f -quiet >/dev/null 2>&1 ;;
 			*) detach zathura $fx >/dev/null 2>&1 ;;
 	   	esac ;;
 	*) for f in $fx; do detach $OPENER $f >/dev/null 2>&1; done;;
+    esac
+}}
+
+cmd docimport !{{
+    case $(uname) in
+    OpenBSD) docimport "$f" ;;
+    *) printf 'docimport is OpenBSD-only\n' >&2; exit 1 ;;
+    esac
+}}
+cmd docreview !{{
+    case $(uname) in
+    OpenBSD) docimport --review "$f" ;;
+    *) printf 'docreview is OpenBSD-only\n' >&2; exit 1 ;;
     esac
 }}
 

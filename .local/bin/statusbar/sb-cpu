@@ -1,21 +1,66 @@
 #!/bin/sh
 
-# sb-cpu: CPU temperature and speed, e.g. 52C 1.2GHz.
-# sysctl(8) gives the temperature (hw.sensors) and speed (hw.cpuspeed, MHz).
+# sb-cpu: CPU temperature, speed and aggregate interval utilization.
+# sysctl(8): hw.sensors, hw.cpuspeed (MHz), kern.cp_time (CPU ticks).
 
 case $BLOCK_BUTTON in
 	1) notify-send "🖥 CPU hogs" "$(ps -Ao comm= -o %cpu= | awk '{cmd[$1]+=$2} END {for (i in cmd) print i, cmd[i]}' | sort -nrk2  | head)\\n(100% per core)" ;;
 	2) detach "$TERMINAL" -e top ;;
-	3) notify-send "🖥 CPU module " "\- Shows CPU temperature and clock speed.
+	3) notify-send "🖥 CPU module " "\- Shows CPU temperature, clock speed and interval utilization.
 - Click to show intensive processes.
 - Middle click to open top." ;;
 	6) detach "$TERMINAL" -e "$EDITOR" "$0" ;;
 esac
 
+# Keep one sample between bar redraws, never sleep to collect a delta.
+# A private directory and atomic rename avoid partial cache reads. Cache
+# failures, first samples, resets and zero deltas simply omit utilization.
+cpu_usage() (
+	umask 077
+	cache=${XDG_CACHE_HOME:-$HOME/.cache}/sb-cpu
+	[ ! -L "$cache" ] && mkdir -p "$cache" || exit
+	[ ! -e "$cache/ticks" ] ||
+	    { [ -f "$cache/ticks" ] && [ ! -L "$cache/ticks" ]; } || exit
+	previous=
+	[ ! -f "$cache/ticks" ] || previous=$(cat "$cache/ticks") || exit
+	current=$(sysctl -n kern.cp_time) || current=
+	tmp=$(mktemp "$cache/ticks.XXXXXXXXXX") || exit
+	trap 'rm -f "$tmp"' EXIT
+	trap 'exit 1' HUP INT TERM
+	usage=$(CPU_PREVIOUS="$previous" CPU_CURRENT="$current" CPU_SAMPLE_FILE="$tmp" awk '
+	function valid(s, a,    i) {
+		if (split(s, a, ",") != 6) return 0
+		for (i = 1; i <= 6; i++)
+			if (a[i] !~ /^[0-9]+$/ || length(a[i]) > 16 ||
+			    a[i] + 0 > 9007199254740991) return 0
+		return 1
+	}
+	BEGIN {
+		# Environment values are literal, unlike awk -v backslash escapes.
+		old = valid(ENVIRON["CPU_PREVIOUS"], prev)
+		sample = ENVIRON["CPU_CURRENT"]
+		# Empty/invalid current data invalidates the saved baseline too.
+		if (!valid(sample, now)) exit
+		print sample > ENVIRON["CPU_SAMPLE_FILE"]
+		# OpenBSD sys/sched.h: user,nice,system,spin,intr,idle.
+		for (i = 1; i <= 6; i++) {
+			d = now[i] - prev[i]
+			if (d < 0) old = 0
+			total += d
+			if (i == 6) idle = d
+		}
+		if (old && total > 0 && total <= 9007199254740991)
+			printf "%.0f%%", 100 * (1 - idle / total)
+	}') || exit
+	mv -f "$tmp" "$cache/ticks" || exit
+	printf '%s' "$usage"
+)
+usage=$(cpu_usage 2>/dev/null)
+
 # The sensor name depends on the CPU: try cpu0, then acpitz0.
 temp=$(sysctl -n hw.sensors.cpu0.temp0 2>/dev/null)
 [ -n "$temp" ] || temp=$(sysctl -n hw.sensors.acpitz0.temp0 2>/dev/null)
 mhz=$(sysctl -n hw.cpuspeed 2>/dev/null)
-[ -n "$temp$mhz" ] || exit 1
+[ -n "$temp$mhz$usage" ] || exit 1
 t=$(( (${mhz:-0} + 50) / 100 ))	# tenths of a GHz, rounded
-echo 🌡 ${temp:+${temp%%.*}°C} ${mhz:+$((t / 10)).$((t % 10))GHz}
+echo 🌡 ${temp:+${temp%%.*}°C} ${mhz:+$((t / 10)).$((t % 10))GHz} ${usage:+CPU $usage}

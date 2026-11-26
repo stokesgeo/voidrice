@@ -14,6 +14,7 @@ Darwin) pkg() { brew list "$1" >/dev/null 2>&1; } ;;
 esac
 for x in "$@"; do
 	if ! command -v "$x" >/dev/null 2>&1 && ! pkg "$x"; then
- 		notify-send "📦 $x" "must be installed for this function." && exit 1 ;
+		notify-send "📦 $x" "must be installed for this function."
+		exit 1
 	fi
 done

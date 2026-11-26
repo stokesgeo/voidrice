@@ -3,4 +3,8 @@
 # xdg-terminal-exec CMD...: run CMD in $TERMINAL. Some programs call this name
 # to open a command in a terminal.
 
+if [ "$#" -gt 0 ]; then
+	ifinstalled "$1" || exit 1
+fi
+
 "$TERMINAL" -e "$@"

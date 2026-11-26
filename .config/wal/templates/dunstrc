@@ -5,9 +5,9 @@
 
 [urgency_normal]
     background = "{color4}"
-    foreground = "{color15}"
+    foreground = "{color0}"
 
 [urgency_critical]
     background = "{color1}"
-    foreground = "{color15}"
-    frame_color = "{color11}"
+    foreground = "{color0}"
+    frame_color = "{color0}"

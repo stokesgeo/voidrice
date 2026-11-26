@@ -417,3 +417,14 @@ $T/d/c" EDITOR=$T/ed id=1 "$VT_SH" -eu -c "IFS='
 	[ -e x ] && [ ! -e "a b" ] || fail "a b not renamed: $(ls)"
 	[ -e c ] && [ -e z ] || fail "c or z moved: $(ls)"
 }
+
+t_remaps_physical_caps() {
+	for cmd in xset setxkbmap pkill xcape xdotool xinput; do
+		printf '#!/bin/sh\nprintf "%%s" "${0##*/}" >>"$T/argv"\nfor arg; do printf " <%%s>" "$arg" >>"$T/argv"; done\nprintf "\\n" >>"$T/argv"\n' >"$T/bin/$cmd"
+		chmod +x "$T/bin/$cmd"
+	done
+	"$VT_SH" "$REPO/.local/bin/remaps" || fail 'remaps failed'
+	grep -Fxq 'xcape <-e> <#66=Escape>' "$T/argv" || fail 'Escape must use physical Caps only'
+	grep -Fxq 'setxkbmap <-option> <caps:super,altwin:menu_win>' "$T/argv" || fail 'Super mappings changed'
+	grep -Fxq 'pkill <-x> <xcape>' "$T/argv" || fail 'old xcape not stopped'
+}

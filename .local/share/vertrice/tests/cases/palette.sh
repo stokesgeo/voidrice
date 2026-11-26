@@ -189,6 +189,11 @@ t_palette_gtk() {
 
 t_palette_wal() {
 	th_setup
+	for cmd in xwallpaper xrdb dunstctl; do
+		ln -s "$VT_MOCKS/_log" "$T/bin/$cmd" || fail "cannot mock $cmd"
+	done
+	printf '#!/bin/sh\nexit 1\n' >"$T/bin/pgrep"
+	chmod +x "$T/bin/pgrep"
 	mkdir -p "$XDG_CACHE_HOME/wal"
 	printf '*.foreground: #e0e0e0\n*.background: #101010\n*.color0: #101010\n' >"$XDG_CACHE_HOME/wal/colors.Xresources"
 	echo walcolours >"$XDG_CACHE_HOME/wal/dunstrc"; echo walcolours >"$XDG_CACHE_HOME/wal/zathurarc"

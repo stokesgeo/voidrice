@@ -5,11 +5,21 @@
 # output to the job file ,TIME.PID in $NQDIR, which -c removes on success.
 
 echo "nq $*" >>"$VT_STATE/log"
+if [ -f "$VT_STATE/rc.nq" ]; then
+	rc=$(cat "$VT_STATE/rc.nq")
+	[ "$rc" -eq 0 ] || exit "$rc"
+fi
 c=
 while getopts chqtw o; do
 	case $o in c) c=1 ;; q|t|w) ;; *) exit 1 ;; esac
 done
 shift $((OPTIND - 1))
 f=${NQDIR:-.}/,$("$VT_REAL_DATE" +%s).$$
-mkdir -p "${NQDIR:-.}" && "$@" >"$f" 2>&1 && [ -n "$c" ] && "$VT_REAL_RM" "$f"
+mkdir -p "${NQDIR:-.}" || exit 1
+"$@" >"$f" 2>&1
+rc=$?
+# nq itself returns after enqueueing; retain the foreground job's status
+# separately so tests do not confuse enqueue success with download success.
+printf '%s\n' "$rc" >"$VT_STATE/status.nq"
+[ "$rc" -eq 0 ] && [ -n "$c" ] && "$VT_REAL_RM" "$f"
 exit 0

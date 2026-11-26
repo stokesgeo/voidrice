@@ -545,6 +545,46 @@ Full-screen writing
 The word count of the last file changed in
 .Pa ~/writing .
 .El
+.Ss Foreign documents
+On
+.Ox ,
+.Ic docimport Ar file.docx
+or
+.Ic docimport Ar file.odt
+uses the installed Pandoc to make a sibling
+.Pa <stem>.import/document.md
+with extracted images under
+.Pa <stem>.import/media/ .
+The original is retained unchanged; an existing output directory is refused.
+Conversion is lossy: layout, styles and some document features may be lost.
+Keep the original as the authoritative full package.
+.Pp
+DOCX imports accept tracked changes for clean reading and omit comments.
+.Ic docimport Fl Fl review Ar file.docx
+instead retains the annotations Pandoc supports (insertions, deletions and
+comments) in
+.Pa <stem>.review/ ,
+so reading and review copies can coexist.
+This is not complete fidelity; ODT review is rejected as DOCX-only.
+.Pp
+In LF, ordinary
+.Ox
+opening of files with a DOCX/ODT suffix (case-insensitive) sends a notice
+instead of launching an application, even when the MIME type is ZIP.
+Use
+.Ic :docimport
+or
+.Ic :docreview
+on the focused file, not the selection.
+Both commands wait for a key after success or failure; neither opens an editor.
+.Pp
+LibreOffice is not in the
+.Ox
+package lists.
+Other office formats receive an unsupported-handler notice.
+ODT previews use Pandoc's sandboxed plain-text reader without extracting media
+or writing a cache; other OpenDocument formats have no preview.
+Mac office opening and OpenDocument previews are unchanged.
 .Ss Downloads and archives
 .Ic qndl
 queues downloads with
@@ -573,7 +613,10 @@ so GTK windows match the terminals.
 Running GTK programs keep their theme until restarted.
 At login the palette follows the clock: day from 07:00, night from 19:00.
 .Ev PALETTE Ns = Ns Cm wal
-in the profile takes the colours from the wallpaper with pywal instead.
+in the profile uses the supplied native
+.Ic wal
+helper and optional ImageMagick to take colours from the wallpaper.
+If generation fails, the caller falls back to the clock scheme.
 On a Mac,
 .Ic theme day ,
 .Ic night

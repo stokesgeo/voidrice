@@ -1,0 +1,47 @@
+#!/bin/sh
+set -eu
+
+review=accept
+mode=import
+if [ "${1-}" = --review ]; then
+	review=all
+	mode=review
+	shift
+fi
+if [ "$#" -ne 1 ]; then
+	printf 'usage: docimport [--review] file.docx|file.odt\n' >&2
+	exit 2
+fi
+case $1 in
+/*) src=$1 ;;
+*) src=$PWD/$1 ;;
+esac
+case $src in
+*.[dD][oO][cC][xX]) from=docx ;;
+*.[oO][dD][tT]) from=odt ;;
+*) printf 'docimport: expected a DOCX or ODT filename\n' >&2; exit 2 ;;
+esac
+if [ "$from" = odt ] && [ "$mode" = review ]; then
+	printf 'docimport: --review is DOCX-only; ODT revisions are not supported\n' >&2
+	exit 2
+fi
+[ -f "$src" ] && [ -r "$src" ] || {
+	printf 'docimport: not a readable file: %s\n' "$src" >&2
+	exit 1
+}
+command -v pandoc >/dev/null 2>&1 || {
+	printf 'docimport: pandoc is required\n' >&2
+	exit 1
+}
+out=${src%.*}.$mode
+mkdir -- "$out" || exit 1
+trap 'rm -rf -- "$out"' EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
+mkdir -- "$out/media"
+(cd -- "$out" && pandoc --sandbox --from="$from" \
+    --to=markdown+pipe_tables-simple_tables-multiline_tables-grid_tables-smart \
+    --track-changes="$review" --extract-media=media \
+    --output=document.md -- "$src") || exit 1
+trap - EXIT INT TERM
+printf '%s\n' "$out/document.md"

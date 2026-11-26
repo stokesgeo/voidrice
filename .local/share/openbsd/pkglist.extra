@@ -7,15 +7,10 @@ pass-otp
 zbar
 transmission
 tremc
-yt-dlp
-nq
 unclutter
-ntfs_3g
 simple-mtpfs
 highlight
 ImageMagick
-lowdown
-groff
 dictd-client
 dictd-server
 gcide
@@ -25,10 +20,8 @@ djvulibre
 inkscape
 gnome-epub-thumbnailer
 odt2txt
-libreoffice
 gimp
 gtkwave
 calcurse
 sox
-sent
 latexmk

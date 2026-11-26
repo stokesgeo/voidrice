@@ -2,13 +2,12 @@
 
 # Podboat sucks. This script replaces it.
 # It reads the newsboat queue, queuing downloads with nq(1) (through qndl).
-# It also removes the junk from extensions.
 queuefile="${XDG_DATA_HOME:-$HOME/.local/share}/newsboat/queue"
 
 while read -r line; do
 	[ -z "$line" ] && continue
 	url="${line%%[	 ]*}"
-	qndl "$url" "ftp"	# base ftp(1): saves under the URL's file name
+	qndl "$url" "ftp" || exit	# base ftp(1): saves under the URL's file name
 done < "$queuefile"
 
 echo > "$queuefile"

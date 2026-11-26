@@ -6,7 +6,7 @@ xset r rate 300 50
 # Map the caps lock key to super, and map the menu key to right super.
 setxkbmap -option caps:super,altwin:menu_win
 # When caps lock is pressed only once, treat it as escape.
-pkill -x xcape 2>/dev/null ; xcape -e 'Super_L=Escape'
+pkill -x xcape 2>/dev/null ; xcape -e '#66=Escape'
 # Turn off caps lock if on since there is no longer a key for it.
 xset -q | grep -q "Caps Lock:[[:space:]]*on" && xdotool key Caps_Lock
 # TrackPoint scrolling: hold the middle button and push the stick; a short press still pastes.

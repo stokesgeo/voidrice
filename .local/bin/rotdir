@@ -12,12 +12,11 @@
 
 [ -z "$1" ] && printf "usage: rotdir regex\n" 2>&1 && exit 1
 
-base="$(basename "$1")"
+base=${1##*/}
 
-for i in $(ls "$PWD"); do
-	[ "$i" = "$base" ] && m=1
-	case "$m" in
-		1 ) echo "$i" ;;
-		* ) lines="$lines$i\n" ;;
-	esac
-done; echo "$lines"
+ls -1A "$PWD" | ROTDIR_BASE="$base" awk '
+	$0 == ENVIRON["ROTDIR_BASE"] { found = 1 }
+	found { print; next }
+	{ before = before $0 ORS }
+	END { printf "%s", before }
+'

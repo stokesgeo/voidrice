@@ -1,4 +1,4 @@
 [Desktop Entry]
 Type=Application
 Name=File Manager
-Exec=xdg-terminal-exec lfub %u
+Exec=xdg-terminal-exec lfub %f

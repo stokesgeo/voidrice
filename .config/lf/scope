@@ -72,7 +72,13 @@ case "$mime" in
 		[ ! -f "$CACHE.jpg" ] && gnome-epub-thumbnailer "$1" "$CACHE.jpg"
 		image "$CACHE.jpg" "$2" "$3" "$4" "$5" "$1" ;;
 	application/*zip) bsdtar -tf "$1" ;;
-	*opendocument*) odt2txt "$1" ;;
+	*opendocument*) case $(uname) in
+		OpenBSD) case "$mime" in
+			application/vnd.oasis.opendocument.text) pandoc --sandbox --from=odt --to=plain -- "$1" ;;
+			*) printf '%s\n' 'No preview configured for this OpenDocument format.' ;;
+			esac ;;
+		*) odt2txt "$1" ;;
+		esac ;;
 	application/pgp-encrypted) gpg -d -- "$1" ;;
 esac
 exit 1

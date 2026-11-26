@@ -42,7 +42,7 @@ t_dependencies_mac_mime_unchanged() {
 }
 
 t_dependencies_openbsd_optional() {
-	for p in ImageMagick abook profanity djvulibre inkscape gnome-epub-thumbnailer odt2txt libreoffice gimp gtkwave calcurse sox sent latexmk; do
+	for p in ImageMagick abook profanity djvulibre inkscape gnome-epub-thumbnailer odt2txt gimp gtkwave calcurse sox latexmk; do
 		grep -Fxq "$p" "$REPO/.local/share/openbsd/pkglist.extra" || fail "$p missing from optional packages"
 	done
 }
@@ -175,4 +175,17 @@ t_html_to_text_rejects_invalid_data() {
 	status=0
 	TERMINAL_BROWSER=unknown html-to-text "$T/a.html" 80 >"$T/out" 2>"$T/err" || status=$?
 	eq 'unavailable renderer refused' 127 "$status"
+}
+
+t_dependencies_openbsd_no_libreoffice() {
+	for list in pkglist pkglist.extra; do
+		if grep -Eq '^[[:space:]]*libreoffice([[:space:]]|$)' "$REPO/.local/share/openbsd/$list"; then
+			fail "LibreOffice must not be installed by $list"
+		fi
+	done
+}
+
+t_dependencies_openbsd_optional_unique() {
+	awk 'NR == FNR { core[$0]=1; next } core[$0] || seen[$0]++ { bad=1; print $0 } END { exit bad }' \
+	    "$REPO/.local/share/openbsd/pkglist" "$REPO/.local/share/openbsd/pkglist.extra" || fail 'duplicate optional packages'
 }

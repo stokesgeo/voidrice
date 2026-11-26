@@ -52,7 +52,30 @@ t_wallpaper_guide_source() {
 	grep -Fq 'ipe-pi FILE' "$guide" || fail 'no writing entry'
 	grep -Fq ':w   explicitly save' "$guide" || fail 'no explicit save reminder'
 	eq 'PNG signature' '137 80 78 71 13 10 26 10' \
-		"$(od -An -tu1 -N8 "$REPO/.local/share/vertrice/KEYS.png" | xargs)"
+		"$(od -An -tu1 -N8 "$REPO/.local/share/vertrice/KEYS.png" | awk '{ for (i=1; i<=NF; i++) $i+=0; print }')"
 	eq '1920x1080 PNG dimensions' '0 0 7 128 0 0 4 56' \
-		"$(od -An -tu1 -j16 -N8 "$REPO/.local/share/vertrice/KEYS.png" | xargs)"
+		"$(od -An -tu1 -j16 -N8 "$REPO/.local/share/vertrice/KEYS.png" | awk '{ for (i=1; i<=NF; i++) $i+=0; print }')"
+}
+
+# These labels must describe actions, not merely name an existing key.
+t_wallpaper_guide_actions() {
+	guide=$REPO/.local/share/vertrice/KEYS.svg
+	config=$REPO/.config/cwm/cwmrc
+	while IFS='|' read -r key action row label; do
+		eq "$key action" "$action" "$(awk -v key="$key" '$1 == "bind-key" && $2 == key { print $3 }' "$config")"
+		grep -Eq "y=\"$row\" data-bind=\"([^\"]* )?$key( [^\"]*)?\"" "$guide" || fail "guide row missing: $key"
+		grep -Fq "$label</text>" "$guide" || fail "guide label wrong: $key ($label)"
+	done <<'EOF'
+4-Tab|window-cycle-ingroup|639|<text x="945" y="639">Cycle in group
+4-j|window-cycle-ingroup|310|<text x="945" y="310">Cycle in group
+4-k|window-rcycle-ingroup|310|<text x="945" y="310">Cycle in group
+4-t|window-vtile|357|<text x="945" y="357">Tile vertically
+4-space|window-vtile|404|<text x="945" y="404">V-tile / make master
+4-1|group-only-1|545|<text x="945" y="545">Show only group
+4-0|group-toggle-all|889|<text x="1300" y="889" data-bind="4-0">Super+0         toggle all groups
+EOF
+	for n in 1 2 3 4 5 6 7 8 9; do
+		eq "Ctrl+$n toggles visibility" "group-toggle-$n" \
+			"$(awk -v key="4C-$n" '$1 == "bind-key" && $2 == key { print $3 }' "$config")"
+	done
 }

@@ -8,13 +8,37 @@
 # otherwise it opens link in browser.
 # With no argument, the clipboard is used.
 
-url="${1:-$(xclip -o)}"
+url="${1:-$(xclip -selection clipboard -o)}"
 
-fetch() { d=$(mktemp -d) && tmpfile=$d/${url##*/} && ftp -MV -o "$tmpfile" "$url"; }	# mktemp -d: a private dir, so no one can plant a file at a guessable /tmp name
+[ -n "$url" ] || exit 0
+
+# Keep local paths as files, including names that look like options.
+localfile=$url
+if [ -f "$url" ]; then
+	case $url in -*) localfile=./$url ;; esac
+fi
+
+fetch() {
+	if [ -f "$url" ]; then
+		tmpfile=$localfile
+	else
+		# A private directory prevents planted symlinks at a guessable name.
+		d=$(mktemp -d) && tmpfile=$d/${url##*/} && ftp -MV -o "$tmpfile" "$url"
+	fi
+}
+
+# Service names apply only to remote inputs, never to existing files.
+if [ ! -f "$url" ]; then
+	case "$url" in
+	*youtube.com/watch*|*youtube.com/playlist*|*youtube.com/shorts*|*youtu.be*|*hooktube.com*|*bitchute.com*|*videos.lukesmith.xyz*|*odysee.com*)
+		detach mpv -quiet "$url" >/dev/null 2>&1
+		exit ;;
+	esac
+fi
 
 case "$url" in
-	*mkv|*webm|*mp4|*youtube.com/watch*|*youtube.com/playlist*|*youtube.com/shorts*|*youtu.be*|*hooktube.com*|*bitchute.com*|*videos.lukesmith.xyz*|*odysee.com*)
-		detach mpv -quiet "$url" >/dev/null 2>&1 ;;
+	*mkv|*webm|*mp4)
+		detach mpv -quiet "$localfile" >/dev/null 2>&1 ;;
 	*png|*jpg|*jpe|*jpeg|*gif|*webp)
 		fetch && nsxiv -a "$tmpfile" >/dev/null 2>&1 & ;;
 	*pdf|*cbz|*cbr)
@@ -22,5 +46,5 @@ case "$url" in
 	*mp3|*flac|*opus|*mp3?source*)
 		qndl "$url" "ftp" >/dev/null 2>&1 ;;
 	*)
-		[ -f "$url" ] && detach "$TERMINAL" -e "$EDITOR" "$url" >/dev/null 2>&1 || detach "$BROWSER" "$url" >/dev/null 2>&1
+		[ -f "$url" ] && detach "$TERMINAL" -e "$EDITOR" "$localfile" >/dev/null 2>&1 || detach "$BROWSER" "$url" >/dev/null 2>&1
 esac
