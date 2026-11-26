@@ -17,8 +17,9 @@ sign-in and useful behavior locally.
 | Working context | `context_search`, `context_read` | Explicit local manifest with path/line/hash evidence; not full-corpus or web search. |
 | Delegation | Worker, scout, reviewer, tool-free reader | Separate subprocess contexts, not OS compartments. The reader has no fetch tools. |
 
-See `~/.config/ipe-pi/README.md` for editing and recovery. Tasks default to
-`~/.local/share/vertrice-work`; `VERTRICE_WORK_DIR` selects another store.
+See `~/.config/ipe-pi/README.md` for editing and recovery. Tasks default to the
+shared home `~/.agents` (see `.local/share/vertrice-agents/README.md`);
+`VERTRICE_WORK_DIR` selects another store.
 Application generations are separate from the account-local profile at
 `~/.local/share/vertrice-pi/profile`. First-only initialization creates generic
 settings and an empty private `auth.json` (`{}`, mode 0600); it seeds no

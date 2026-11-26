@@ -1,0 +1,41 @@
+#!/bin/sh
+# Plain discovery needs only base tools. Mutation/validation reuse WorkStore.
+set -eu
+umask 077
+root=${HOME:?}/.agents
+if [ "${1-}" = --root ]; then
+	[ "$#" -ge 3 ] || { echo 'usage: vertrice-agents [--root PATH] COMMAND' >&2; exit 2; }
+	root=$2
+	shift 2
+fi
+case $root in
+/*) ;;
+*) root=$PWD/$root ;;
+esac
+case ${1-} in
+find)
+	# Unquoted words are joined with single spaces into one literal phrase.
+	shift
+	set -- find "$*"
+	[ -n "$2" ] || { echo 'usage: vertrice-agents [--root PATH] find WORDS' >&2; exit 2; }
+	# The root must be a real directory path, with no symlink anywhere in it.
+	[ "$(cd -P -- "$root" 2>/dev/null && pwd -P)" = "$root" ] || { echo 'root must be a real directory path with no symlinks' >&2; exit 1; }
+	cd "$root"
+	# Authored files only. Never enters sessions, archive, hidden, private or
+	# runtime folders, and skips symlinks and hard-linked files (find does not
+	# follow them; -type f -links 1 leaves them out).
+	query=$2 status=0
+	for item in AGENTS.md README.md USER.md vision.md tasks plans decisions handoffs reports memory skills; do
+		[ -e "$item" ] || continue
+		# grep exits 1 for no match; only 2 (unreadable) counts as a failure.
+		find "./$item" \( -name '.*' -o -name private -o -name runtime -o -name sessions -o -name archive \) -prune \
+			-o -type f -links 1 -name '*.md' -exec sh -c 'grep -n -i -F -e "$0" /dev/null "$@"; [ $? -le 1 ]' "$query" {} + || status=1
+	done
+	exit "$status"
+	;;
+*)
+	# In a checkout and installed home alike, bin/ and share/ are siblings.
+	base=$(CDPATH= cd -P -- "$(dirname -- "$0")/../share/vertrice-agents" && pwd)
+	exec node "$base/cli.mjs" --root "$root" "$@"
+	;;
+esac

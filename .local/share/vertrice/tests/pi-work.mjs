@@ -7,7 +7,7 @@ import { stripTypeScriptTypes } from 'node:module';
 import { compileFunction } from 'node:vm';
 import { spawnSync } from 'node:child_process';
 const root = process.argv[2], agent = path.join(root, '.pi/agent');
-const { WorkStore, ContextPack, parse, serialize, digest } = await import(pathToFileURL(path.join(agent, 'work-store.mjs')));
+const { WorkStore, ContextPack, parse, serialize, digest, directory } = await import(pathToFileURL(path.join(agent, 'work-store.mjs')));
 const tmp = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'pi-work-test-')));
 let checks = 0;
 const check = fn => { fn(); checks++; };
@@ -33,9 +33,15 @@ try {
   rejects(() => store.update(row.task.id, row.revision, { status: 'blocked' }, 'parent'), /blocker/);
   rejects(() => store.update(row.task.id, row.revision, { next_action: '' }, 'parent'), /next action/);
   const first = row;
+  // The claiming session is this live process; another process may not touch it.
+  const savedSessionPid = process.env.VERTRICE_SESSION_PID;
+  process.env.VERTRICE_SESSION_PID = String(process.pid);
   row = store.update(row.task.id, row.revision, { status: 'in_progress' }, 'parent');
   check(() => assert.equal(row.task.owner, 'parent'));
-  rejects(() => store.update(row.task.id, row.revision, { next_action: 'steal' }, 'other'), /owned by another/);
+  check(() => assert.equal(row.claim, 'live'));
+  delete process.env.VERTRICE_SESSION_PID;
+  rejects(() => store.update(row.task.id, row.revision, { next_action: 'steal' }, 'other'), /held by live session/);
+  process.env.VERTRICE_SESSION_PID = String(process.pid);
   rejects(() => store.update(row.task.id, row.revision, { owner: 'other' }, 'parent'), /Only claim/);
   row = store.update(row.task.id, row.revision, { status: 'pending', owner: 'other', next_action: 'Explicit review handoff' }, 'parent');
   row = store.update(row.task.id, row.revision, { status: 'in_progress' }, 'other');
@@ -44,10 +50,13 @@ try {
   rejects(() => store.update(row.task.id, row.revision, { status: 'completed', evidence: ['exit 0'] }, 'other'), /Resolve blockers/);
   row = store.update(row.task.id, row.revision, { status: 'completed', blockers: [], evidence: ['Native fixture and disk readback passed'], next_action: '' }, 'other');
   check(() => assert.equal(new WorkStore(store.root).list()[0].task.status, 'completed'));
+  if (savedSessionPid === undefined) delete process.env.VERTRICE_SESSION_PID; else process.env.VERTRICE_SESSION_PID = savedSessionPid;
   rejects(() => store.update(first.task.id, first.revision, { title: 'offline edit' }, 'parent'), /Stale revision/);
-  fs.mkdirSync(path.join(store.location(), '.write-lock'));
-  rejects(() => store.create(input, 'parent'), /Store locked/);
-  fs.rmdirSync(path.join(store.location(), '.write-lock'));
+  // Hold the kernel store lock through a separate open; BSD locks conflict per open.
+  const holdLock = dir => fs.openSync(path.join(dir, '.lock'), fs.constants.O_RDWR | fs.constants.O_CREAT | fs.constants.O_NONBLOCK | 0x20, 0o600);
+  let held = holdLock(store.location());
+  rejects(() => store.create(input, 'parent'), /Store busy/);
+  fs.closeSync(held);
   check(() => assert(!fs.readdirSync(store.location()).some(name => name.startsWith('.tmp-'))));
   const outside = path.join(tmp, 'outside.md'); fs.writeFileSync(outside, serialize(row.task));
   const file = row.file; fs.unlinkSync(file); fs.symlinkSync(outside, file);
@@ -63,7 +72,7 @@ try {
   rejects(() => parse(serialize(row.task).replace('schema: 1', 'schema: 2')), /schema/);
   rejects(() => store.create({ ...input, notes: 'x'.repeat(64001) }, 'parent'), /Invalid notes/);
   const pack = new ContextPack(agent);
-  check(() => assert.equal(pack.files.length, 21));
+  check(() => assert.equal(pack.files.length, 22));
   for (const entry of pack.files) check(() => assert.equal(digest(pack.read(entry.path).text), entry.sha256));
   check(() => assert(pack.search('revision').some(hit => hit.path === 'context/tasks.md')));
   check(() => assert.equal(pack.search('zzzz-no-such-word').length, 0));
@@ -97,10 +106,10 @@ try {
   const concurrent = new WorkStore(path.join(tmp, 'concurrent'));
   concurrent.create(input, 'main');
   const module = pathToFileURL(path.join(agent, 'work-store.mjs')).href;
-  fs.mkdirSync(path.join(concurrent.location(), '.write-lock'));
-  const child = spawnSync(process.execPath, ['--input-type=module', '-e', `import {WorkStore} from ${JSON.stringify(module)};try{new WorkStore(${JSON.stringify(concurrent.root)}).create(${JSON.stringify(input)},'child');process.exit(2)}catch(e){if(!e.message.includes('Store locked'))process.exit(3)}`]);
+  held = holdLock(concurrent.location());
+  const child = spawnSync(process.execPath, ['--input-type=module', '-e', `import {WorkStore} from ${JSON.stringify(module)};try{new WorkStore(${JSON.stringify(concurrent.root)}).create(${JSON.stringify(input)},'child');process.exit(2)}catch(e){if(!e.message.includes('Store busy'))process.exit(3)}`]);
   check(() => assert.equal(child.status, 0));
-  fs.rmdirSync(path.join(concurrent.location(), '.write-lock'));
+  fs.closeSync(held);
 
   // Exercise actual extension handlers and widget against disk; this is an API
   // fixture, not a native Pi renderer/model claim (tested separately).
@@ -109,7 +118,7 @@ try {
   const types = new Proxy({}, { get: () => (...args) => ({ args }) });
   const tools = {}, events = {}, commands = {}, widgets = [], statuses = [];
   const old = process.env.VERTRICE_WORK_DIR; process.env.VERTRICE_WORK_DIR = path.join(tmp, 'ui');
-  try { compileFunction(source + '\nreturn extension;', ['os', 'path', 'Type', 'WorkStore', 'ContextPack'])(os, path, types, WorkStore, ContextPack)({ registerTool: tool => { tools[tool.name] = tool; }, registerCommand: (name, command) => { commands[name] = command; }, on: (name, handler) => { events[name] = handler; } }); }
+  try { compileFunction(source + '\nreturn extension;', ['os', 'path', 'fs', 'Type', 'WorkStore', 'ContextPack', 'directory'])(os, path, fs, types, WorkStore, ContextPack, directory)({ registerTool: tool => { tools[tool.name] = tool; }, registerCommand: (name, command) => { commands[name] = command; }, on: (name, handler) => { events[name] = handler; } }); }
   finally { if (old === undefined) delete process.env.VERTRICE_WORK_DIR; else process.env.VERTRICE_WORK_DIR = old; }
   const ctx = { hasUI: true, sessionManager: { getSessionId: () => 'ui-owner' }, ui: { setWidget: (_key, lines) => widgets.push(lines), setStatus: (_key, status) => statuses.push(status) } };
   const call = (params, signal) => tools.work_task.execute('fixture', params, signal, undefined, ctx);
@@ -144,9 +153,30 @@ try {
   check(() => assert.equal(statuses.at(-1), undefined));
   fs.writeFileSync(active.file, 'corrupt record');
   await events.turn_end({}, ctx);
-  check(() => assert(widgets.at(-1)[0].includes('STORE ERROR')));
+  // The new public baseline distinguishes record-local errors from store failure.
+  check(() => assert(widgets.at(-1)[0].includes('PARTIAL; 1 record errors')));
+  check(() => assert(statuses.at(-1).includes('PARTIAL errors:1')));
   const badListing = await call({ action: 'list' });
-  check(() => assert(badListing.isError));
+  check(() => assert(!badListing.isError && badListing.details.partial));
+  check(() => assert.equal(badListing.details.error_total, 1));
+  check(() => assert.equal(badListing.details.errors[0].file, active.file));
+  const stillValid = disk.create(input, 'ui-owner');
+  const mixed = await call({ action: 'list' });
+  check(() => assert.equal(mixed.details.valid_total, 1));
+  check(() => assert.equal(mixed.details.records[0].id, stillValid.task.id));
+  fs.writeFileSync(path.join(disk.location(), 'README.md'), '# Authored guide, not a task\n');
+  check(() => assert.equal(disk.list().length, 2));
+  // An ENOENT during enumeration is not an uninitialized location.
+  const vanished = new WorkStore(path.join(tmp, 'vanished'));
+  vanished.location = () => path.join(tmp, 'missing-after-location');
+  rejects(() => vanished.list(), /ENOENT/);
+  // A non-directory tasks path is a store-level failure, not a partial record.
+  fs.renameSync(disk.location(), path.join(tmp, 'saved-tasks'));
+  fs.writeFileSync(path.join(disk.root, 'tasks'), 'not a directory');
+  await events.turn_end({}, ctx);
+  check(() => assert(widgets.at(-1)[0].includes('STORE ERROR')));
+  const storeFailure = await call({ action: 'list' });
+  check(() => assert(storeFailure.isError));
   console.log(`PASS ${checks} plaintext persistence, fidelity, validation, revision/ownership, lock/process, path safety, context and widget/API assertions`);
 } finally {
   fs.rmSync(tmp, { recursive: true, force: true }); // This test's owned scratch only.

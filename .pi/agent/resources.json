@@ -3,7 +3,7 @@
   "files": [
     {
       "path": ".gitignore",
-      "sha256": "d30a748367eb12114583a34f94ee45b8cebe190b4a5d7d546d863f892b60e6a8",
+      "sha256": "60b14d13c4f61a224b1d48848ea7fe567045c962df2813d1fec1ef7c72763b57",
       "mode": "0644"
     },
     {
@@ -28,7 +28,7 @@
     },
     {
       "path": "work-store.mjs",
-      "sha256": "eca95b0d959884aefb713205eab309f0ec12578c2eb7b0c60dedbae7bda8c611",
+      "sha256": "10ae15f586875f21c8a413c9e97b8a299d61e5f5f315e020b2a4c95a43efe50e",
       "mode": "0644"
     },
     {
@@ -62,8 +62,13 @@
       "mode": "0644"
     },
     {
+      "path": "extensions/shared-instructions.mjs",
+      "sha256": "8f4ee3a058ea7e9d784e2ab0322b46d601077e94d2ca8b74a94043759e8274f5",
+      "mode": "0644"
+    },
+    {
       "path": "extensions/work.ts",
-      "sha256": "ab96b2beb9f242dad6cc815da64f5b8950028a49e60c5c4f1e0b89392daf589c",
+      "sha256": "7df8ca1fe36cc1e2becfaf4d149171b255b198557240548b6a6bfdfd45fe3b2d",
       "mode": "0644"
     },
     {
@@ -248,6 +253,7 @@
     }
   ],
   "extensions": [
+    "extensions/shared-instructions.mjs",
     "extensions/agent-board.ts",
     "extensions/conversation-ui.ts",
     "extensions/general-tools.ts",
@@ -292,10 +298,18 @@
       "extensions/terminal-scroll-modes/index.ts"
     ],
     "excludeExtensions": [
+      "extensions/shared-instructions.mjs",
       "extensions/work.ts",
       "extensions/subagent/index.ts"
     ],
     "integration": "recipe-owned Messenger/Crew presence and trusted campaign integration required; no state included"
+  },
+  "ownerContext": {
+    "relativeTo": "HOME",
+    "path": ".agents/AGENTS.md",
+    "optional": true,
+    "role": "external owner instruction data, not immutable generation bytes",
+    "capture": "one bounded owner-checked snapshot per extension instance; SHA256 provenance"
   },
   "sourceOnly": [
     "context-index.mjs",

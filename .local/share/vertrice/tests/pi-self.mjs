@@ -31,22 +31,23 @@ try {
     on: (name, handler) => { events[name] = handler; },
     sendUserMessage: (...args) => sent.push(args),
   });
-  check(() => assert.deepEqual(Object.keys(commands), ['reload-runtime']));
+  check(() => assert.deepEqual(Object.keys(commands), ['reload-runtime-auto', 'reload-runtime']));
   check(() => assert.deepEqual(Object.keys(tools), ['reload_runtime']));
+  const settle = (event, ctx = {}) => events.agent_settled(event, ctx);
   const call = signal => tools.reload_runtime.execute('fixture', {}, signal);
   const cancelled = await call({ aborted: true });
   check(() => assert(cancelled.isError));
-  events.agent_settled({ aborted: false });
+  settle({ aborted: false });
   check(() => assert.equal(sent.length, 0));
   const requested = await call();
   check(() => assert(requested.terminate && requested.details.requested));
   check(() => assert.equal(sent.length, 0));
-  events.agent_settled({ aborted: true });
-  events.agent_settled({ aborted: false });
+  settle({ aborted: true });
+  settle({ aborted: false });
   check(() => assert.equal(sent.length, 0));
-  await call(); events.agent_settled({ aborted: false });
+  await call(); settle({ aborted: false });
   check(() => assert.deepEqual(sent, [['/reload-runtime', { expandPromptTemplates: true }]]));
-  events.agent_settled({ aborted: false });
+  settle({ aborted: false });
   check(() => assert.equal(sent.length, 1));
   let reloads = 0;
   const ctx = { reload: async () => { reloads++; } };
@@ -66,6 +67,41 @@ try {
   await commands['reload-runtime'].handler('', ctx);
   check(() => assert.equal(reloads, 2));
   check(() => assert(!fs.readdirSync(path.join(scratch, 'context')).some(name => name.includes('.tmp-'))));
+  // Exercise the new public idle-reload contract against the same packaged
+  // ContextPack snapshot. No moving shared-HOME import or native reload claim.
+  const warnings = [], automatic = [];
+  const autoCtx = {
+    ownedResources: { dirty: false, baseline: 'same', current: 'same' },
+    ui: { notify: (...args) => warnings.push(args) },
+    reload: async options => automatic.push(options),
+  };
+  settle({ aborted: false }, autoCtx);
+  check(() => assert.equal(sent.length, 1));
+  autoCtx.ownedResources = { dirty: true, baseline: 'before', current: 'after' };
+  settle({ aborted: false }, autoCtx);
+  settle({ aborted: false }, autoCtx);
+  check(() => assert.equal(sent.length, 2));
+  check(() => assert.deepEqual(sent.at(-1), ['/reload-runtime-auto', { expandPromptTemplates: true }]));
+  await commands['reload-runtime-auto'].handler('', autoCtx);
+  check(() => assert.deepEqual(automatic, [{ quiet: true, resourcesOnly: true }]));
+  check(() => assert.equal(warnings.length, 0));
+  // Context drift still refuses automatic reload; warning deduplicates.
+  fs.appendFileSync(path.join(scratch, 'AGENTS.md'), '\nUnindexed fixture edit.\n');
+  await commands['reload-runtime-auto'].handler('', autoCtx);
+  await commands['reload-runtime-auto'].handler('', autoCtx);
+  check(() => assert.equal(automatic.length, 1));
+  check(() => assert.equal(warnings.length, 1));
+  check(() => assert(warnings[0][0].includes('changed since')));
+  check(() => assert.equal(run().status, 0));
+  // A changing owned-resource revision must defer even with valid context.
+  let reads = 0;
+  const changing = {
+    ui: autoCtx.ui, reload: autoCtx.reload,
+    get ownedResources() { return { dirty: true, baseline: 'before', current: String(++reads) }; },
+  };
+  await commands['reload-runtime-auto'].handler('', changing);
+  check(() => assert.equal(automatic.length, 1));
+  check(() => assert(warnings.at(-1)[0].includes('still changing')));
   const selected = new ContextPack(scratch).files[0];
   const original = fs.readFileSync(path.join(scratch, selected.path));
   fs.unlinkSync(path.join(scratch, selected.path));

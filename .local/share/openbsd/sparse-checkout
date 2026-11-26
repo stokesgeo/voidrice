@@ -22,6 +22,7 @@
 /.pi/agent/extensions/general-tools.ts
 /.pi/agent/extensions/ipe.ts
 /.pi/agent/extensions/work.ts
+/.pi/agent/extensions/shared-instructions.mjs
 /.pi/agent/extensions/self-maintain.ts
 /.pi/agent/extensions/session-focus.ts
 /.pi/agent/extensions/dsml-guard.ts

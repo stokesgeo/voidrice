@@ -19,7 +19,7 @@ console.log('PASS fresh complete assembly and mandatory callable-shape qualifica
 const route=JSON.parse(fs.readFileSync(root+'/route.json')),c=route.messenger;
 fs.mkdirSync(c.campaignRoot,{recursive:true,mode:0o700});
 const {environment}=await import(pathToFileURL(root+'/launch.mjs'));
-const env=environment({PATH:'/usr/local/bin:/usr/bin:/bin'});
+ const env=environment({PATH:'/usr/local/bin:/usr/bin:/bin'},{campaign:true});
 Object.assign(process.env,env);process.chdir(c.campaignRoot);
 const require=createRequire(root+'/package.json'),entry=root+'/messenger/messenger-runtime.cjs',messenger=require(entry),board=require(root+'/board/source/board-runtime.cjs');
 assert.equal(typeof board,'object');assert.equal(typeof board.default,'function');
@@ -55,4 +55,3 @@ try {
  assert.equal(commands?.success,true);assert(commands.data.commands.some(c=>c.name==='messenger'),JSON.stringify(commands));
  console.log('PASS actual provider-free campaign RPC startup, get_state and Messenger get_commands with synthetic empty auth');
 } finally {fs.unlinkSync(c.nativeAuthStorage);}
-

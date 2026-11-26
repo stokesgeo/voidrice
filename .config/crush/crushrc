@@ -1,2 +1,6 @@
 option ui compact true
 permissions allow view ls glob grep
+# Optional shared instructions, read after Crush's own context files.
+option global-context-path "$HOME/.config/crush/CRUSH.md"
+option global-context-path "$HOME/.config/AGENTS.md"
+option global-context-path "$HOME/.agents/AGENTS.md"

@@ -84,6 +84,9 @@ local sign-in and practical checks.
 - [OPENBSD.md](.local/share/vertrice/OPENBSD.md) explains the desktop defaults.
 - [Assistant capabilities](.local/share/vertrice/PI_CAPABILITIES.md) describes
   supplied tools and configuration boundaries.
+- To keep tasks and notes that outlast one assistant session, try the
+  [shared agent home](.local/share/vertrice-agents/README.md#try-it-on-a-scratch-home)
+  on a scratch directory first.
 
 The default OpenBSD wallpaper is the key guide. A saved wallpaper takes
 precedence; `setbg ~/.local/share/vertrice/KEYS.png` selects the guide explicitly.
@@ -106,6 +109,11 @@ See the manual's Mac section for desktop permissions and keys. Existing sleep
 and password-delay settings are preserved; display-off does not promise locking.
 
 ## Development
+
+The [shared agent home](.local/share/vertrice-agents/README.md) adds
+`vertrice-agents`, starter files that `vertrice-agents init` copies in, and Pi
+bindings for shared tasks, sessions and optional owner instructions. New Pi
+builds use those bindings by default; existing owner files are never replaced.
 
 Run `.local/share/vertrice/tests/run` from a repository checkout. Tests are not
 first-login tasks and do not establish hardware compatibility. The public tree

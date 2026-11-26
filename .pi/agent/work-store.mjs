@@ -1,9 +1,11 @@
 // Portable plaintext records. No shell, network, dependencies or auto-sync.
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { performance } from 'node:perf_hooks';
 import { createHash, randomUUID } from 'node:crypto';
 
 export const statuses = ['pending', 'in_progress', 'blocked', 'parked', 'completed'];
+export const kinds = ['maybe', 'incubate', 'todo'];
 const fields = ['schema', 'id', 'title', 'status', 'owner', 'next_action', 'spent_when', 'blockers', 'evidence', 'created', 'updated'];
 export const digest = data => createHash('sha256').update(data).digest('hex');
 const idPattern = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/;
@@ -14,7 +16,9 @@ function text(value, name, max = 8000) {
 }
 
 function validate(task) {
-  if (Object.keys(task).sort().join() !== [...fields, 'notes'].sort().join() || task.schema !== 1 || !idPattern.test(task.id)) throw new Error('Invalid task schema');
+  const expected = [...fields, 'notes', ...(Object.hasOwn(task, 'kind') ? ['kind'] : [])];
+  if (Object.keys(task).sort().join() !== expected.sort().join() || task.schema !== 1 || typeof task.id !== 'string' || !idPattern.test(task.id)) throw new Error('Invalid task schema');
+  if (Object.hasOwn(task, 'kind') && !kinds.includes(task.kind)) throw new Error('Invalid task kind');
   for (const key of ['title', 'owner', 'next_action', 'spent_when', 'created', 'updated', 'notes']) text(task[key], key, key === 'notes' ? 64000 : 8000);
   if (!task.title.trim() || !task.spent_when.trim() || !statuses.includes(task.status)) throw new Error('Title, completion condition and valid status required');
   for (const key of ['blockers', 'evidence']) {
@@ -30,7 +34,8 @@ function validate(task) {
 
 export function serialize(task) {
   validate(task);
-  const data = '---\n' + fields.map(key => `${key}: ${JSON.stringify(task[key])}`).join('\n') + '\n---\n' + task.notes;
+  const keys = [...fields, ...(Object.hasOwn(task, 'kind') ? ['kind'] : [])];
+  const data = '---\n' + keys.map(key => `${key}: ${JSON.stringify(task[key])}`).join('\n') + '\n---\n' + task.notes;
   if (Buffer.byteLength(data) > cap) throw new Error('Task record too large');
   return data;
 }
@@ -42,7 +47,7 @@ export function parse(data) {
   const task = Object.create(null);
   for (const line of data.slice(4, end).split('\n')) {
     const match = /^([a-z_]+): (.*)$/.exec(line);
-    if (!match || !fields.includes(match[1]) || Object.hasOwn(task, match[1])) throw new Error('Invalid/duplicate task field');
+    if (!match || ![...fields, 'kind'].includes(match[1]) || Object.hasOwn(task, match[1])) throw new Error('Invalid/duplicate task field');
     task[match[1]] = JSON.parse(match[2]);
   }
   task.notes = data.slice(end + 5);
@@ -52,7 +57,7 @@ export function parse(data) {
 
 // Reject symlink components, including an owner-configured root. Cooperative
 // same-user protection, not a boundary against a hostile process racing paths.
-function directory(dir, create) {
+export function directory(dir, create) {
   const absolute = path.resolve(dir);
   for (let current = path.parse(absolute).root, parts = absolute.slice(current.length).split(path.sep), i = 0; i < parts.length; i++) {
     current = path.join(current, parts[i]);
@@ -66,7 +71,7 @@ function directory(dir, create) {
   return absolute;
 }
 
-function readFile(file) {
+export function readFile(file) {
   const fd = fs.openSync(file, fs.constants.O_RDONLY | fs.constants.O_NOFOLLOW | fs.constants.O_NONBLOCK);
   try {
     const stat = fs.fstatSync(fd);
@@ -75,17 +80,67 @@ function readFile(file) {
   } finally { fs.closeSync(fd); }
 }
 
+// One writer at a time. `tasks/.lock` is opened with the kernel's exclusive
+// lock (O_EXLOCK, on OpenBSD, macOS and the other BSDs). The kernel drops it
+// the moment its holder exits or is killed, so it never goes stale and is
+// never removed. A busy lock is waited on for up to three seconds.
+const O_EXLOCK = 0x20; // <fcntl.h> on OpenBSD and macOS; Node does not name it
+const lockWaitMs = 3000;
+const sleeper = new Int32Array(new SharedArrayBuffer(4));
+function lockFlags() {
+  if (!['openbsd', 'darwin', 'freebsd', 'netbsd'].includes(process.platform)) throw new Error(`The store lock needs O_EXLOCK (OpenBSD, macOS or another BSD), not ${process.platform}`);
+  return fs.constants.O_RDWR | fs.constants.O_CREAT | fs.constants.O_NOFOLLOW | fs.constants.O_NONBLOCK | O_EXLOCK;
+}
+// A small JSON side record (a claim), read without following links.
+function readSmall(file) {
+  let fd;
+  try {
+    fd = fs.openSync(file, fs.constants.O_RDONLY | fs.constants.O_NOFOLLOW | fs.constants.O_NONBLOCK);
+    if (!fs.fstatSync(fd).isFile()) return 'unreadable';
+    return JSON.parse(fs.readFileSync(fd, 'utf8').slice(0, 4096));
+  } catch (error) { return error.code === 'ENOENT' ? null : 'unreadable'; }
+  finally { if (fd !== undefined) fs.closeSync(fd); }
+}
+
+// Only a live session holds a locking claim on in_progress work. A harness
+// names its session's long-lived process in VERTRICE_SESSION_PID (and may name
+// the session itself in VERTRICE_SESSION_ID). The claim is kept beside the
+// record as `<id>.claim`, so older readers that know only the record still
+// parse it. States:
+//   live      the claiming process is running: only that process may change it
+//   lapsed    that process has ended (or is not this user's): back with the store
+//   unchecked no claim we can check (no declared process, or a claim that does
+//             not match the owner): it does not lock
+// Agents are trusted to cooperate: these checks stop mistakes, not a same-user
+// process that sets someone else's process ID on purpose.
+export function sessionPid() {
+  const value = process.env.VERTRICE_SESSION_PID;
+  return value && /^[1-9][0-9]{0,9}$/.test(value) ? Number(value) : undefined;
+}
+function claimState(task, claim) {
+  if (task.status !== 'in_progress') return undefined;
+  if (!claim || claim === 'unreadable' || claim.actor !== task.owner || !Number.isInteger(claim.pid)) return 'unchecked';
+  try { process.kill(claim.pid, 0); return 'live'; }
+  catch { return 'lapsed'; } // ESRCH: gone; EPERM: another user's process, not this session
+}
+
 export class WorkStore {
   constructor(root) { this.root = path.resolve(root); }
+  claimFile(id) { return this.file(id).replace(/\.md$/, '.claim'); }
+  readClaim(id) {
+    const c = readSmall(this.claimFile(id));
+    return c && c !== 'unreadable' && typeof c.actor === 'string' ? c : c === null ? null : 'unreadable';
+  }
   location(create = false) { return directory(path.join(this.root, 'tasks'), create); }
   file(id, create = false) {
-    if (!idPattern.test(id)) throw new Error('Invalid task id');
+    if (typeof id !== 'string' || !idPattern.test(id)) throw new Error('Invalid task id');
     return path.join(this.location(create), id + '.md');
   }
   read(id) {
     const file = this.file(id), data = readFile(file), task = parse(data);
     if (task.id !== id) throw new Error('Filename and task id differ');
-    return { task, revision: digest(data), file };
+    const claim = claimState(task, task.status === 'in_progress' ? this.readClaim(id) : null);
+    return { task, revision: digest(data), file, ...(claim ? { claim } : {}) };
   }
   // One lexical entry per .md name, including failures. Valid rows retain the
   // read() shape; callers must inspect error before task. Never repair on read.
@@ -95,58 +150,78 @@ export class WorkStore {
     catch (error) { if (error.code === 'ENOENT') return []; throw error; }
     // Only an uninitialized location is empty. Enumeration failures (including
     // a disappearing directory) are store failures, not record-local errors.
-    return fs.readdirSync(dir).filter(name => name.endsWith('.md')).sort().map(name => {
+    // README.md is the shared home's authored guide, never a task record.
+    return fs.readdirSync(dir).filter(name => name.endsWith('.md') && name !== 'README.md').sort().map(name => {
       try { return this.read(name.slice(0, -3)); }
       catch (error) { return { file: path.join(dir, name), error: String(error.message).slice(0, 240) }; }
     });
   }
   locked(fn) {
-    const dir = this.location(true), lock = path.join(dir, '.write-lock');
-    try { fs.mkdirSync(lock, { mode: 0o700 }); }
-    catch (error) { if (error.code === 'EEXIST') throw new Error('Store locked; inspect owner/process before recovering a stale lock'); throw error; }
-    try { return fn(); } finally { fs.rmdirSync(lock); }
+    const dir = this.location(true), flags = lockFlags();
+    const deadline = performance.now() + lockWaitMs; // monotonic: immune to clock changes
+    let fd;
+    for (let pause = 2; fd === undefined; pause = Math.min(pause * 2, 50)) {
+      try { fd = fs.openSync(path.join(dir, '.lock'), flags, 0o600); }
+      catch (error) {
+        if (error.code !== 'EAGAIN' && error.code !== 'EWOULDBLOCK') throw error;
+        if (performance.now() >= deadline) throw new Error('Store busy: another writer has held the lock for 3 s (a paused process?); retry');
+        Atomics.wait(sleeper, 0, 0, pause);
+      }
+    }
+    try {
+      // Only the lock holder writes temp files, so any found now were left by
+      // a writer that was killed.
+      for (const name of fs.readdirSync(dir)) if (name.startsWith('.tmp-')) { try { fs.unlinkSync(path.join(dir, name)); } catch { /* gone */ } }
+      return fn();
+    } finally { fs.closeSync(fd); }
+  }
+  // Write data to a temp file, run check() just before the switch, then
+  // rename it into place. The caller holds the lock; a temp file left by a
+  // failure is removed by the next writer.
+  replace(file, data, check = () => {}) {
+    const tmp = path.join(path.dirname(file), '.tmp-' + randomUUID());
+    const fd = fs.openSync(tmp, 'wx', 0o600);
+    try { fs.writeFileSync(fd, data); fs.fsyncSync(fd); } finally { fs.closeSync(fd); }
+    check();
+    fs.renameSync(tmp, file);
   }
   create(input, owner) {
-    const allowed = ['title', 'next_action', 'spent_when', 'notes'];
+    const allowed = ['title', 'next_action', 'spent_when', 'notes', 'kind'];
     if (Object.keys(input).some(key => !allowed.includes(key))) throw new Error('Unknown create field');
     return this.locked(() => {
       const now = new Date().toISOString();
-      const task = { schema: 1, id: randomUUID(), title: input.title, status: 'pending', owner,
+      const task = { schema: 1, id: randomUUID(), title: input.title, kind: input.kind ?? 'maybe', status: 'pending', owner,
         next_action: input.next_action, spent_when: input.spent_when, blockers: [], evidence: [], created: now, updated: now, notes: input.notes ?? '' };
-      const data = serialize(task), file = this.file(task.id), tmp = path.join(path.dirname(file), '.tmp-' + randomUUID());
-      const fd = fs.openSync(tmp, 'wx', 0o600);
-      try {
-        fs.writeFileSync(fd, data); fs.fsyncSync(fd); fs.closeSync(fd);
-        fs.linkSync(tmp, file); // Atomic publish, no replacement even on id collision.
-      } catch (error) {
-        try { fs.closeSync(fd); } catch { /* already closed */ }
-        throw error;
-      } finally { fs.unlinkSync(tmp); }
+      const file = this.file(task.id);
+      this.replace(file, serialize(task), () => { if (fs.existsSync(file)) throw new Error('Task id already exists'); });
       return this.read(task.id);
     });
   }
   update(id, revision, patch, actor) {
-    const allowed = ['title', 'status', 'owner', 'next_action', 'spent_when', 'blockers', 'evidence', 'notes'];
+    const allowed = ['title', 'status', 'owner', 'next_action', 'spent_when', 'blockers', 'evidence', 'notes', 'kind'];
     if (!patch || Object.keys(patch).some(key => !allowed.includes(key))) throw new Error('Unknown update field');
     return this.locked(() => {
       const before = this.read(id);
       if (revision !== before.revision) throw new Error('Stale revision; reread and reconcile, do not blindly retry');
-      if (before.task.status === 'in_progress' && before.task.owner !== actor) throw new Error('Active task owned by another session; request an explicit handoff');
+      // Only a live claim locks, and only against other processes: the
+      // claiming session's own process may still change the task.
+      const pid = sessionPid(), heldBy = before.claim === 'live' ? this.readClaim(id) : null;
+      // The same session (name and process) only: another session sharing the
+      // process, or another process using the name, cannot change it.
+      if (heldBy && (heldBy.pid !== pid || heldBy.actor !== actor)) throw new Error(`Active task held by live session ${heldBy.actor}; ask it to release the task, or wait for that session to end`);
       const task = { ...before.task, ...patch, updated: new Date().toISOString() };
       if (task.status === 'in_progress' && patch.owner === undefined) task.owner = actor;
       if (task.status === 'in_progress' && task.owner !== actor) throw new Error('Only claim active work for this session');
-      const data = serialize(task), file = before.file, tmp = path.join(path.dirname(file), '.tmp-' + randomUUID());
-      const fd = fs.openSync(tmp, 'wx', 0o600);
-      try {
-        fs.writeFileSync(fd, data); fs.fsyncSync(fd); fs.closeSync(fd);
-        // Also detect edits made outside this tool while composing the write.
-        if (digest(readFile(file)) !== revision) throw new Error('Record changed during update');
-        fs.renameSync(tmp, file);
-      } catch (error) {
-        try { fs.closeSync(fd); } catch { /* already closed */ }
-        try { fs.unlinkSync(tmp); } catch { /* preserve original failure */ }
-        throw error;
-      }
+      const data = serialize(task), claimFile = this.claimFile(id);
+      // A new claim goes in place before the record says in_progress. If the
+      // record write then fails, the claim names someone the record does not,
+      // which reads as unchecked and does not lock.
+      const keepClaim = task.status === 'in_progress' && heldBy && before.task.owner === task.owner;
+      if (task.status === 'in_progress' && pid && !keepClaim) this.replace(claimFile, JSON.stringify({ actor: task.owner, pid, since: new Date().toISOString() }));
+      // Also catch an edit made outside this tool (an editor) meanwhile.
+      this.replace(before.file, data, () => { if (digest(readFile(before.file)) !== revision) throw new Error('Record changed during update'); });
+      // Leaving in_progress, or claiming without a declared process: no claim.
+      if (task.status !== 'in_progress' || !pid) { try { fs.unlinkSync(claimFile); } catch { /* none */ } }
       return this.read(id);
     });
   }
@@ -155,6 +230,7 @@ export class WorkStore {
 export class ContextPack {
   constructor(root) {
     this.root = directory(root, false);
+    directory(path.join(this.root, 'context'), false);
     const data = JSON.parse(readFile(path.join(this.root, 'context', 'manifest.json')));
     if (data.schema !== 1 || !Array.isArray(data.files) || data.files.length > 100) throw new Error('Invalid context manifest');
     const seen = new Set();

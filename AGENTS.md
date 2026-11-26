@@ -52,6 +52,12 @@ bash syntax or ksh93 features. Native C helper Makefiles use OpenBSD
   manifest separately binds selected text hashes. Runtime code and generic
   resource inputs are not local auth, sessions or work stores. Keep fresh
   installation separate from migration of an existing profile.
+- `.local/share/vertrice-agents/work-store.mjs` is copied byte for byte to
+  `.pi/agent/work-store.mjs`, and
+  `.local/share/vertrice-agents/adapters/pi/shared-instructions.mjs` to
+  `.pi/agent/extensions/`. After editing either, run
+  `node .local/share/vertrice/tests/agents-generated.mjs . --write`; never import
+  them live from HOME. `~/.agents/AGENTS.md` is owner data, not sealed code.
 - Crush's generic configuration contains no provider account defaults. Native
   source/build qualification is separate from configuration-loading tests. The
   synthetic provider fixture proves its named flows, not authenticated service

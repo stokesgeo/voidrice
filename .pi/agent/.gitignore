@@ -16,6 +16,7 @@
 !extensions/general-tools.ts
 !extensions/ipe.ts
 !extensions/work.ts
+!extensions/shared-instructions.mjs
 !extensions/self-maintain.ts
 !extensions/session-focus.ts
 !extensions/dsml-guard.ts
