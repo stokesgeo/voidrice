@@ -90,10 +90,10 @@ colorscheme vim
 	nnoremap S :%s//g<Left><Left>
 
 " Compile document, be it groff/LaTeX/markdown/etc.
-	map <leader>c :w! \| !compiler "%:p"<CR>
+	map <leader>c :w! \| execute '!compiler ' . shellescape(expand('%:p'), 1)<CR>
 
-" Open corresponding .pdf/.html or preview
-	map <leader>p :!opout "%:p"<CR>
+" View the exact adjacent PDF or direct HTML/sent preview (without saving).
+	map <leader>p :execute '!opout ' . shellescape(expand('%:p'), 1)<CR>
 
 " TeX build/cleanup is explicit: latexmk can execute project configuration.
 " Closing an untrusted document must not run a shell or a project tool.

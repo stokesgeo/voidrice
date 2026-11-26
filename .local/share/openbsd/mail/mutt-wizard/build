@@ -1,0 +1,79 @@
+#!/bin/sh
+# Source-only qualification/publication, not an installer. One pinned asset lane.
+set -eu
+umask 077
+assets=$(CDPATH= cd -- "$(dirname "$0")" && pwd -P)
+mode=mw
+case "${1:-}" in
+--bundle) mode=bundle; shift;;
+--component) shift; mode=${1:-}; shift;;
+esac
+case "$mode" in mw|mailsync|openfile|bundle) ;; *) exit 1;; esac
+[ "$#" -eq 1 ] || { [ "$mode" != bundle ] && [ "$#" -eq 2 ]; } || {
+ echo 'usage: sh build [--bundle | --component mw|mailsync|openfile] /absolute/absent/output [exact-baseline]' >&2; exit 1;
+}
+out=$1
+case "$out" in /*) ;; *) echo 'absolute output path required' >&2; exit 1;; esac
+[ ! -e "$out" ] && [ ! -L "$out" ] || { echo 'output exists' >&2; exit 1; }
+parent=$(CDPATH= cd -- "${out%/*}" && pwd -P)
+case "$parent/" in /usr/*|/etc/*|/var/*|/bin/*|/sbin/*) echo 'system output refused' >&2; exit 1;; esac
+case "$parent/" in /tmp/*|"$HOME/"*) ;; *) echo 'output must be under /tmp or HOME' >&2; exit 1;; esac
+name=${out##*/}
+case "$name" in ''|.|..) exit 1;; esac
+out=$parent/$name
+# Private qualification writes only. Destination is untouched until ALL pass.
+tmp=$(mktemp -d "$parent/.mw-build.XXXXXXXXXX")
+trap 'rm -rf "$tmp"' EXIT
+trap 'exit 1' HUP INT TERM
+[ "$(sha256 -q "$assets/domains.csv")" = 6f56a232f2f86686faee471d23ee561e98bda28f6366ef799d3d62c8b3647a71 ] || exit 1
+components=$mode
+[ "$mode" != bundle ] || components='mw mailsync openfile'
+for component in $components; do
+ case "$component" in
+ mw)
+  base=$assets/originals/mw; patchname=local-imap.patch
+  expected=9603e131b9ef798d930bb03c86dd9b0101f6fbbd8d47d9ce51aac13893cd907a
+  patchhash=5c9be54ae4806f9e65cb3764fc7ae4ef44deca0cee810c3a4260360082d58ccd
+  result=a5335a3772992523f8c752dbb156ad9b518f678abaad697174483908e0e3a36e;;
+ mailsync)
+  base=$assets/originals/mailsync; patchname=mailsync.patch
+  expected=197872ab89532771595a2cfc0e7b569ed777ee522063493ed36b405b2b24ccaf
+  patchhash=fbdfeaaa7272ad4ae87381d8dcd381fe386f6e29129588efb68872b8aa6c9b29
+  result=98ab9700e3875cbf6b1a17adfe47f156b48b1836fa57a64a8057f25cef62d508;;
+ openfile)
+  base=$assets/originals/openfile; patchname=openfile.patch
+  expected=a4a5a82c0da54827096a8e1d649e5e5c385fbc28704118ba98dd5c948b72a432
+  patchhash=490b2324a8efc902580f10135ed5a9e4ffc81bfc5f1ae5a3c04b07cc83caaab2
+  result=d460f631dd3bebd6dd8992525d175ad5a14427330b911cbd0332b0f44ae0640c;;
+ esac
+ [ "$#" -ne 2 ] || base=$2
+ [ -f "$base" ] && [ ! -L "$base" ] && [ "$(sha256 -q "$base")" = "$expected" ] || {
+  echo 'package baseline drift: refusing build' >&2; exit 1;
+ }
+ [ "$(sha256 -q "$assets/$patchname")" = "$patchhash" ] || { echo 'patch drift' >&2; exit 1; }
+ cp "$base" "$tmp/$component"
+ (cd "$tmp" && patch -s < "$assets/$patchname")
+ [ "$(sha256 -q "$tmp/$component")" = "$result" ] || { echo 'output hash mismatch' >&2; exit 1; }
+ ksh -n "$tmp/$component"
+ [ "$component" = mw ] || sh -n "$tmp/$component"
+ chmod 700 "$tmp/$component"
+ printf '%s %s %s %s\n' "$component" "$expected" "$patchhash" "$result" >> "$tmp/receipt"
+done
+# Cooperating user-owned parent, not a same-user race sandbox. Never replace.
+if [ "$mode" = bundle ]; then
+ # Finish the hierarchy privately: a late link failure leaves no destination.
+ mkdir "$tmp/bundle" "$tmp/bundle/bin" "$tmp/bundle/lib" "$tmp/bundle/lib/mutt-wizard"
+ ln -h "$tmp/mw" "$tmp/bundle/bin/mw"
+ ln -h "$tmp/mailsync" "$tmp/bundle/bin/mailsync"
+ ln -h "$tmp/openfile" "$tmp/bundle/lib/mutt-wizard/openfile"
+ cp "$assets/domains.csv" "$tmp/bundle/domains.csv"
+ ln -h "$tmp/receipt" "$tmp/bundle/BUILD-RECEIPT"
+ [ ! -e "$out" ] && [ ! -L "$out" ] || exit 1
+ # Same-filesystem rename in a cooperating parent; not a race-safe installer.
+ mv -i "$tmp/bundle" "$out" < /dev/null
+else
+ [ ! -e "$out" ] && [ ! -L "$out" ] || exit 1
+ ln -h "$tmp/$mode" "$out"
+ [ -f "$out" ] && [ ! -L "$out" ] && [ "$out" -ef "$tmp/$mode" ] || exit 1
+fi
+printf '%s\n' "$out"

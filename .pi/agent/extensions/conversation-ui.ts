@@ -4,7 +4,7 @@ import { Container, Text } from '@earendil-works/pi-tui';
 import { summaryInput, cleanSummary, operationLabel } from '../action-summary.mjs';
 
 const routine = new Set(['bash', 'read', 'edit', 'write', 'grep', 'find', 'ls',
-  'work_task', 'context_search', 'context_read']);
+  'work_task', 'context_search', 'context_read', 'session_focus']);
 
 export default function (pi: ExtensionAPI) {
   const labels = new Map<string, string>();
@@ -85,9 +85,10 @@ export default function (pi: ExtensionAPI) {
         }
         if (redraw.size >= 512 && !redraw.has(context.toolCallId)) redraw.delete(redraw.keys().next().value!);
         redraw.set(context.toolCallId, context.invalidate);
-        const state = context.isError ? 'failed' : context.durationMs !== undefined ? 'finished' : 'activity';
+        const state = context.isError ? 'failed' : !context.isPartial ? 'done' : context.executionStarted ? 'running' : 'queued';
         const summary = labels.get(context.toolCallId);
-        const operation = name === 'bash' ? operationLabel(args?.command) : undefined;
+        const operation = name === 'bash' ? operationLabel(args?.command) :
+          [args?.action, args?.path, args?.pattern ?? args?.query].filter(v => typeof v === 'string' && v).map(v => JSON.stringify(v)).join(' · ') || undefined;
         return new Text(theme.fg(context.isError ? 'error' : 'dim', `${name}${operation ? ` · ${operation}` : ''}${summary ? ` · ${summary}` : ''} · ${state}`), 0, 0);
       },
       renderResult(result, options, theme, context) {

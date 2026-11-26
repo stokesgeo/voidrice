@@ -1,13 +1,48 @@
 #!/bin/sh
 
-# sb-brightness: backlight level, in percent.
-# wsconsctl(8) prints e.g. 70.00%; fbtab(5) gives the console user the device.
+# sb-brightness [up|down]: X RandR backlight, no privileged device access.
+# Request 25-100%; hardware quantization may read back below 25%.
+# Down leaves levels at/below the requested floor unchanged.
+# BLOCK_BUTTON is for click-capable callers, not the terminal sbar.
 
-case $BLOCK_BUTTON in
-	3) notify-send "💡 Brightness module" "\- Shows current brightness level ☀️." ;;
-	6) detach "$TERMINAL" -e "$EDITOR" "$0" ;;
+[ "$#" -le 1 ] || { echo 'usage: sb-brightness [up|down]' >&2; exit 2; }
+action=${1-}
+case $action in
+	''|up|down) ;;
+	*) echo 'usage: sb-brightness [up|down]' >&2; exit 2 ;;
 esac
+if [ -z "$action" ]; then
+	case ${BLOCK_BUTTON-} in
+		3) notify-send "💡 Brightness module" "X backlight. Super+End/Home decreases/increases it in cwm; terminal bar clicks are unsupported." ;;
+		4) action=up ;;
+		5) action=down ;;
+		6) detach "$TERMINAL" -e "$EDITOR" "$0" ;;
+	esac
+fi
 
-level=$(wsconsctl -n display.brightness) || exit 1
-
+read_level() {
+	level=$(xbacklight -get) || return 1
+	# Reject empty, malformed or multiple-output results rather than setting
+	# several panels from one arbitrary value. X220 has one backlight.
+	level=$(printf '%s\n' "$level" | awk '
+	    NR != 1 || $0 !~ /^[0-9]+([.][0-9]+)?$/ || $0 + 0 > 100 { bad=1 }
+	    END { if (bad || NR != 1) exit 1; print $0 }') || {
+		echo 'sb-brightness: expected one X backlight level (0-100)' >&2
+		return 1
+	}
+}
+read_level || exit 1
+if [ -n "$action" ]; then
+	target=$(awk -v level="$level" -v action="$action" 'BEGIN {
+	    if (action == "down" && level <= 25) exit
+	    level += (action == "up" ? 10 : -10)
+	    if (level < 25) level=25
+	    if (level > 100) level=100
+	    print level
+	}')
+	if [ -n "$target" ]; then
+		xbacklight -set "$target" -time 0 || exit 1
+	fi
+	read_level || exit 1
+fi
 printf "💡%d%%\n" "${level%%.*}"

@@ -1,0 +1,800 @@
+diff --git a/config.ts b/config.ts
+index c085228..e997c5b 100644
+--- a/config.ts
++++ b/config.ts
+@@ -44,8 +44,8 @@ const DEFAULT_CONFIG: MessengerConfig = {
+   stuckThreshold: 900,
+   stuckNotify: true,
+   autoStatus: true,
+-  autoOverlay: true,
+-  autoOverlayPlanning: true,
++  autoOverlay: false,
++  autoOverlayPlanning: false,
+   crewEventsInFeed: true,
+ };
+ 
+diff --git a/crew/agents/crew-plan-sync.md b/crew/agents/crew-plan-sync.md
+index e2b7603..14759c9 100644
+--- a/crew/agents/crew-plan-sync.md
++++ b/crew/agents/crew-plan-sync.md
+@@ -2,7 +2,6 @@
+ name: crew-plan-sync
+ description: Syncs downstream specs after task completion
+ tools: read, write, bash, pi_messenger
+-model: anthropic/claude-haiku-4-5
+ crewRole: analyst
+ maxOutput: { bytes: 51200, lines: 500 }
+ parallel: false
+diff --git a/crew/agents/crew-planner.md b/crew/agents/crew-planner.md
+index c6a0e0c..cf115e8 100644
+--- a/crew/agents/crew-planner.md
++++ b/crew/agents/crew-planner.md
+@@ -2,7 +2,6 @@
+ name: crew-planner
+ description: Analyzes codebase and PRD to create a comprehensive task breakdown
+ tools: read, bash, web_search, pi_messenger
+-model: anthropic/claude-opus-4-6
+ crewRole: planner
+ maxOutput: { bytes: 204800, lines: 5000 }
+ parallel: false
+diff --git a/crew/agents/crew-reviewer.md b/crew/agents/crew-reviewer.md
+index 9484fa4..4e7cb04 100644
+--- a/crew/agents/crew-reviewer.md
++++ b/crew/agents/crew-reviewer.md
+@@ -2,7 +2,6 @@
+ name: crew-reviewer
+ description: Reviews task implementations for quality and correctness
+ tools: read, bash, pi_messenger
+-model: anthropic/claude-opus-4-6
+ crewRole: reviewer
+ maxOutput: { bytes: 102400, lines: 2000 }
+ parallel: true
+diff --git a/crew/agents/crew-worker.md b/crew/agents/crew-worker.md
+index 6b8f0c2..ef68c35 100644
+--- a/crew/agents/crew-worker.md
++++ b/crew/agents/crew-worker.md
+@@ -2,7 +2,6 @@
+ name: crew-worker
+ description: Implements a single crew task with mesh coordination
+ tools: read, write, edit, bash, pi_messenger
+-model: anthropic/claude-haiku-4-5
+ crewRole: worker
+ maxOutput: { bytes: 204800, lines: 5000 }
+ parallel: true
+@@ -74,14 +73,14 @@ pi_messenger({ action: "task.progress", id: "<TASK_ID>", message: "Added JWT val
+ 
+ Keep entries concise — one line per step. This helps the next agent pick up where you left off if the task gets interrupted.
+ 
+-## Phase 5: Commit
++## Phase 5: Verify and Return
+ 
+-```bash
+-git add -A
+-git commit -m "feat(scope): description
+-
+-Task: <TASK_ID>"
+-```
++Inspect existing work and preserve unrelated edits and index entries. Do not
++stage all files or commit unless the assigned task explicitly authorizes it.
++When authorized, stage only your scoped changes and inspect the staged diff.
++Return the changed paths, actual test results, limitations and next action.
++Stay within TASK_ID; do not claim another task or launch children. Privileged
++operations and secret/sign-in handoffs return to the coordinator.
+ 
+ ## Phase 6: Release & Complete
+ 
+diff --git a/crew/agents.ts b/crew/agents.ts
+index 97966d0..6a5c40e 100644
+--- a/crew/agents.ts
++++ b/crew/agents.ts
+@@ -31,7 +31,9 @@ import {
+ import { loadCrewConfig, getTruncationForRole, type CrewConfig } from "./utils/config.ts";
+ import { removeLiveWorker, updateLiveWorker } from "./live-progress.ts";
+ import { autonomousState, waitForConcurrencyChange } from "./state.ts";
+-import { registerWorker, unregisterWorker, killAll } from "./registry.ts";
++import { registerWorker, unregisterWorker } from "./registry.ts";
++import { ownChildProcess, requireWorkerOwner, shutdownOwnedChildren } from "./ownership.ts";
++import { publishInboxMessage } from "../mailbox.ts";
+ import type { AgentTask, AgentResult } from "./types.ts";
+ import { generateMemorableName } from "../lib.ts";
+ 
+@@ -46,8 +48,8 @@ export interface SpawnOptions {
+   messengerDirs?: { registry: string; inbox: string };
+ }
+ 
+-export function shutdownAllWorkers(): void {
+-  killAll();
++export function shutdownAllWorkers(owner: string): void {
++  shutdownOwnedChildren(owner);
+ }
+ 
+ export function resolveModel(
+@@ -67,13 +69,41 @@ interface PiHost {
+   argv1: string | undefined;
+ }
+ 
++// Only a manifest-declared native Pi CLI is a supported OpenBSD host. Resolve
++// symlinks now so a later current-generation switch cannot redirect children.
++export function resolveNativePiEntry(argv1: string | undefined): string {
++  try {
++    if (!argv1) throw new Error("missing entry");
++    const entry = fs.realpathSync(argv1);
++    const root = path.resolve(path.dirname(entry), "../..");
++    const manifest = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8"));
++    if (manifest.name !== "@earendil-works/pi-coding-agent" ||
++        manifest.bin?.pi !== "dist/bundle/cli.js" ||
++        entry !== fs.realpathSync(path.join(root, manifest.bin.pi))) {
++      throw new Error("not the manifest-declared native Pi CLI");
++    }
++    return entry;
++  } catch {
++    throw new Error("Crew requires a manifest-declared native Pi CLI on OpenBSD; SDK/embedded script hosts are unsupported");
++  }
++}
++
++const nativeHost = { platform: process.platform, execPath: process.execPath, argv1: process.argv[1] };
++// Do not reject import-only consumers. Unsupported embeddings fail at launch.
++let nativeEntry: string | undefined;
++try { nativeEntry = resolveNativePiEntry(nativeHost.argv1); } catch {}
++
+ // Windows cannot spawn pi.cmd without a shell (Node EINVAL since CVE-2024-27980), and a
+ // shell would re-parse task text and make proc the cmd.exe wrapper instead of the worker.
+ // So relaunch the host's own executable directly.
+ export function getPiSpawnCommand(
+   args: string[],
+-  host: PiHost = { platform: process.platform, execPath: process.execPath, argv1: process.argv[1] },
++  host: PiHost = nativeHost,
+ ): { command: string; args: string[] } {
++  if (host.platform === "openbsd") {
++    const entry = host === nativeHost && nativeEntry ? nativeEntry : resolveNativePiEntry(host.argv1);
++    return { command: host.execPath, args: [entry, ...args] };
++  }
+   if (host.platform !== "win32") return { command: "pi", args };
+   const isCompiledPi = (host.argv1 !== undefined && /^(?:\/\$bunfs\/|B:[\\/]~BUN[\\/])/.test(host.argv1))
+     || /^pi(?:\.exe)?$/i.test(path.win32.basename(host.execPath));
+@@ -280,12 +310,14 @@ async function runAgent(
+       ? { ...process.env, ...envOverrides, ...workerFlag }
+       : undefined;
+ 
++    requireWorkerOwner();
+     const piCommand = getPiSpawnCommand(args);
+     const proc = spawn(piCommand.command, piCommand.args, {
+       cwd,
+       stdio: ["ignore", "pipe", "pipe"],
+       ...(env ? { env } : {}),
+     });
++    ownChildProcess(proc);
+     if (task.taskId) {
+       registerWorker({ type: "worker", proc, name: workerName, cwd, taskId: task.taskId });
+     }
+@@ -407,15 +439,14 @@ async function runAgent(
+           try {
+             const inboxDir = path.join(options.messengerDirs.inbox, discoveredWorkerName);
+             if (fs.existsSync(inboxDir)) {
+-              const msgFile = path.join(inboxDir, `${Date.now()}-shutdown.json`);
+-              fs.writeFileSync(msgFile, JSON.stringify({
++              publishInboxMessage(inboxDir, {
+                 id: randomUUID(),
+                 from: "crew-orchestrator",
+                 to: discoveredWorkerName,
+                 text: SHUTDOWN_MESSAGE,
+                 timestamp: new Date().toISOString(),
+                 replyTo: null,
+-              }));
++              });
+               messageSent = true;
+             }
+           } catch {}
+diff --git a/crew/handlers/revise.ts b/crew/handlers/revise.ts
+index 5d83867..b697ad2 100644
+--- a/crew/handlers/revise.ts
++++ b/crew/handlers/revise.ts
+@@ -85,7 +85,7 @@ export async function taskRevise(cwd: string, params: CrewParams, state: Messeng
+   const { id, prompt } = params;
+   if (!id) return result("Error: id required for task.revise", { mode: "task.revise", error: "missing_id" });
+ 
+-  const r = await executeRevise(cwd, id, prompt ?? undefined, state.agentName || "unknown", state.model || undefined);
++  const r = await executeRevise(cwd, id, prompt ?? undefined, state.agentName || "unknown", state.executionModel);
+   if (!r.success) {
+     return result(`Error: ${r.message}`, { mode: "task.revise", error: "revision_failed", id });
+   }
+@@ -229,7 +229,7 @@ export async function taskReviseTree(cwd: string, params: CrewParams, state: Mes
+   const { id, prompt } = params;
+   if (!id) return result("Error: id required for task.revise-tree", { mode: "task.revise-tree", error: "missing_id" });
+ 
+-  const r = await executeReviseTree(cwd, id, prompt ?? undefined, state.agentName || "unknown", state.model || undefined);
++  const r = await executeReviseTree(cwd, id, prompt ?? undefined, state.agentName || "unknown", state.executionModel);
+   if (!r.success) {
+     return result(`Error: ${r.message}`, { mode: "task.revise-tree", error: "revision_failed", id });
+   }
+diff --git a/crew/index.ts b/crew/index.ts
+index 5623c42..df130bf 100644
+--- a/crew/index.ts
++++ b/crew/index.ts
+@@ -40,7 +40,7 @@ export async function executeCrewAction(
+   config?: CrewActionConfig,
+   signal?: AbortSignal
+ ) {
+-  const sessionModel = state.model || undefined;
++  const sessionModel = state.executionModel;
+   // Parse action: "task.show" → group="task", op="show"
+   const dotIndex = action.indexOf('.');
+   const group = dotIndex > 0 ? action.slice(0, dotIndex) : action;
+diff --git a/crew/lobby.ts b/crew/lobby.ts
+index 2cca609..d35080e 100644
+--- a/crew/lobby.ts
++++ b/crew/lobby.ts
+@@ -12,6 +12,8 @@ import * as os from "node:os";
+ import * as path from "node:path";
+ import { fileURLToPath } from "node:url";
+ import { randomUUID } from "node:crypto";
++import { ownChildProcess, ownsChildProcess, requireWorkerOwner } from "./ownership.ts";
++import { publishInboxMessage } from "../mailbox.ts";
+ import { generateMemorableName } from "../lib.ts";
+ import { resolveThinking, modelHasThinkingSuffix, pushModelArgs, getPiSpawnCommand, resolveModel } from "./agents.ts";
+ import { discoverCrewAgents } from "./utils/discover.ts";
+@@ -109,6 +111,7 @@ export function spawnLobbyWorker(cwd: string, promptOverride?: string, sessionMo
+   const envOverrides = config.work.env ?? {};
+   const env = { ...process.env, ...envOverrides, PI_AGENT_NAME: name, PI_CREW_WORKER: "1", PI_LOBBY_ID: id };
+ 
++  requireWorkerOwner();
+   const piCommand = getPiSpawnCommand(args);
+   const proc = spawn(piCommand.command, piCommand.args, {
+     cwd,
+@@ -116,6 +119,7 @@ export function spawnLobbyWorker(cwd: string, promptOverride?: string, sessionMo
+     env,
+   });
+ 
++  ownChildProcess(proc);
+   const aliveFile = path.join(crewDir, `lobby-${id}.alive`);
+   try { fs.writeFileSync(aliveFile, "", { mode: 0o600 }); } catch {}
+ 
+@@ -247,14 +251,12 @@ ${taskPrompt}`,
+     replyTo: null,
+   };
+ 
+-  const random = Math.random().toString(36).substring(2, 8);
+-  const msgFile = path.join(targetInbox, `${Date.now()}-${random}.json`);
+   const aliveFile = worker.aliveFile;
+   if (aliveFile) {
+     try { fs.unlinkSync(aliveFile); } catch {}
+   }
+   try {
+-    fs.writeFileSync(msgFile, JSON.stringify(msg, null, 2));
++    publishInboxMessage(targetInbox, msg);
+   } catch {
+     if (aliveFile) {
+       try { fs.writeFileSync(aliveFile, "", { mode: 0o600 }); } catch {}
+@@ -282,9 +284,10 @@ export function killLobbyWorkerForTask(cwd: string, taskId: string): boolean {
+   return false;
+ }
+ 
+-export function shutdownLobbyWorkers(cwd: string): void {
++export function shutdownLobbyWorkers(cwd: string, owner: string): void {
+   const all = registryGetLobbyWorkers(cwd);
+   for (const worker of all) {
++    if (!ownsChildProcess(owner, worker.proc)) continue;
+     if (worker.proc.exitCode === null) {
+       worker.proc.kill("SIGTERM");
+     }
+@@ -299,14 +302,7 @@ export function shutdownLobbyWorkers(cwd: string): void {
+     }
+   }
+ 
+-  const crewDir = store.getCrewDir(cwd);
+-  try {
+-    for (const f of fs.readdirSync(crewDir)) {
+-      if (f.startsWith("lobby-") && f.endsWith(".alive")) {
+-        try { fs.unlinkSync(path.join(crewDir, f)); } catch {}
+-      }
+-    }
+-  } catch {}
++  // Never sweep cwd-wide alive files: another coordinator may own them.
+ }
+ 
+ export function cleanupUnassignedAliveFiles(cwd: string): void {
+diff --git a/crew/ownership.ts b/crew/ownership.ts
+new file mode 100644
+index 0000000..c3917dc
+--- /dev/null
++++ b/crew/ownership.ts
+@@ -0,0 +1,36 @@
++import { AsyncLocalStorage } from "node:async_hooks";
++import type { ChildProcess } from "node:child_process";
++
++// Process-local resource ownership, not a task lock or a security boundary.
++const context = new AsyncLocalStorage<string>();
++const children = new Map<ChildProcess, string>();
++const closedOwners = new Set<string>();
++
++export function withWorkerOwner<T>(owner: string, fn: () => T): T {
++  if (closedOwners.has(owner)) throw new Error("Crew owner has shut down");
++  return context.run(owner, fn);
++}
++
++export function requireWorkerOwner(): string {
++  const owner = context.getStore();
++  if (!owner || closedOwners.has(owner)) throw new Error("No active Crew child owner");
++  return owner;
++}
++
++export function ownChildProcess(proc: ChildProcess): void {
++  children.set(proc, requireWorkerOwner());
++  proc.once("close", () => children.delete(proc));
++}
++
++export function ownsChildProcess(owner: string, proc: ChildProcess): boolean {
++  return children.get(proc) === owner;
++}
++
++export function shutdownOwnedChildren(owner: string): void {
++  closedOwners.add(owner);
++  for (const [proc, childOwner] of children) {
++    if (childOwner !== owner) continue;
++    if (proc.exitCode === null && !proc.killed) proc.kill("SIGTERM");
++    // Keep ownership until close: repeated cleanup must still recognize the child.
++  }
++}
+diff --git a/crew/state-autonomous.ts b/crew/state-autonomous.ts
+index 92d5617..abfb12b 100644
+--- a/crew/state-autonomous.ts
++++ b/crew/state-autonomous.ts
+@@ -36,7 +36,7 @@ export const autonomousState: AutonomousState = {
+   startedAt: null,
+   stoppedAt: null,
+   stopReason: null,
+-  concurrency: 2,
++  concurrency: 1,
+   autoOverlayPending: false,
+   pid: null,
+ };
+diff --git a/crew/utils/config.ts b/crew/utils/config.ts
+index f3aec9f..1288c1e 100644
+--- a/crew/utils/config.ts
++++ b/crew/utils/config.ts
+@@ -76,8 +76,8 @@ export interface CrewConfig {
+ 
+ const DEFAULT_CONFIG: CrewConfig = {
+   concurrency: {
+-    workers: 2,
+-    max: 10,
++    workers: 1,
++    max: 1,
+   },
+   truncation: {
+     planners: { bytes: 204800, lines: 5000 },
+@@ -91,8 +91,8 @@ const DEFAULT_CONFIG: CrewConfig = {
+   review: { enabled: true, maxIterations: 3 },
+   planning: { maxPasses: 1 },
+   work: { maxAttemptsPerTask: 5, maxWaves: 50, stopOnBlock: false, shutdownGracePeriodMs: 30000 },
+-  dependencies: "advisory",
+-  coordination: "chatty",
++  dependencies: "strict",
++  coordination: "minimal",
+   messageBudgets: { none: 0, minimal: 2, moderate: 5, chatty: 10 },
+ };
+ 
+diff --git a/index.ts b/index.ts
+index 21faab6..2a7548a 100644
+--- a/index.ts
++++ b/index.ts
+@@ -6,6 +6,8 @@
+  */
+ 
+ import { homedir } from "node:os";
++import { randomUUID } from "node:crypto";
++import { withWorkerOwner } from "./crew/ownership.ts";
+ import * as fs from "node:fs";
+ import { join } from "node:path";
+ import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
+@@ -75,7 +77,6 @@ import {
+ import { loadCrewConfig } from "./crew/utils/config.ts";
+ import * as crewStore from "./crew/store.ts";
+ import * as teamStore from "./crew/team/store.ts";
+-import { runLegacyAgentCleanupMigration } from "./crew/utils/install.ts";
+ import { getLiveWorkers, onLiveWorkersChanged } from "./crew/live-progress.ts";
+ import { shutdownAllWorkers } from "./crew/agents.ts";
+ import { shutdownLobbyWorkers } from "./crew/lobby.ts";
+@@ -85,9 +86,8 @@ let overlayHandle: OverlayHandle | null = null;
+ let overlayOpening = false;
+ 
+ export default function piMessengerExtension(pi: ExtensionAPI) {
+-  // One-time migration: remove stale crew agents from shared ~/.pi/agent/agents/
+-  // (crew agents now discovered from extension-local directory)
+-  runLegacyAgentCleanupMigration();
++  // An extension instance owns only the children it launches, even in a shared host.
++  const workerOwner = randomUUID();
+ 
+   // ===========================================================================
+   // State & Configuration
+@@ -357,11 +357,12 @@ export default function piMessengerExtension(pi: ExtensionAPI) {
+   }
+ 
+   function captureStatusContext(ctx: ExtensionContext): void {
++    state.executionModel = ctx.model ? `${ctx.model.provider}/${ctx.model.id}` : undefined;
+     latestCtx = ctx;
+     startStatusHeartbeat();
+   }
+ 
+-  onLiveWorkersChanged(() => {
++  const unsubscribeLiveWorkers = onLiveWorkersChanged(() => {
+     if (latestCtx) updateStatus(latestCtx);
+   });
+ 
+@@ -388,6 +389,7 @@ export default function piMessengerExtension(pi: ExtensionAPI) {
+   pi.registerTool({
+     name: "pi_messenger",
+     label: "Pi Messenger",
++    executionMode: "sequential",
+     description: `Multi-agent coordination and task orchestration.
+ 
+ Usage (action-based API - preferred):
+@@ -500,7 +502,7 @@ Usage (action-based API - preferred):
+         return handlers.executeStatus(state, dirs, ctx.cwd);
+       }
+ 
+-      const result = await executeCrewAction(
++      const result = await withWorkerOwner(workerOwner, () => executeCrewAction(
+         action,
+         params,
+         state,
+@@ -511,7 +513,7 @@ Usage (action-based API - preferred):
+         (type, data) => pi.appendEntry(type, data),
+         { stuckThreshold: config.stuckThreshold, crewEventsInFeed: config.crewEventsInFeed, nameTheme, feedRetention: config.feedRetention },
+         signal
+-      );
++      ));
+ 
+       if (action === "join" && state.registered && config.registrationContext) {
+         sendRegistrationContext(ctx);
+@@ -539,7 +541,7 @@ Usage (action-based API - preferred):
+       if (!ctx.hasUI) return;
+ 
+       // /messenger config - open config overlay
+-      if (args[0] === "config") {
++      if (args.trim() === "config") {
+         await ctx.ui.custom<void>(
+           (tui, theme, _keybindings, done) => {
+             return new MessengerConfigOverlay(tui, theme, done, ctx.cwd);
+@@ -580,7 +582,7 @@ Usage (action-based API - preferred):
+       const snapshot = await ctx.ui.custom<string | undefined>(
+         (tui, theme, _keybindings, done) => {
+           overlayTui = tui;
+-          return new MessengerOverlay(tui, theme, state, dirs, done, callbacks, ctx.cwd);
++          return new MessengerOverlay(tui, theme, state, dirs, done, callbacks, ctx.cwd, workerOwner);
+         },
+         {
+           overlay: true,
+@@ -849,7 +851,7 @@ Usage (action-based API - preferred):
+     }
+ 
+     state.isHuman = ctx.hasUI;
+-    try { fs.rmSync(join(homedir(), ".pi/agent/messenger/feed.jsonl"), { force: true }); } catch {}
++    // Legacy shared files are owner data; loading must not delete them.
+ 
+     const shouldAutoRegister = config.autoRegister || 
+       matchesAutoRegisterPath(state.cwd, config.autoRegisterPaths);
+@@ -922,7 +924,7 @@ Usage (action-based API - preferred):
+     ctx.ui.custom<string | undefined>(
+       (tui, theme, _keybindings, done) => {
+         overlayTui = tui;
+-        return new MessengerOverlay(tui, theme, state, dirs, done, callbacks, ctx.cwd);
++        return new MessengerOverlay(tui, theme, state, dirs, done, callbacks, ctx.cwd, workerOwner);
+       },
+       {
+         overlay: true,
+@@ -956,6 +958,10 @@ Usage (action-based API - preferred):
+     });
+   }
+ 
++  pi.on("model_select", async (_event, ctx) => {
++    captureStatusContext(ctx);
++  });
++
+   pi.on("session_tree", async (_event, ctx) => {
+     captureStatusContext(ctx);
+     const { staleCleared } = restorePlanningState(ctx.cwd);
+@@ -1147,9 +1153,10 @@ Usage (action-based API - preferred):
+     // with a ctx that is already stale, and any ctx read would skip this cleanup.
+     const cwd = state.cwd;
+     if (cwd) {
+-      shutdownLobbyWorkers(cwd);
++      shutdownLobbyWorkers(cwd, workerOwner);
+     }
+-    shutdownAllWorkers();
++    shutdownAllWorkers(workerOwner);
++    unsubscribeLiveWorkers();
+     stopStatusHeartbeat();
+     overlayOpening = false;
+     overlayHandle = null;
+diff --git a/lib.ts b/lib.ts
+index fed0fdf..c87a9c7 100644
+--- a/lib.ts
++++ b/lib.ts
+@@ -105,7 +105,9 @@ export interface MessengerState {
+   unreadCounts: Map<string, number>;
+   broadcastHistory: AgentMailMessage[];
+   seenSenders: Map<string, string>;
++  // Peer display is deliberately separate from provider-qualified execution.
+   model: string;
++  executionModel?: string;
+   cwd: string;
+   gitBranch?: string;
+   spec?: string;
+diff --git a/mailbox.ts b/mailbox.ts
+new file mode 100644
+index 0000000..77b6d8c
+--- /dev/null
++++ b/mailbox.ts
+@@ -0,0 +1,26 @@
++import * as fs from "node:fs";
++import { join } from "node:path";
++import { randomUUID } from "node:crypto";
++
++// Same mailbox/envelope. A reader sees only a fully written final .json file.
++// Publication is not recipient acknowledgement or power-loss durability.
++export function publishInboxMessage(inbox: string, message: unknown): string {
++  fs.mkdirSync(inbox, { recursive: true });
++  const id = `${Date.now()}-${randomUUID()}`;
++  const temporary = join(inbox, `.${id}.tmp`);
++  const target = join(inbox, `${id}.json`);
++  let fd: number | undefined;
++  try {
++    fd = fs.openSync(temporary, "wx", 0o600);
++    fs.writeFileSync(fd, JSON.stringify(message, null, 2));
++    fs.fsyncSync(fd);
++    fs.closeSync(fd);
++    fd = undefined;
++    // link gives atomic no-replace publication on the same filesystem.
++    fs.linkSync(temporary, target);
++  } finally {
++    if (fd !== undefined) fs.closeSync(fd);
++    try { fs.unlinkSync(temporary); } catch { /* orphan temp is not consumable */ }
++  }
++  return target;
++}
+diff --git a/overlay-actions.ts b/overlay-actions.ts
+index 9aae4ab..5137045 100644
+--- a/overlay-actions.ts
++++ b/overlay-actions.ts
+@@ -207,6 +207,7 @@ export function handleRevisePromptInput(
+   task: Task | undefined,
+   agentName: string,
+   tui: TUI,
++  sessionModel?: string,
+ ): void {
+   if (matchesKey(data, "escape")) {
+     viewState.inputMode = "normal";
+@@ -236,7 +237,7 @@ export function handleRevisePromptInput(
+     const t = tui;
+     const fn = scope === "tree" ? "executeReviseTree" : "executeRevise";
+     import("./crew/handlers/revise.ts")
+-      .then(m => m[fn](cwd, task.id, prompt, agentName))
++      .then(m => m[fn](cwd, task.id, prompt, agentName, sessionModel))
+       .then(result => {
+         setNotification(vs, t, result.success, result.message);
+       })
+diff --git a/overlay.ts b/overlay.ts
+index 823b979..2880491 100644
+--- a/overlay.ts
++++ b/overlay.ts
+@@ -45,6 +45,7 @@ import { discoverCrewAgents } from "./crew/utils/discover.ts";
+ import { spawnSingleWorker, spawnWorkersForReadyTasks } from "./crew/spawn.ts";
+ import * as teamStore from "./crew/team/store.ts";
+ import { spawnLobbyWorker, removeLobbyWorkerByIndex, cleanupUnassignedAliveFiles } from "./crew/lobby.ts";
++import { withWorkerOwner } from "./crew/ownership.ts";
+ 
+ export interface OverlayCallbacks {
+   onBackground?: (snapshot: string) => void;
+@@ -76,6 +77,7 @@ export class MessengerOverlay implements Component, Focusable {
+     private done: (snapshot?: string) => void,
+     private callbacks: OverlayCallbacks,
+     cwd: string,
++    private workerOwner: string,
+   ) {
+     this.cwd = cwd;
+     const cfg = loadConfig(this.cwd);
+@@ -116,7 +118,7 @@ export class MessengerOverlay implements Component, Focusable {
+       return;
+     }
+ 
+-    const worker = spawnSingleWorker(this.cwd, task.id, this.state.model);
++    const worker = spawnSingleWorker(this.cwd, task.id, this.state.executionModel);
+     if (worker) {
+       setNotification(this.crewViewState, this.tui, true, `${worker.name} → ${task.id}`);
+     } else {
+@@ -126,7 +128,7 @@ export class MessengerOverlay implements Component, Focusable {
+   }
+ 
+   private spawnWorkerForReadyTask(task: Task, newConcurrency: number): void {
+-    const worker = spawnSingleWorker(this.cwd, task.id, this.state.model);
++    const worker = spawnSingleWorker(this.cwd, task.id, this.state.executionModel);
+     if (!worker) {
+       const message = teamStore.taskNeedsRevision(task)
+         ? `${task.id} needs revision`
+@@ -157,7 +159,7 @@ export class MessengerOverlay implements Component, Focusable {
+     const startableTasks = readyTasks.filter(t => !teamStore.taskNeedsApproval(t));
+     if (startableTasks.length > 0) {
+       const target = Math.min(startableTasks.length, autonomousState.concurrency);
+-      const { assigned } = spawnWorkersForReadyTasks(this.cwd, target, this.state.model);
++      const { assigned } = spawnWorkersForReadyTasks(this.cwd, target, this.state.executionModel);
+       if (assigned > 0) {
+         setNotification(this.crewViewState, this.tui, true, `Plan ready — ${assigned} worker${assigned > 1 ? "s" : ""} started`);
+         this.tui.requestRender();
+@@ -191,7 +193,7 @@ export class MessengerOverlay implements Component, Focusable {
+     const target = Math.min(startableTasks.length, slots);
+     if (target <= 0) return;
+ 
+-    const { assigned } = spawnWorkersForReadyTasks(this.cwd, target, this.state.model);
++    const { assigned } = spawnWorkersForReadyTasks(this.cwd, target, this.state.executionModel);
+     if (assigned > 0) {
+       setNotification(this.crewViewState, this.tui, true, `${assigned} worker${assigned > 1 ? "s" : ""} → ready tasks`);
+       this.tui.requestRender();
+@@ -243,6 +245,10 @@ export class MessengerOverlay implements Component, Focusable {
+   }
+ 
+   handleInput(data: string): void {
++    withWorkerOwner(this.workerOwner, () => this.handleOwnedInput(data));
++  }
++
++  private handleOwnedInput(data: string): void {
+     this.cancelCompletionTimer();
+ 
+     if (data === "\x14") {
+@@ -275,7 +281,7 @@ export class MessengerOverlay implements Component, Focusable {
+     if (this.crewViewState.inputMode === "revise-prompt") {
+       const tasks = crewStore.getTasks(this.cwd);
+       const task = tasks[this.crewViewState.selectedTaskIndex];
+-      handleRevisePromptInput(data, this.crewViewState, this.cwd, task, this.state.agentName, this.tui);
++      handleRevisePromptInput(data, this.crewViewState, this.cwd, task, this.state.agentName, this.tui, this.state.executionModel);
+       return;
+     }
+ 
+@@ -290,30 +296,8 @@ export class MessengerOverlay implements Component, Focusable {
+     }
+ 
+     if (data === "+" || matchesKey(data, "=") || matchesKey(data, "shift+=") || matchesKey(data, "-")) {
+-      const delta = matchesKey(data, "-") ? -1 : 1;
+-      const crewDir = crewStore.getCrewDir(this.cwd);
+-      const config = loadCrewConfig(crewDir);
+-      const prev = autonomousState.concurrency;
+-      const next = adjustConcurrency(delta, config.concurrency.max);
+-      if (prev === next) {
+-        this.tui.requestRender();
+-        return;
+-      }
+-
+-      if (next > prev) {
+-        const readyTasks = crewStore.getReadyTasks(this.cwd, { advisory: config.dependencies === "advisory" });
+-        if (readyTasks.length === 0) {
+-          const worker = spawnLobbyWorker(this.cwd, undefined, this.state.model);
+-          const label = worker ? `Lobby worker ${worker.name} spawned (${next}w)` : `Workers → ${next}`;
+-          setNotification(this.crewViewState, this.tui, true, label);
+-        } else {
+-          this.spawnWorkerForReadyTask(readyTasks[0], next);
+-        }
+-      } else {
+-        const killed = removeLobbyWorkerByIndex(this.cwd);
+-        const label = killed ? `Lobby worker removed (${next}w)` : `Workers: ${prev} → ${next}`;
+-        setNotification(this.crewViewState, this.tui, true, label);
+-      }
++      // Capacity adjustment used to create idle workers as a side effect.
++      setNotification(this.crewViewState, this.tui, false, "Use explicit work (initial concurrency 1); capacity keys do not spawn workers");
+       this.tui.requestRender();
+       return;
+     }
+@@ -601,8 +585,8 @@ export class MessengerOverlay implements Component, Focusable {
+     const selectedTask = tasks[this.crewViewState.selectedTaskIndex] ?? null;
+     const hasPlan = this.hasPlan();
+     const planning = this.isPlanningActiveForCurrentProject();
+-    this.checkAutoSpawnOnPlanComplete(planning, tasks);
+-    this.checkAutoRefillWorkers(tasks, hasPlan);
++    // Viewing a plan or refreshing after completion must never start work.
++    // Explicit task start and the work action remain available.
+ 
+     const lines: string[] = [];
+     const titleContent = this.renderTitleContent();
+diff --git a/skills/pi-messenger-crew/SKILL.md b/skills/pi-messenger-crew/SKILL.md
+index 4d49def..9637e82 100644
+--- a/skills/pi-messenger-crew/SKILL.md
++++ b/skills/pi-messenger-crew/SKILL.md
+@@ -5,6 +5,30 @@ description: Orchestrator reference for pi-messenger Crew planning, task managem
+ 
+ # Pi-Messenger Crew Skill
+ 
++## Vertrice staged integration (takes precedence over upstream examples below)
++
++This is the full Messenger/Crew package, not a transport-only adapter. Initial
++execution uses strict dependencies, one worker (max one), minimal coordination,
++and the current native Node/Pi runtime and selected session model. No new provider
++or agent-frontmatter fallback model is selected by this integration.
++
++Use `plan` with `autoWork: false`, inspect `task.list` / `crew.validate`, then use
++explicit `work` with `concurrency: 1`. Plan/review/work remain real Crew actions.
++The overlay does not start/refill workers from rendering or capacity keys;
++explicit task start is still an execution action. Auto-overlay defaults are off.
++
++Keep one coordinator per Crew cwd and no overlapping plan/work/revise/manual
++mutation during a worker run. This is a conservative operating envelope, not a
++fix for upstream's multi-writer task/plan/spec races. Sequential public tool calls
++and one worker do not serialize other sessions, direct store writers or overlays.
++Do not wipe/replan a durable backlog. Migration and retirement of old task tooling
++are a separate cutover; do not maintain two writable mirrors.
++
++Worker scope, privilege/sign-in handoffs and owner acceptance stay explicit.
++`task.done`, reviewer SHIP, and plan completion do not establish owner acceptance.
++A send publication is not recipient ACK; failed inbox files are retained and may
++replay. Do not run upstream `install.mjs` or contents-blind legacy uninstall.
++
+ > Crew workers do not need this skill. `crew-worker.md` already contains every `pi_messenger` action workers need for task execution.
+ >
+ > Orchestrators and humans can use this as the full reference for planning, task management, configuration, and Crew internals.
+diff --git a/store.ts b/store.ts
+index c058712..57e5c42 100644
+--- a/store.ts
++++ b/store.ts
+@@ -6,6 +6,7 @@ import * as fs from "node:fs";
+ import { randomUUID } from "node:crypto";
+ import { join, resolve } from "node:path";
+ import { execSync } from "node:child_process";
++import { publishInboxMessage } from "./mailbox.ts";
+ import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
+ import {
+   type AgentRegistration,
+@@ -583,20 +584,7 @@ export function renameAgent(
+ 
+   state.agentName = newName;
+ 
+-  if (fs.existsSync(newInbox)) {
+-    try {
+-      const staleFiles = fs.readdirSync(newInbox).filter(f => f.endsWith(".json"));
+-      for (const file of staleFiles) {
+-        try {
+-          fs.unlinkSync(join(newInbox, file));
+-        } catch {
+-          // Ignore
+-        }
+-      }
+-    } catch {
+-      // Ignore
+-    }
+-  }
++  // Existing mail is not proven stale merely because a name was reused.
+   ensureDirSync(newInbox);
+ 
+   try {
+@@ -987,12 +975,9 @@ export function processAllPendingMessages(
+         deliverFn(msg);
+         fs.unlinkSync(msgPath);
+       } catch {
+-        // On any failure (read, parse, deliver), delete to avoid infinite retry loops
+-        try {
+-          fs.unlinkSync(msgPath);
+-        } catch {
+-          // Already gone or can't delete
+-        }
++        // Retain read/parse/enqueue/unlink failures for explicit retry or inspection.
++        // A callback that partially succeeds, or unlink failure, can still replay.
++        // Do not write a retry marker here: watcher events would create a hot loop.
+       }
+     }
+   } finally {
+@@ -1014,6 +999,7 @@ export function sendMessageToAgent(
+   text: string,
+   replyTo?: string
+ ): AgentMailMessage {
++  if (!isValidAgentName(to)) throw new Error("Invalid mailbox name");
+   const targetInbox = join(dirs.inbox, to);
+   ensureDirSync(targetInbox);
+ 
+@@ -1026,9 +1012,7 @@ export function sendMessageToAgent(
+     replyTo: replyTo ?? null
+   };
+ 
+-  const random = Math.random().toString(36).substring(2, 8);
+-  const msgFile = join(targetInbox, `${Date.now()}-${random}.json`);
+-  fs.writeFileSync(msgFile, JSON.stringify(msg, null, 2));
++  publishInboxMessage(targetInbox, msg);
+ 
+   return msg;
+ }

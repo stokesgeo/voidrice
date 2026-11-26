@@ -87,11 +87,18 @@ export class WorkStore {
     if (task.id !== id) throw new Error('Filename and task id differ');
     return { task, revision: digest(data), file };
   }
+  // One lexical entry per .md name, including failures. Valid rows retain the
+  // read() shape; callers must inspect error before task. Never repair on read.
   list() {
-    let names;
-    try { names = fs.readdirSync(this.location()); }
+    let dir;
+    try { dir = this.location(); }
     catch (error) { if (error.code === 'ENOENT') return []; throw error; }
-    return names.filter(name => name.endsWith('.md')).sort().map(name => this.read(name.slice(0, -3)));
+    // Only an uninitialized location is empty. Enumeration failures (including
+    // a disappearing directory) are store failures, not record-local errors.
+    return fs.readdirSync(dir).filter(name => name.endsWith('.md')).sort().map(name => {
+      try { return this.read(name.slice(0, -3)); }
+      catch (error) { return { file: path.join(dir, name), error: String(error.message).slice(0, 240) }; }
+    });
   }
   locked(fn) {
     const dir = this.location(true), lock = path.join(dir, '.write-lock');

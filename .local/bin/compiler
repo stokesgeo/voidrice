@@ -9,8 +9,10 @@
 # Usage: compiler FILE. PDFs normally go beside FILE; TeX follows latexmk's out/.
 
 file="${1}"
+dir=$(dirname "$file")
+# After cd, use only the filename within the source directory.
+file="./${file##*/}"
 ext="${file##*.}"
-dir=${file%/*}
 base="${file%.*}"
 
 cd "${dir}" || exit "1"
@@ -24,10 +26,9 @@ case "${ext}" in
     cs) mcs "${file}" && mono "${base}.exe" ;;
     go) go run "${file}" ;;
     h) doas make install ;;
-    java) javac -d classes "${file}" && java -cp classes "${base}" ;;
     m) octave "${file}" ;;
     md) [ -x "$(command -v lowdown)" ] && \
-	    lowdown --parse-no-intraemph "${file}" -Tms | groff -mpdfmark -ms -kept -T pdf > "${base}.pdf" || \
+	    lowdown --parse-no-intraemph --roff-no-numbered "${file}" -Tms | groff -mpdfmark -ms -kept -T pdf > "${base}.pdf" || \
 	    pandoc -t ms --highlight-style="kate" -s -o "${base}.pdf" "${file}" ;;
     org) emacs "${file}" --batch -u "${USER}" -f org-latex-export-to-pdf ;;
     py) python "${file}" ;;

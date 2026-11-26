@@ -1,0 +1,6 @@
+#!/bin/sh
+
+# /etc/hotplug/detach: same trigger on removal. usb-handler sees that the
+# named disk is gone and warns if a known mount point is still mounted.
+
+[ "$1" = 2 ] && echo "$2" >/var/db/hotplug-disk

@@ -1,0 +1,47 @@
+{
+  "board": {
+    "upstream": "https://github.com/rutvikchandla3/pi-agent-board.git",
+    "commit": "bc092cbd224f655283b35c7ec19b1dac378986d0",
+    "patchSha256": "aed340ab3f98309359268b9955f132e312fc2fd446c46e7fadbc9300cda8534a",
+    "lockfileSha256": "166561355bd7a4678d22d19885a70eefaf5a707a43f527f6346bde42f545ac20",
+    "qualification": "required",
+    "companions": {
+      "local.patch": "aed340ab3f98309359268b9955f132e312fc2fd446c46e7fadbc9300cda8534a",
+      "compatibility.mjs": "6506a96d7f93f309bb3e1aaba2660e2f5c7802030956f7a03c58d8a09db6a2af",
+      "inline.mjs": "4309e99fc4e342664917a2878a53b7f1315ce7dcd1128e85f4272a8013101479"
+    },
+    "runtimeTranslations": {
+      "node_modules/@earendil-works/pi-tui/dist/components/markdown.js": {
+        "contractDigest": "79f1eb78931e576a1f844536c5cf9b7cf80df1ac8e309c8cc140d369c2140194",
+        "pristineInput": "88a6fd1b0388719335b38e6bdf614e2e5a8f68ccddcc5d0307b20146e768db88"
+      },
+      "node_modules/@earendil-works/pi-coding-agent/dist/bundle/chunks/chunk-X26YOAEH.js": {
+        "contractDigest": "f2907c5ff05d35604fa1f74e3067ef3033b79e1ebd595975edc03ae54b674128",
+        "pristineInput": "1dc7029d526f9d5e81429c9c26a691f7777f2062dcf1df06d1b6a99127fd4425"
+      },
+      "node_modules/@earendil-works/pi-coding-agent/dist/bundle/chunks/chunk-KSDI5FD4.js": {
+        "contractDigest": "314a895e276668c92c95b307dc72898e865eabe492d91c06452df2e0f63041d1",
+        "pristineInput": "5558c943edf1c00ca788788bc6b041d6a70a50ae7e646be2192ad399f1df7e34"
+      },
+      "node_modules/@earendil-works/pi-coding-agent/dist/core/agent-session.js": {
+        "contractDigest": "dd09acd171eaa3e0d7b184e7325559d243e7a0e13986bc941c11c00e94094967",
+        "pristineInput": "cd1c9fc3139e6dcd5320b55414aa5fdf12dbea32d4fd38da2c9a57be0d3677c3"
+      },
+      "node_modules/@earendil-works/pi-coding-agent/dist/modes/interactive/interactive-mode.js": {
+        "contractDigest": "db9ea984219a04f907309a4745598424bcb5c366867aded971fbbf3d427f9102",
+        "pristineInput": "8c98aa79a90070c5df772b308fcfe3643656ebcd6fc909b52c25a6aa98153129"
+      },
+      "node_modules/@earendil-works/pi-coding-agent/dist/core/extensions/types.d.ts": {
+        "contractDigest": "73abed240851d8d35abf412386de4b4a646e998cadb9fe884c0dce93aafdb2a3",
+        "pristineInput": "3c1728cdf8f9255273047cb260fddb6827637c55eb4edfe06f78f3e18823afd7"
+      }
+    }
+  },
+  "messenger": {
+    "upstream": "https://github.com/nicobailon/pi-messenger.git",
+    "commit": "a704e7202fa5a7d9fa4b95e8c87cf46950bc3444",
+    "tree": "e0477002236d52750a0210686f1b49b0ba7b4be9",
+    "patchSha256": "aa2aae6e543272772209c96ffe7372ff838d4e2e4c887fe1ff261da3456f3a90",
+    "qualification": "required"
+  }
+}

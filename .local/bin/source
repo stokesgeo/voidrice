@@ -1,0 +1,15 @@
+#!/bin/sh
+
+# No-argument profile reload helper for aliasrc's `source` alias, not a
+# generic `source FILE` command. Dot it so exports reach the calling shell.
+if [ "${0##*/}" = source ]; then
+	printf '%s\n' 'source: use . "$HOME/.local/bin/source" to update the current shell' >&2
+	exit 1
+fi
+
+if [ ! -f "$HOME/.profile" ] || [ ! -r "$HOME/.profile" ]; then
+	printf '%s\n' 'source: cannot read ~/.profile' >&2
+	return 1
+fi
+
+. "$HOME/.profile"

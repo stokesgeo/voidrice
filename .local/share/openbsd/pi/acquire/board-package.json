@@ -1,0 +1,12 @@
+{
+  "name": "vertrice-portable-board-runtime",
+  "version": "0.2.5",
+  "private": true,
+  "dependencies": {
+    "@xterm/headless": "6.0.0",
+    "node-pty": "1.1.0"
+  },
+  "engines": {
+    "node": ">=24"
+  }
+}

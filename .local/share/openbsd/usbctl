@@ -1,0 +1,83 @@
+#!/bin/sh
+
+# usbctl: the one privileged door for removable media. Run as
+# `doas /usr/local/bin/usbctl ...`; the manual pickers and nothing else call
+# it. Every argument is validated here because this is the broad rule.
+#
+# probe DISK        "part size type label" for each usable partition
+# volumes           softraid volumes currently attached
+# mount DEV DIR T   mount DEV at DIR with nosuid,nodev
+# umount DIR        unmount DIR
+# unlock PART       attach the CRYPTO volume on PART; print the new disk
+# lock DISK         detach softraid DISK when nothing of it is mounted
+#
+# DOAS_USER names the caller, so their uid and gid own FAT and FUSE mounts.
+
+set -eu
+
+die() { echo "usbctl: $*" >&2; exit 1; }
+
+user=${DOAS_USER:?usbctl must be run through doas}
+
+case ${1-} in
+probe)
+	[ $# -eq 2 ] || die "usage: probe DISK"
+	case $2 in *[!a-z0-9]*) die "bad disk name" ;; esac
+	label=$(disklabel "$2" 2>/dev/null | sed -n 's/^label: *//p' | tr -cd '[:print:]')
+	disklabel -h "$2" 2>/dev/null | l=$label awk -v d="$2" '
+		BEGIN { l = ENVIRON["l"] }	# -v would expand backslashes
+		$1 ~ /^[a-p]:$/ && $1 != "c:" && $4 !~ /^(unused|swap)$/ {
+			printf "%s%s %s %s %s\n", d, substr($1, 1, 1), $2, $4, l }'
+	;;
+volumes)
+	# The chunk column, e.g. <sd0a>: a RAID partition already attached.
+	bioctl softraid0 2>/dev/null | sed -n 's/.*<\(sd[0-9]*[a-p]\)>.*/\1/p'
+	;;
+mount)
+	[ $# -eq 4 ] || die "usage: mount DEV DIR TYPE"
+	dev=$2 dir=$3 type=$4
+	case $dev in /dev/sd[0-9][a-p]|/dev/sd[0-9][0-9][a-p]) ;; *) die "bad device" ;; esac
+	case $dir in /mnt/?*) ;; *) die "target must be under /mnt" ;; esac
+	case $dir in *[!A-Za-z0-9._/-]*) die "bad target" ;; esac
+	root=$(mount | awk '$3 == "/" {sub("/dev/", "", $1); sub("[a-p]$", "", $1); print $1}')
+	case $dev in /dev/"$root"[a-p]) die "refusing the root disk" ;; esac
+	uid=$(id -u "$user") gid=$(id -g "$user")
+	[ -d "$dir" ] || mkdir -p "$dir" || die "cannot create $dir"
+	fuse="allow_other,uid=$uid,gid=$gid,nosuid,nodev"
+	case $type in
+	MSDOS|NTFS)	# OpenBSD labels exFAT and NTFS alike: try each
+		{ [ "$type" = MSDOS ] &&
+			mount_msdos -o nosuid,nodev -u "$uid" -g "$gid" "$dev" "$dir" 2>/dev/null; } ||
+		mount.exfat -o "$fuse" "$dev" "$dir" 2>/dev/null ||
+		ntfs-3g -o "$fuse" "$dev" "$dir" ||
+		die "cannot mount $dev"
+		;;
+	4.2BSD)	mount -o nosuid,nodev "$dev" "$dir" || die "cannot mount $dev" ;;
+	ext2fs)	mount_ext2fs -o nosuid,nodev "$dev" "$dir" || die "cannot mount $dev" ;;
+	ISO9660) mount_cd9660 -o nosuid,nodev "$dev" "$dir" || die "cannot mount $dev" ;;
+	*)	die "unsupported type $type" ;;
+	esac
+	;;
+umount)
+	[ $# -eq 2 ] || die "usage: umount DIR"
+	case $2 in /mnt/?*) ;; *) die "target must be under /mnt" ;; esac
+	umount "$2" || die "cannot unmount $2"
+	;;
+unlock)
+	[ $# -eq 2 ] || die "usage: unlock PART"
+	case $2 in sd[0-9][a-p]|sd[0-9][0-9][a-p]) ;; *) die "bad partition" ;; esac
+	bioctl -c C -l "/dev/$2" softraid0 |
+		sed -n 's/.* volume attached as \(sd[0-9]*\)$/\1/p'
+	;;
+lock)
+	[ $# -eq 2 ] || die "usage: lock DISK"
+	case $2 in sd[0-9]|sd[0-9][0-9]) ;; *) die "bad disk" ;; esac
+	if mount | awk -v d="$2" '$1 ~ "^/dev/" d "[a-p]$" {found=1} END {exit !found}'; then
+		die "$2 is still mounted"
+	fi
+	bioctl -d "$2" 2>/dev/null || exit 0	# a plain disk has nothing to lock
+	;;
+*)
+	die "usage: probe|volumes|mount|umount|unlock|lock"
+	;;
+esac

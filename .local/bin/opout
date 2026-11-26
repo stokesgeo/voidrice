@@ -1,19 +1,45 @@
 #!/bin/sh
 
-# opout: "open output": A general handler for opening a file's intended output,
-# usually the pdf of a compiled document.  I find this useful especially
-# running from vim.
+# opout SOURCE: submit an exact adjacent PDF or direct preview to a viewer.
+# This does not build, search for artifacts, or interpret root declarations.
 
-basename="${1%.*}"
+fail() { printf 'opout: %s\n' "$*" >&2; exit 1; }
 
-case "${*}" in
-	*.tex|*.sil|*.m[dse]|*.[rR]md|*.mom|*.[0-9])
-		# getcomproot names the main file when FILE is one part of a larger document.
-		target="$(getcomproot "$1" || echo "$1")"
-		target="${target##*/}"
-		target="$(find . -name "${target%.*}".pdf | head -n 1)"
-		detach xdg-open "$target" >/dev/null 2>&1
-		;;
-	*.html) detach "$BROWSER" "$basename".html >/dev/null 2>&1 ;;
-	*.sent) detach sent "$1" >/dev/null 2>&1 ;;
+[ "$#" -eq 1 ] || fail 'usage: opout SOURCE'
+[ -n "$1" ] || fail 'source path is empty'
+# Prefix relative paths so even a dash-leading directory is not an option.
+case $1 in
+/*) source=$1 ;;
+*) source=./$1 ;;
 esac
+[ -f "$source" ] && [ -r "$source" ] ||
+	fail "source is not a readable regular file: $1"
+# Resolve only the directory, not a final source symlink: compiler writes
+# beside the supplied source name, not beside the symlink's referent.
+dir=$(cd "${source%/*}" && pwd -P) || fail "cannot access source directory: $1"
+source=$dir/${source##*/}
+
+case $source in
+*.md|*.ms|*.mom|*.[0-9])
+	target=${source%.*}.pdf
+	[ -f "$target" ] && [ -r "$target" ] ||
+		fail "output is not a readable regular file: $target"
+	viewer=xdg-open
+	;;
+*.html)
+	target=$source
+	viewer=${BROWSER:-}
+	[ -n "$viewer" ] || fail 'BROWSER must name one executable for HTML preview'
+	;;
+*.sent)
+	# sent resolves relative image paths against its working directory.
+	cd "$dir" || fail "cannot access source directory: $dir"
+	target=./${source##*/}
+	viewer=sent
+	;;
+*) fail "unsupported output convention: $1; open the explicit artifact or use a project view command" ;;
+esac
+command -v "$viewer" >/dev/null 2>&1 || fail "viewer not found: $viewer"
+command -v detach >/dev/null 2>&1 || fail 'launcher not found: detach'
+# detach is asynchronous: success means submission, not viewer acceptance.
+detach "$viewer" "$target"

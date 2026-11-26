@@ -1,0 +1,307 @@
+{
+  "schema": 1,
+  "files": [
+    {
+      "path": ".gitignore",
+      "sha256": "d30a748367eb12114583a34f94ee45b8cebe190b4a5d7d546d863f892b60e6a8",
+      "mode": "0644"
+    },
+    {
+      "path": "AGENTS.md",
+      "sha256": "9055f2c1a5ffff956c0151369084ea31027bf27361b9a2da655c6eecc2400dce",
+      "mode": "0644"
+    },
+    {
+      "path": "native-context.md",
+      "sha256": "18470c0b43df9415ebec2ffad17ac8cc6413d5253a541102daae3c0ac40c5d71",
+      "mode": "0644"
+    },
+    {
+      "path": "action-summary.mjs",
+      "sha256": "feca66a23a729002efff9c68fe0edc5c515213ecb716a7779c34146684f72d36",
+      "mode": "0644"
+    },
+    {
+      "path": "ipe-client.mjs",
+      "sha256": "7012836b77b6183cf477a2a20545a6af2449671ebec681b09c33151ff569fea9",
+      "mode": "0644"
+    },
+    {
+      "path": "work-store.mjs",
+      "sha256": "eca95b0d959884aefb713205eab309f0ec12578c2eb7b0c60dedbae7bda8c611",
+      "mode": "0644"
+    },
+    {
+      "path": "desktop-theme-controller.mjs",
+      "sha256": "2373252fd78f0cec93b0474f5cc159f2af571e61801132d4ab6b111ef109cac8",
+      "mode": "0644"
+    },
+    {
+      "path": "extensions/agent-board.ts",
+      "sha256": "e5d69603962332c4ccf47f9f25139555e4c2652657740d4dc7980b155e1d04e5",
+      "mode": "0644"
+    },
+    {
+      "path": "extensions/campaign-context.ts",
+      "sha256": "465c892161792caa7c943d22d58bb645c8871a494ebb591f4e6e59ee7c24889e",
+      "mode": "0644"
+    },
+    {
+      "path": "extensions/conversation-ui.ts",
+      "sha256": "0d1104afaee4b6f75662ecbf3f4e0193d710a601c7d2101e47d737d1581a1f2b",
+      "mode": "0644"
+    },
+    {
+      "path": "extensions/general-tools.ts",
+      "sha256": "c00458036409fbcfa03055c716e8b78aaf306fa4111eee1b1c9f625008c2741b",
+      "mode": "0644"
+    },
+    {
+      "path": "extensions/ipe.ts",
+      "sha256": "d3a042552a2e436af8bd7eb0524ee1f540870de67ff61649c580c0fa49dc2293",
+      "mode": "0644"
+    },
+    {
+      "path": "extensions/work.ts",
+      "sha256": "ab96b2beb9f242dad6cc815da64f5b8950028a49e60c5c4f1e0b89392daf589c",
+      "mode": "0644"
+    },
+    {
+      "path": "extensions/self-maintain.ts",
+      "sha256": "9ad88af04127d6aa3ed4ddf5f4bef380c3f96b06090bed074ae3d17c7f8f6ed0",
+      "mode": "0644"
+    },
+    {
+      "path": "extensions/session-focus.ts",
+      "sha256": "55527f11df644a181ef880d9edbf496c1c98b125b6dc672ababee3c1feb6a034",
+      "mode": "0644"
+    },
+    {
+      "path": "extensions/dsml-guard.ts",
+      "sha256": "d5ff4c7468887e7c0699cb2515f5073223897df0fcd5061d67b056895b5c1f26",
+      "mode": "0644"
+    },
+    {
+      "path": "extensions/desktop-theme.mjs",
+      "sha256": "c34e2e4be2bb16e6e4abc6b4dc6198f6861459e7363a25ffd86927b239f3f801",
+      "mode": "0644"
+    },
+    {
+      "path": "extensions/subagent/LICENSE",
+      "sha256": "4f6a1985796db5225e3b1e59972bd47e07a27a0748427cb3d3c8fbf39f9311f0",
+      "mode": "0644"
+    },
+    {
+      "path": "extensions/subagent/index.ts",
+      "sha256": "74ac862459ccb82fdae10f762f6aed56a1c0581e20433ff7a39408900dee559a",
+      "mode": "0644"
+    },
+    {
+      "path": "extensions/subagent/agents.ts",
+      "sha256": "87bca8610b9fb9f10ce9ab2214cb34f459d03aa52dd32621fd97336667514fee",
+      "mode": "0644"
+    },
+    {
+      "path": "extensions/subagent/child-policy.ts",
+      "sha256": "f035186f3de91de441e77b8e902531eee007c7c66bbf41ea5e6a24ef90236c99",
+      "mode": "0644"
+    },
+    {
+      "path": "extensions/subagent/compact-ui.ts",
+      "sha256": "ebddd6523fc1bfc75a7628d1ca4490b0ef14943a2f48bdfd68157f2193083597",
+      "mode": "0644"
+    },
+    {
+      "path": "extensions/terminal-scroll-modes/index.ts",
+      "sha256": "49c58ac8f0edfe2057ccfc92b33ff7c488e922f82c529e87690c7c7818c43c34",
+      "mode": "0644"
+    },
+    {
+      "path": "extensions/terminal-scroll-modes/probe.mjs",
+      "sha256": "e1ac5a92853fda8f984899d159aa14fbb08a18a831dcf44ff467d20c7e6fdf1a",
+      "mode": "0644"
+    },
+    {
+      "path": "agents/worker.md",
+      "sha256": "42b3ad3d0936db32d65ba05109f61c04573b5ea1ac1a8de792ca6307f413fee6",
+      "mode": "0644"
+    },
+    {
+      "path": "agents/scout.md",
+      "sha256": "34f5c8d64ab4c60c4bf12f5a190e74896b6f86134e2bda5ab8b537cd13b00353",
+      "mode": "0644"
+    },
+    {
+      "path": "agents/reviewer.md",
+      "sha256": "ca735d3a7b4df758a7ce4ccf7a7d598e880c46aba9338a85aaa10973d2312005",
+      "mode": "0644"
+    },
+    {
+      "path": "agents/reader.md",
+      "sha256": "c1476eacea389a9548d49dadca8671176cfc9e98c63238c31530036a943bc1b8",
+      "mode": "0644"
+    },
+    {
+      "path": "skills/coding-workflow/SKILL.md",
+      "sha256": "eb81fb009e92c2f34414fcb2c4778eecf2a43cf3ef63c6e31e89dac822357915",
+      "mode": "0644"
+    },
+    {
+      "path": "skills/maintain/SKILL.md",
+      "sha256": "3d5535dbbdda0d6ff8b3747a3b65956abb8c8a95d50eb9a66bc8effaaf9a3eaf",
+      "mode": "0644"
+    },
+    {
+      "path": "skills/research/SKILL.md",
+      "sha256": "43bd1d59422dd764addf0b1a7f10f0f099c61baa7201ca936ae8827418b93a0d",
+      "mode": "0644"
+    },
+    {
+      "path": "skills/web-video/SKILL.md",
+      "sha256": "bbd10b4d164139dc77f0dbbcdd26ee42e9b43e9092057894b903c1de5459bf02",
+      "mode": "0644"
+    },
+    {
+      "path": "skills/writing-companion/SKILL.md",
+      "sha256": "d02d60f977fe01c7aee976a7d96a81e401c33c1b910132f7116f029653c68f43",
+      "mode": "0644"
+    },
+    {
+      "path": "skills/self-maintain/SKILL.md",
+      "sha256": "fe2e9866313ac7e7c79e6bd2ef2bdec9260b1c0f5f8770bcd8277a13f2b9c23d",
+      "mode": "0644"
+    },
+    {
+      "path": "prompts/review.md",
+      "sha256": "81602f9d90c38eba30503e69c3e31ee41bd59487b04aee95ac16d6d699917d39",
+      "mode": "0644"
+    },
+    {
+      "path": "prompts/handoff.md",
+      "sha256": "0fa8026094a79deeebfd881f89a12df8e603d2ca6c8ce8f227d7d44b5bbc64d2",
+      "mode": "0644"
+    },
+    {
+      "path": "themes/vertrice.json",
+      "sha256": "92c2f6d5f301dc5097ac127064c79a7520f6a47bb5ca5f9100ccc9bbaa65ae61",
+      "mode": "0644"
+    },
+    {
+      "path": "themes/vertrice-day.json",
+      "sha256": "115f211946ad1810bcdeb4ca1be859f45c8939c5c58eac2256994c4010f0b00d",
+      "mode": "0644"
+    },
+    {
+      "path": "themes/vertrice-night.json",
+      "sha256": "73822f0688ae06932e5b3f329392dc7e03b71ead9140b85c60dc16a98c1e0816",
+      "mode": "0644"
+    },
+    {
+      "path": "context/manifest.json",
+      "sha256": "51d3525bb3ef187b8ece76c565bf2d89b0ba23e4a4298b958395d7c47a66e2d4",
+      "mode": "0644"
+    },
+    {
+      "path": "context/README.md",
+      "sha256": "8c442219df0d65bcdaf184e61a56d7fe50f20c531aa198ae6d926766af153638",
+      "mode": "0644"
+    },
+    {
+      "path": "context/usage.md",
+      "sha256": "094ff8a5c9ebedcec015a040328edcab9577d6a771b30c92091572dd9072f7dc",
+      "mode": "0644"
+    },
+    {
+      "path": "context/tasks.md",
+      "sha256": "b8cbccb7b99ce84e7911febb2a4c2cffbfe1b39748377c4bad7b0aaf55b30f80",
+      "mode": "0644"
+    },
+    {
+      "path": "context/storage-sync.md",
+      "sha256": "da38f95f29b8e72a733469006eaa2b9366f81b6ce562c8962548dda667369db7",
+      "mode": "0644"
+    },
+    {
+      "path": "context/git-flow.md",
+      "sha256": "d49cf6be381296861ef2b98dc24581b4220d11b382af9490d23c1aa1716d354e",
+      "mode": "0644"
+    },
+    {
+      "path": "context/admin.md",
+      "sha256": "b9b91a817b43442b49794dafb62438d8578d3bb3c29efbc1c3dff41e18b1c50f",
+      "mode": "0644"
+    },
+    {
+      "path": "context/editor.md",
+      "sha256": "de240c2ebafc46ed1d0be54aff44a4e8627419db7cf4f387e88cbe81faa575c7",
+      "mode": "0644"
+    },
+    {
+      "path": "context/verification.md",
+      "sha256": "651b70f710a3009e6762cd1d5284577ea5c195933bd26fba813a0439e7fa5720",
+      "mode": "0644"
+    },
+    {
+      "path": "context/capability-boundaries.md",
+      "sha256": "cbf0223c134bf2f3029e2e3002cdf108fc5ace7fed0575308ce55786fced9a44",
+      "mode": "0644"
+    }
+  ],
+  "extensions": [
+    "extensions/agent-board.ts",
+    "extensions/conversation-ui.ts",
+    "extensions/general-tools.ts",
+    "extensions/ipe.ts",
+    "extensions/work.ts",
+    "extensions/self-maintain.ts",
+    "extensions/session-focus.ts",
+    "extensions/dsml-guard.ts",
+    "extensions/desktop-theme.mjs",
+    "extensions/subagent/index.ts",
+    "extensions/terminal-scroll-modes/index.ts"
+  ],
+  "skills": [
+    "skills/coding-workflow/SKILL.md",
+    "skills/maintain/SKILL.md",
+    "skills/research/SKILL.md",
+    "skills/web-video/SKILL.md",
+    "skills/writing-companion/SKILL.md",
+    "skills/self-maintain/SKILL.md"
+  ],
+  "prompts": [
+    "prompts/review.md",
+    "prompts/handoff.md"
+  ],
+  "themes": [
+    "themes/vertrice-day.json",
+    "themes/vertrice-night.json",
+    "themes/vertrice.json"
+  ],
+  "contextExtension": "extensions/campaign-context.ts",
+  "crew": {
+    "extensions": [
+      "extensions/agent-board.ts",
+      "extensions/conversation-ui.ts",
+      "extensions/general-tools.ts",
+      "extensions/ipe.ts",
+      "extensions/campaign-context.ts",
+      "extensions/self-maintain.ts",
+      "extensions/session-focus.ts",
+      "extensions/dsml-guard.ts",
+      "extensions/desktop-theme.mjs",
+      "extensions/terminal-scroll-modes/index.ts"
+    ],
+    "excludeExtensions": [
+      "extensions/work.ts",
+      "extensions/subagent/index.ts"
+    ],
+    "integration": "recipe-owned Messenger/Crew presence and trusted campaign integration required; no state included"
+  },
+  "sourceOnly": [
+    "context-index.mjs",
+    "extensions/subagent/README.md",
+    "extensions/subagent/activity-updates.test.mjs",
+    "extensions/terminal-scroll-modes/test.mjs",
+    "desktop-theme.test.mjs"
+  ]
+}

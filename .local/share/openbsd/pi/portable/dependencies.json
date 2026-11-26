@@ -1,0 +1,94 @@
+{
+  "schema": 1,
+  "piVersion": "1.6.0",
+  "pristineTree": "2f1728e10032e7342c5d2825c0608dec32880b10a97e16ebfe25fb2f1d4a26f9",
+  "runtimePatchesSha256": "109d383659e64e5e72bdb700fa384e7127485649e9bf209a7be26c296a74ae8f",
+  "costModules": {
+    "ledger.mjs": "916dbfa98b6baba028a124531366ec99435bfcee32dfd88b8578729a8c6eea32",
+    "native-contract.d.ts": "435bff347ec19ccb4c17c06b6c41bf1813d6f8c9b9dc625678116876acf3a850",
+    "native.mjs": "2a93c36244c62dd948bbf85ab25e7b599bc3c05bc7546499d4266b3159d687bb",
+    "select.mjs": "1446a1db32bc7352c221a6c50b2fa1c7a8af11702fe077f8e7a1cd7eaf519bce",
+    "usage-shape.d.ts": "7d27bdeaf4e712b7b6d797ce7fe5cd914c760cc93beece2fc4b1017b3b910f60"
+  },
+  "board": {
+    "upstream": "https://github.com/rutvikchandla3/pi-agent-board.git",
+    "commit": "bc092cbd224f655283b35c7ec19b1dac378986d0",
+    "patchSha256": "aed340ab3f98309359268b9955f132e312fc2fd446c46e7fadbc9300cda8534a",
+    "lockfileSha256": "166561355bd7a4678d22d19885a70eefaf5a707a43f527f6346bde42f545ac20",
+    "qualification": "required",
+    "companions": {
+      "local.patch": "aed340ab3f98309359268b9955f132e312fc2fd446c46e7fadbc9300cda8534a",
+      "compatibility.mjs": "6506a96d7f93f309bb3e1aaba2660e2f5c7802030956f7a03c58d8a09db6a2af",
+      "inline.mjs": "4309e99fc4e342664917a2878a53b7f1315ce7dcd1128e85f4272a8013101479"
+    },
+    "runtimeTranslations": {
+      "node_modules/@earendil-works/pi-tui/dist/components/markdown.js": {
+        "contractDigest": "79f1eb78931e576a1f844536c5cf9b7cf80df1ac8e309c8cc140d369c2140194",
+        "pristineInput": "88a6fd1b0388719335b38e6bdf614e2e5a8f68ccddcc5d0307b20146e768db88"
+      },
+      "node_modules/@earendil-works/pi-coding-agent/dist/bundle/chunks/chunk-X26YOAEH.js": {
+        "contractDigest": "f2907c5ff05d35604fa1f74e3067ef3033b79e1ebd595975edc03ae54b674128",
+        "pristineInput": "1dc7029d526f9d5e81429c9c26a691f7777f2062dcf1df06d1b6a99127fd4425"
+      },
+      "node_modules/@earendil-works/pi-coding-agent/dist/bundle/chunks/chunk-KSDI5FD4.js": {
+        "contractDigest": "314a895e276668c92c95b307dc72898e865eabe492d91c06452df2e0f63041d1",
+        "pristineInput": "5558c943edf1c00ca788788bc6b041d6a70a50ae7e646be2192ad399f1df7e34"
+      },
+      "node_modules/@earendil-works/pi-coding-agent/dist/core/agent-session.js": {
+        "contractDigest": "dd09acd171eaa3e0d7b184e7325559d243e7a0e13986bc941c11c00e94094967",
+        "pristineInput": "cd1c9fc3139e6dcd5320b55414aa5fdf12dbea32d4fd38da2c9a57be0d3677c3"
+      },
+      "node_modules/@earendil-works/pi-coding-agent/dist/modes/interactive/interactive-mode.js": {
+        "contractDigest": "db9ea984219a04f907309a4745598424bcb5c366867aded971fbbf3d427f9102",
+        "pristineInput": "8c98aa79a90070c5df772b308fcfe3643656ebcd6fc909b52c25a6aa98153129"
+      },
+      "node_modules/@earendil-works/pi-coding-agent/dist/core/extensions/types.d.ts": {
+        "contractDigest": "73abed240851d8d35abf412386de4b4a646e998cadb9fe884c0dce93aafdb2a3",
+        "pristineInput": "3c1728cdf8f9255273047cb260fddb6827637c55eb4edfe06f78f3e18823afd7"
+      }
+    }
+  },
+  "messenger": {
+    "upstream": "https://github.com/nicobailon/pi-messenger.git",
+    "commit": "a704e7202fa5a7d9fa4b95e8c87cf46950bc3444",
+    "tree": "e0477002236d52750a0210686f1b49b0ba7b4be9",
+    "patchSha256": "aa2aae6e543272772209c96ffe7372ff838d4e2e4c887fe1ff261da3456f3a90",
+    "qualification": "required"
+  },
+  "esbuild": {
+    "version": "0.25.5",
+    "files": {
+      "package.json": "560d28089fee7adc61f58e464d9c5c44e6c2c2fba2c813b4f4880b396adf2967",
+      "lib/main.js": "d88a0cfb7d46ab6b3930a219bf4ecb6d4f8337f0c61805b8d45627a0e011ef70",
+      "bin/esbuild": "427ec1621d214bf754186026b435ea3136af3504291f31530340b8ea6a3e88b7",
+      "../@esbuild/openbsd-x64/bin/esbuild": "056c878999e392a60831eeff41b593de40a9accdce0a4b3ab0b794f0e6488e6d"
+    }
+  },
+  "nativeReloadSources": {
+    "native-reload-patch.cjs": "7219f5df2bb891876cac722d2342e9d54fb9b3dbd502a0bc12dacc9bbd6cb1f3",
+    "owned-resources.mjs": "f5b4c98fbc5f3fe3fdece698fb46b22e82803876cb4266d3732b093d1e8f43e6"
+  },
+  "acquisition": {
+    "pristine": {
+      "manifest": "../acquire/pi-package.json",
+      "manifestSha256": "d94a3d6650cdc086a5cf9fa9e857b0f9893eed71251233b222a146b47d0bc641",
+      "lock": "../acquire/pi-package-lock.json",
+      "lockSha256": "289beb75037288c75f17f087f90ec275b9669579dd85377586a33b2b93ca5740"
+    },
+    "board": {
+      "manifest": "../acquire/board-package.json",
+      "manifestSha256": "b751af87c59f0ae7deeb5b864b17c8c0c477aaf4a13af816a693b63fce9a7eec",
+      "lock": "../acquire/board-package-lock.json",
+      "lockSha256": "4055067c7821b1b4c05b64fa2af28033ef55af2a1678f5383614096f350073a2"
+    },
+    "tool": {
+      "manifest": "../acquire/esbuild-package.json",
+      "manifestSha256": "0529b86945be7ba23ca3be9944445da32b0f2dcf3a67c0e1eefd48ec476656af",
+      "lock": "../acquire/esbuild-package-lock.json",
+      "lockSha256": "19484b7144cb178c608a2ef3198e9486722c3cd4942ad492ef192413374d5731"
+    }
+  },
+  "nativeBuild": {
+    "nodeGyp": "12.4.0"
+  }
+}

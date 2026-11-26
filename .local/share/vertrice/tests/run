@@ -12,6 +12,8 @@ called. It runs on OpenBSD and, with two stand-ins, on Linux.
 
 	run [-k] [NAME ...]	run every case, or those whose name starts
 				with a NAME ("ext", "sb_battery", "ext_dash")
+	run --list [NAME ...]	list discovered case names without executing them
+	run --selftest		test owned process groups, timeout, counters and signals
 	run -l			--live: OpenBSD only, no mocks; run each read-only
 				status block and print what it shows
 	-k			keep the scratch directories
@@ -31,13 +33,29 @@ to base cwm and /usr/xenocara.
 EOF
 }
 
+# Job control is the base ksh process-group primitive, not a setsid/timeout
+# package. A caller may invoke us with a foreign /bin/sh; enter native ksh
+# before creating scratch or children (also the existing Mac/Linux oksh lane).
+if [ -z "${KSH_VERSION:-}" ]; then
+	case $(uname -s) in
+	OpenBSD) exec /bin/ksh "$0" "$@" ;;
+	*) native_shell=${OKSH:-$(command -v oksh)}
+		[ -x "$native_shell" ] || { echo 'run: need oksh: set OKSH' >&2; exit 2; }
+		exec "$native_shell" "$0" "$@" ;;
+	esac
+fi
+
 here=$(cd "$(dirname "$0")" && pwd)
 REPO=$(cd "$here/../../../.." && pwd)
-keep='' live=''
+keep='' live='' selftest='' fixtures='' listonly=''
 while [ $# -gt 0 ]; do
 	case $1 in
 	-k) keep=1 ;;
 	-l|--live) live=1 ;;
+	--selftest) selftest=1 ;;
+	--list) listonly=1 ;;
+	--runner-selftest-cases) fixtures=counts ;;
+	--runner-signal-case) fixtures=signal ;;
 	-h|--help) usage; exit 0 ;;
 	--) shift; break ;;
 	-*) echo "run: unknown option $1" >&2; exit 2 ;;
@@ -50,19 +68,40 @@ done
 # that resolve a directory must match what the cases expect. The Mac's own
 # $TMPDIR is too deep for the Unix sockets the cases make (104 bytes).
 [ "$(uname -s)" = Darwin ] && TMPDIR=/tmp
+case ${TMPDIR:-/tmp} in
+/*) ;;
+*) echo 'run: TMPDIR must be absolute' >&2; exit 2 ;;
+esac
+umask 077
 RUN=$(mktemp -d "${TMPDIR:-/tmp}/vertrice-tests.XXXXXX") || exit 2
-RUN=$(cd "$RUN" && pwd -P)
-trap '[ -n "$keep" ] || rm -rf "$RUN"' EXIT
-trap 'exit 130' INT TERM
+RUN=$(cd "$RUN" && pwd -P) || exit 2
+cpid= interrupted=
+# This is the leader of a group we created, kept alive until group cleanup.
+# Never discover victims by command name, owner uid or scratch-path matching.
+cleanup_active() {
+	if [ -n "$cpid" ]; then
+		if [ "${result:-}" = timeout ] || [ -n "$interrupted" ]; then
+			kill -TERM -- "-$cpid" 2>/dev/null
+			"$VT_REAL_SLEEP" 1
+		fi
+		kill -KILL -- "-$cpid" 2>/dev/null
+	fi
+	[ -z "$cpid" ] || wait "$cpid" 2>/dev/null
+	cpid=
+}
+trap 'cleanup_active; [ -n "$keep" ] || rm -rf "$RUN"' EXIT
+trap 'interrupted=130; cleanup_active' INT
+trap 'interrupted=143; cleanup_active' TERM
+trap 'interrupted=129; cleanup_active' HUP
 
 # Real tools, found before the mocks go on PATH. Mocks that wrap a real
 # command (ps, sleep, rm, date, pgrep, basename) call these.
 VT_REAL_PS=$(command -v ps) VT_REAL_SLEEP=$(command -v sleep)
 VT_REAL_RM=$(command -v rm) VT_REAL_DATE=$(command -v date)
 VT_REAL_PGREP=$(command -v pgrep) VT_REAL_BASENAME=$(command -v basename)
-VT_REAL_NVIM=$(command -v nvim)
+VT_REAL_NVIM=$(command -v nvim) VT_REAL_NODE=$(command -v node)
 export VT_REAL_PS VT_REAL_SLEEP VT_REAL_RM VT_REAL_DATE VT_REAL_PGREP \
-	VT_REAL_BASENAME VT_REAL_NVIM
+	VT_REAL_BASENAME VT_REAL_NVIM VT_REAL_NODE
 
 # The shell and awk the scripts expect. On OpenBSD they are base. Elsewhere,
 # oksh named "sh" runs in sh mode, as OpenBSD's /bin/sh does.
@@ -123,7 +162,139 @@ if [ -n "$live" ]; then
 	exit 0
 fi
 
-. "$here/lib.sh"	# for killstate
+. "$here/lib.sh"	# assertions for the runner's fixed selftest fixtures
+
+# Completion travels over ksh's private co-process pipe. Its group leader
+# stays alive until group cleanup, so a reaped/reused PID cannot become a
+# cleanup target. The leader waits the case worker; the runner waits the
+# leader. Orphaned grandchildren are reaped by init after group death.
+# This supervises inherited groups, not code that deliberately creates a new
+# session/group; it is a test harness, not an OS sandbox.
+hold_group() {
+	while :; do "$VT_REAL_SLEEP" 3600 & wait "$!"; done
+}
+run_owned() {
+	rc=125 result=error
+	set -m || return
+	(
+		set +m
+		trap ':' HUP INT TERM
+		(
+			"$VT_REAL_SLEEP" "$budget"
+			printf 'timeout 124\n'
+			hold_group
+		) &
+		printf '%s\n' "$!" >"$T/.watchpid"
+		(
+			trap - HUP INT TERM
+			export T VT_STATE="$T/state" HOME="$T/home" XDG_CACHE_HOME="$T/cache" \
+				XDG_CONFIG_HOME="$T/home/.config" XDG_DATA_HOME="$T/home/.local/share" TERMINAL=xterm EDITOR=vi \
+				LC_ALL=C TZ=UTC TERM=dumb VT_MOCKS="$here/mock" TMPDIR="$T/tmp" \
+				PATH="$T/bin:$here/mock:$wrap${shim:+:$shim}:$syspath"
+			unset DISPLAY BLOCK_BUTTON LANG APM_L APM_A APM_B WSCONS_BRIGHTNESS \
+				WSCONS_FAIL SND_LEVEL SND_MUTE NET_RX NET_TX LO_BYTES MEM_ACT \
+				VT_EPOCH VT_SLEEP BK_DIR BK_FS BK_DAYS BK_TERM \
+				XDG_STATE_HOME NODE_OPTIONS NODE_PATH
+			: >"$VT_STATE/log"
+			cd "$T" || exit 1
+			. "$here/lib.sh"
+			for f in "$here"/cases/*.sh; do . "$f"; done
+			"t_$name"
+		) >"$T/.out" 2>&1 </dev/null
+		printf 'exit %s\n' "$?"
+		hold_group
+	) 2>/dev/null |&
+	cpid=$!
+	set +m
+	# Detach both co-process descriptors before the next case; no FIFO O_RDWR
+	# (undefined by open(2)) and no shared pipe carrying a stale completion.
+	exec 3<&p 4>&p
+	exec 4>&-
+	printf '%s\n' "$cpid" >"$T/.group"
+	if [ -z "$interrupted" ]; then
+		IFS=' ' read -r result rc <&3 || { rc=125; result=error; }
+	fi
+	[ -z "$interrupted" ] || rc=$interrupted
+	case $rc in ''|*[!0-9]*) rc=125; result=error ;; esac
+	case $result in exit|timeout) ;; *) rc=125; result=error ;; esac
+	cleanup_active
+	exec 3>&-
+	[ "$result" != timeout ] || printf 'watchdog: exceeded %ss; owned process group stopped\n' "$budget" >>"$T/.out"
+}
+
+# Fixed fixtures only: no command-string or arbitrary-subprocess API.
+t_runner_pass() { :; }
+t_runner_fail() { return 19; }
+t_runner_skip() { skip 'runner selftest'; }
+# An ordinary exit 124 is not a watchdog result and still honors xfail.
+t_runner_xfail() { xfail 'runner selftest'; return 124; }
+t_runner_xpass() { xfail 'runner selftest'; }
+t_runner_timeout() {
+	if [ -n "$VT_REAL_NODE" ]; then
+		"$VT_REAL_NODE" -e '
+const fs = require("node:fs"), { spawn } = require("node:child_process");
+process.on("SIGTERM", () => {});
+const child = spawn(process.execPath, ["-e", "process.on(\"SIGTERM\", () => {}); setInterval(() => {}, 1000)"], { stdio: "ignore" });
+fs.writeFileSync(process.env.T + "/grandchild", String(child.pid) + "\n");
+setInterval(() => {}, 1000);
+' &
+	else
+		"$VT_SH" -c 'trap "" TERM; "$VT_REAL_SLEEP" 60 &
+			printf "%s\n" "$!" >"$T/grandchild"; wait' &
+	fi
+	printf '%s\n' "$!" >"$T/child"
+	wait "$!"
+}
+t_runner_signal() { t_runner_timeout; }
+
+selftest_dead() {
+	for pidfile in "$1/child" "$1/grandchild" "$1/.group" "$1/.watchpid"; do
+		[ -s "$pidfile" ] || fail "selftest missing $pidfile"
+		pid=$(cat "$pidfile")
+		case $pid in ''|*[!0-9]*) fail 'selftest invalid pid' ;; esac
+		waitfor 5 selftest_gone "$pid" || fail "selftest survivor $pid"
+	done
+	waitfor 5 selftest_group_gone "$(cat "$1/.group")" || fail 'selftest group survived'
+}
+selftest_gone() { ! kill -0 "$1" 2>/dev/null; }
+selftest_group_gone() { ! kill -0 -- "-$1" 2>/dev/null; }
+selftest_ready() {
+	for signal_case in "$RUN"/vertrice-tests.*/case/runner_signal; do
+		[ ! -s "$signal_case/grandchild" ] || return 0
+	done
+	return 1
+}
+runner_selftest() (
+	# A process outside either nested runner must survive both cleanups.
+	"$VT_REAL_SLEEP" 60 & sentinel=$!
+	signal_runner=
+	trap 'kill "$sentinel" ${signal_runner:+"$signal_runner"} 2>/dev/null; wait 2>/dev/null' EXIT
+	TMPDIR="$RUN" "$VT_SH" "$here/run" -k --runner-selftest-cases >"$RUN/counts.out" 2>&1
+	eq 'counter fixture exit' 1 "$?"
+	has 'exact counters' '== 6 cases: 1 passed, 2 failed, 1 expected failures, 1 unexpected passes, 1 skipped' "$(cat "$RUN/counts.out")"
+	has 'timeout is a failure' 'FAIL  runner_timeout' "$(cat "$RUN/counts.out")"
+	has 'deadline reported' 'watchdog: exceeded 5s' "$(cat "$RUN/counts.out")"
+	counts_root=$(sed -n 's/^== scratch kept in //p' "$RUN/counts.out")
+	case $counts_root in "$RUN"/vertrice-tests.*) ;; *) fail 'selftest scratch escaped' ;; esac
+	selftest_dead "$counts_root/case/runner_timeout"
+	kill -0 "$sentinel" || fail 'unrelated sentinel killed by timeout'
+	TMPDIR="$RUN" "$VT_SH" "$here/run" -k --runner-signal-case >"$RUN/signal.out" 2>&1 &
+	signal_runner=$!
+	waitfor 10 selftest_ready || fail 'signal fixture not ready'
+	kill -TERM "$signal_runner" || fail 'signal runner unavailable'
+	wait "$signal_runner"; signal_rc=$?
+	signal_runner=
+	eq 'handled TERM exit' 143 "$signal_rc"
+	has 'interrupted case counted once' '== 1 cases: 0 passed, 1 failed, 0 expected failures, 0 unexpected passes, 0 skipped' "$(cat "$RUN/signal.out")"
+	selftest_dead "$signal_case"
+	kill -0 "$sentinel" || fail 'unrelated sentinel killed by signal'
+	printf 'PASS runner selftest: counters, timeout %s child/grandchild/group cleanup, TERM cleanup, unrelated sentinel\n' "${VT_REAL_NODE:-base shell}"
+)
+if [ -n "$selftest" ]; then
+	runner_selftest; rc=$?
+	[ -z "$keep" ] || echo "== scratch kept in $RUN"
+	exit "$rc"
+fi
 
 # Case discovery: each cases/*.sh file defines functions t_NAME, and the
 # case is called NAME. Names start with the file's subject (ext_, sbar_),
@@ -142,44 +313,55 @@ want() {
 	return 1
 }
 
+case $fixtures in
+counts) list='runner_pass runner_fail runner_skip runner_xfail runner_xpass runner_timeout' ;;
+signal) list=runner_signal ;;
+esac
+if [ -n "$listonly" ]; then
+	for name in $list; do
+		want "$name" "$@" && printf '%s\n' "$name"
+	done
+	exit 0
+fi
 pass=0 failed=0 skipped=0 xfailed=0 xpassed=0 n=0
 for name in $list; do
+	[ -z "$interrupted" ] || break
 	want "$name" "$@" || continue
 	n=$((n + 1))
+	# Darwin cases remain platform-only. pi_setup tests the OpenBSD Pi
+	# application setup caller (not Raspberry Pi hardware) with mocks.
+	case $name in
+	darwin_*) [ "$VT_HOST" = Darwin ] || { printf 'SKIP  %s  -- Mac only\n' "$name"; skipped=$((skipped+1)); continue; } ;;
+	esac
 	T=$RUN/case/$name
-	mkdir -p "$T/state" "$T/home" "$T/cache" "$T/bin"
-	(
-		export T VT_STATE="$T/state" HOME="$T/home" XDG_CACHE_HOME="$T/cache" \
-			XDG_CONFIG_HOME="$T/home/.config" XDG_DATA_HOME="$T/home/.local/share" TERMINAL=xterm EDITOR=vi \
-			LC_ALL=C TZ=UTC TERM=dumb VT_MOCKS="$here/mock" \
-			PATH="$T/bin:$here/mock:$wrap${shim:+:$shim}:$syspath"
-		# Nothing from the caller's environment may steer a mock.
-		unset DISPLAY BLOCK_BUTTON LANG APM_L APM_A APM_B WSCONS_BRIGHTNESS \
-			WSCONS_FAIL SND_LEVEL SND_MUTE NET_RX NET_TX LO_BYTES MEM_ACT \
-			VT_EPOCH VT_SLEEP BK_DIR BK_FS BK_DAYS BK_TERM \
-			XDG_STATE_HOME TMPDIR
-		: >"$VT_STATE/log"
-		cd "$T" || exit 1
-		. "$here/lib.sh"
-		# shellcheck disable=SC1090
-		for f in "$here"/cases/*.sh; do . "$f"; done
-		"t_$name"
-	) >"$T/.out" 2>&1 </dev/null &
-	cpid=$!
-	# A hung case must not hang the suite: 30 seconds, then it is killed.
-	(
-		# A foreground sleep delays TERM and leaves two processes per case.
-		trap 'kill "$timer" 2>/dev/null; wait "$timer" 2>/dev/null; exit 0' TERM
-		"$VT_REAL_SLEEP" 30 & timer=$!
-		wait "$timer" && kill -KILL "$cpid"
-	) >/dev/null 2>&1 &
-	wpid=$!
-	wait "$cpid"; rc=$?
-	kill "$wpid" 2>/dev/null
-	wait "$wpid" 2>/dev/null
-	killstate
+	mkdir -p "$T/state" "$T/home" "$T/cache" "$T/bin" "$T/tmp" || exit 2
+	budget=30
+	case $name in
+	# Measured FF baseline: 62 cases / 289s under concurrent load. Keep the
+	# complete group with margin, rather than silently omit or split cases.
+	rolling_source_ff) budget=450 ;;
+	# Complete 28-case user group took 229s (prior 282s under load).
+	# Use the FF bound without dropping cases or adding a second supervisor.
+	rolling_user_generations) budget=450 ;;
+	# Native npm admission: measured 25s isolated / 83s with generation load.
+	rolling_npm_admission) budget=180 ;;
+	# Selection baseline 161s; safety 109s. Both are now discovered normally.
+	rolling_source_selection|rolling_source_safety) budget=300 ;;
+	desktop_workflow_offline|rolling_security_checks|rolling_source_policy|\
+	rolling_source_helper|rolling_source_ancestry|rolling_source_home|\
+	rolling_source_inventory|rolling_pi_codeblock_renderer) budget=180 ;;
+	# Native disposable keyring lifecycle measured 40s on HOME scratch.
+	# Keep per-case process-group supervision with bounded integration margin.
+	mutt_wizard_*) budget=180 ;;
+	# Allow the deliberate Node grandchild to start on a busy integration host.
+	runner_timeout) budget=5 ;;
+	esac
+	run_owned
 	why=
-	if [ -f "$T/.xfail" ]; then
+	if [ -n "$interrupted" ] || [ "$result" != exit ]; then
+		st=FAIL; failed=$((failed + 1))
+		[ -z "$interrupted" ] || why="interrupted (exit $interrupted)"
+	elif [ -f "$T/.xfail" ]; then
 		why=$(cat "$T/.xfail")
 		if [ "$rc" -eq 0 ]; then st=XPASS; xpassed=$((xpassed + 1))
 		elif [ "$rc" -eq 77 ]; then st=SKIP; skipped=$((skipped + 1)); why=$(cat "$T/.skip")
@@ -193,7 +375,8 @@ for name in $list; do
 	fi
 done
 
-[ "$n" -eq 0 ] && { echo "run: no case matches: $*" >&2; exit 2; }
+[ "$n" -eq 0 ] && [ -z "$interrupted" ] && { echo "run: no case matches: $*" >&2; exit 2; }
 echo "== $n cases: $pass passed, $failed failed, $xfailed expected failures, $xpassed unexpected passes, $skipped skipped"
 [ -n "$keep" ] && echo "== scratch kept in $RUN"
+[ -z "$interrupted" ] || exit "$interrupted"
 [ "$failed" -eq 0 ] && [ "$xpassed" -eq 0 ]

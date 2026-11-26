@@ -4,18 +4,27 @@
 # If you use startx/xinit like a Chad, this file will also be sourced.
 
 xrandr --dpi 96		# Set DPI. User may want to use a larger number for larger screens.
-# Load the base first: setbg's wal path may merge its palette afterwards.
+# Load the base first: setbg's wal path merges its palette after it. With
+# PALETTE=wal setbg must finish first, so the palette is in xrdb before the
+# WM and the bar start; otherwise it only sets the background.
 xrdb "${XDG_CONFIG_HOME:-$HOME/.config}/x11/xresources"
-setbg &			# set the background with the `setbg` script
+if [ "$PALETTE" = wal ]; then
+	setbg
+else
+	setbg &
+fi
 
-autostart="mpd dunst unclutter"	# sound is sndiod, started by rc(8); no compositor, no transparency
+# unclutter is in pkglist.extra; pkg_add unclutter to hide the idle pointer.
+# sound is sndiod, started by rc(8); no compositor, no transparency.
+autostart="mpd dunst unclutter"
 
 for program in $autostart; do
 	pgrep -x "$program" >/dev/null || "$program" &
 done >/dev/null 2>&1
 
 remaps &			# once: OpenBSD has no udev to redo it on a new keyboard
-pgrep -x xidle >/dev/null || xidle -timeout 600 &	# lock after 10 idle minutes
+xset dpms 2100 2100 2100
+pgrep -x xidle >/dev/null || xidle -no -timeout 1800 -program "/usr/X11R6/bin/xlock -lockdelay 0" &	# lock at 30m; suspend signal locks without grace
 hotplug-watch & hotplugpid=$!	# a notice when a USB drive is attached
 # Backup reminder: dump(8) -w lists file systems due for a dump.
 dump -w 2>/dev/null | grep -q /home && notify-send "💾 Backup due." "Mount the backup disk (Super+F9), then bk incr." &

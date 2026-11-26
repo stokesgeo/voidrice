@@ -1,0 +1,8 @@
+{
+  "name": "vertrice-portable-pi",
+  "version": "1.6.0",
+  "private": true,
+  "dependencies": {
+    "@earendil-works/pi-coding-agent": "1.6.0"
+  }
+}

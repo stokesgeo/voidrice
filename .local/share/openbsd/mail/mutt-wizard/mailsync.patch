@@ -1,0 +1,190 @@
+--- mailsync
++++ mailsync
+@@ -1,92 +1,99 @@
+ #!/bin/sh
+-
+-# - Syncs mail for all accounts, or a single account given as an argument.
+-# - Displays a notification showing the number of new mails.
+-# - Displays a notification for each new mail with its subject displayed.
+-# - Runs notmuch to index new mail.
+-# - This script can be set up as a cron job for automated mail syncing.
+-
+-# There are many arbitrary and ugly features in this script because it is
+-# inherently difficult to pass environmental variables to cronjobs and other
+-# issues. It also should at least be compatible with Linux (and maybe BSD) with
+-# Xorg and MacOS as well.
+-
+-# Run only if user logged in (prevent cron errors)
+-pgrep -u "${USER:=$LOGNAME}" >/dev/null || { echo "$USER not logged in; sync will not run."; exit ;}
+-# Run only if not already running in other instance
+-pgrep mbsync >/dev/null && { echo "mbsync is already running."; exit ;}
+-
+-# First, we have to get the right variables for the mbsync file, the pass
+-# archive, notmuch and the GPG home.  This is done by searching common profile
+-# files for variable assignments. This is ugly, but there are few options that
+-# will work on the maximum number of machines.
+-eval "$(grep -h -- \
+-	"^\s*\(export \)\?\(MBSYNCRC\|PASSWORD_STORE_DIR\|NOTMUCH_CONFIG\|GNUPGHOME\)=" \
+-	"$HOME/.profile" "$HOME/.bash_profile" "$HOME/.zprofile"  "$HOME/.config/zsh/.zprofile" "$HOME/.zshenv" \
+-	"$HOME/.config/zsh/.zshenv" "$HOME/.bashrc" "$HOME/.zshrc" "$HOME/.config/zsh/.zshrc" \
+-	"$HOME/.pam_environment" 2>/dev/null)"
+-
+-export GPG_TTY="$(tty)"
+-
+-[ -n "$MBSYNCRC" ] && alias mbsync="mbsync -c $MBSYNCRC" || MBSYNCRC="$HOME/.mbsyncrc"
+-
+-lastrun="${XDG_CONFIG_HOME:-$HOME/.config}/mutt/.mailsynclastrun"
+-
+-# Settings are different for MacOS (Darwin) systems.
+-case "$(uname)" in
+-	Darwin)
+-		notify() { osascript -e "display notification \"$2 in $1\" with title \"You've got Mail\" subtitle \"Account: $account\"" && sleep 2 ;}
+-		;;
+-	*)
+-		case "$(readlink -f /sbin/init)" in
+-			*systemd*|*openrc*) export DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/$(id -u)/bus ;;
+-		esac
+-		# remember if a display server is running since `ps` doesn't always contain a display
+-		pgrepoutput="$(pgrep X\(org\|wayland\))"
+-		displays="$(echo "$pgrepoutput" | grep -wo "[0-9]*:[0-9]\+" | sort -u)"
+-		notify() { [ -n "$pgrepoutput" ] && for x in ${displays:-0:}; do
+-				export DISPLAY=$x
+-				notify-send --app-name="mutt-wizard" "New mail!" "📬 $2 new mail(s) in \`$1\` account."
+-			done ;}
+-		;;
+-esac
+-
+-# Check account for new mail. Notify if there is new content.
+-syncandnotify() {
+-    acc="$(echo "$account" | sed "s/.*\///")"
+-    if [ -z "$opts" ]; then mbsync "$acc"; else mbsync "$opts" "$acc"; fi
+-    new=$(find\
+-	"$HOME/.local/share/mail/$acc/INBOX/new/"\
+-	"$HOME/.local/share/mail/$acc/Inbox/new/"\
+-	"$HOME/.local/share/mail/$acc/inbox/new/"\
+-	"$HOME/.local/share/mail/$acc/INBOX/cur/"\
+-	"$HOME/.local/share/mail/$acc/Inbox/cur/"\
+-	"$HOME/.local/share/mail/$acc/inbox/cur/"\
+-	-type f -newer "$lastrun" 2> /dev/null)
+-    newcount=$(echo "$new" | sed '/^\s*$/d' | wc -l)
+-    case 1 in
+-	$((newcount > 0)) ) notify "$acc" "$newcount" ;;
+-    esac
+-}
+-
+-# Sync accounts passed as argument or all.
+-if [ "$#" -eq "0" ]; then
+-    accounts="$(awk '/^Channel/ {print $2}' "$MBSYNCRC")"
+-else
+-    for arg in "$@"; do
+-        [ "${arg%${arg#?}}" = '-' ] && opts="${opts:+${opts} }${arg}" && shift 1
++# Manual, foreground mutt-wizard sync. No profile evaluation or message scanning.
++set -f
++LC_ALL=C
++export LC_ALL
++fail() { printf '%s\n' "$1" >&2; exit 1; }
++MBSYNCRC=${MBSYNCRC:-$HOME/.mbsyncrc}
++[ -f "$MBSYNCRC" ] && [ -r "$MBSYNCRC" ] || fail 'mailsync: unreadable configuration'
++# Enumerate literal Channel names only. This is not a config evaluator or a
++# replacement for the native parser. Refuse every Group (including its Channel
++# parameters): native groups hide same-named channels. No includes/quoted keys.
++accounts=$(awk '
++    /^[[:space:]]*($|#)/ { next }
++    {
++        key=tolower($1)
++        if ($1 !~ /^[A-Za-z][A-Za-z0-9]*$/ || key == "include" || key == "group") bad=1
++        if (key == "channel") {
++            if (NF != 2 || $2 !~ /^[A-Za-z0-9][A-Za-z0-9_.@+-]*$/ || seen[$2]++) bad=1
++            else print $2
++        }
++    }
++    END { if (bad) exit 1 }
++' "$MBSYNCRC") || fail 'mailsync: unsupported channel configuration'
++[ -n "$accounts" ] || fail 'mailsync: no channels configured'
++# Validate the complete request before invoking any child. No options, groups,
++# wildcard patterns or mailbox suffixes are forwarded to mbsync.
++for account do
++    case "$account" in ''|[!A-Za-z0-9]*|*[!A-Za-z0-9_.@+-]*) fail 'mailsync: invalid account';; esac
++    found=false
++    oldifs=$IFS
++    IFS='
++'
++    for configured in $accounts; do
++        [ "$account" != "$configured" ] || found=true
+     done
+-    accounts=$*
++    IFS=$oldifs
++    [ "$found" = true ] || fail 'mailsync: unknown account'
++done
++if [ "$#" -eq 0 ]; then
++    IFS='
++'
++    set -- $accounts
+ fi
+-
+-# Parallelize multiple accounts
+-for account in $accounts; do
+-    syncandnotify &
++# Do not export tty(1)'s error text when invoked without a terminal.
++if terminal=$(tty 2>/dev/null); then
++    GPG_TTY=$terminal
++    export GPG_TTY
++else
++    unset GPG_TTY
++fi
++status=0
++completed='
++'
++for account do
++    # Names cannot contain shell patterns or newlines. Preserve first-request
++    # order, but run a repeated operand only once, after full validation above.
++    case "$completed" in *"
++$account
++"*) continue;; esac
++    completed="$completed$account
++"
++    printf 'mailsync: %s: downloading new mail...\n' "$account" >&2
++    # Native PassCmd alone retrieves credentials. Classify its/native output in
++    # memory, never store or repeat arbitrary diagnostics (which may be secret).
++    # The final wrapper record overrides any earlier matching native text.
++    if reason=$({
++        mbsync -c "$MBSYNCRC" "$account" 2>&1
++        printf '\nMW_NATIVE_EXIT=%s\n' "$?"
++    } | awk '
++        BEGIN { result=1 }
++        /^MW_NATIVE_EXIT=[0-9]+$/ { split($0, a, "="); result=a[2]; next }
++        {
++            line=tolower($0)
++            if (line ~ /operation cancel|cancelled|canceled|no password|passcmd|pass command|gpg:.*(failed|decryption)/) unlock=1
++            if (line ~ /login.*(failed|error|rejected)|auth.*(failed|error|rejected)|authentication failed/) auth=1
++            if (line ~ /certificate|ssl error|tls.*(failed|error)/) tls=1
++            if (line ~ /cannot resolve|cannot connect|connection refused|timed out|network is unreachable|socket error/) network=1
++            if (line ~ /maildir error|disk full|no space left|permission denied|cannot write/) local=1
++            if (line ~ /unknown option|unknown keyword|unknown store|unknown channel|unrecognized option|syntax error/) config=1
++        }
++        END {
++            if (result == 0) { print "download completed"; exit 0 }
++            if (unlock) print "credential unlock failed/cancelled; unlock pass/GPG and retry mw -Y"
++            else if (auth) print "authentication rejected; check account login/credential with mw"
++            else if (tls) print "TLS verification/handshake failed; check hostname, trust and clock (do not disable verification)"
++            else if (network) print "connection failed; check server/network and retry mw -Y"
++            else if (local) print "local mail/config access failed; check Maildir paths, permissions and free space"
++            else if (config) print "native configuration unsupported; review mbsyncrc and installed isync version"
++            else print "native sync failed; inspect account configuration and retry (raw diagnostics withheld)"
++            exit 1
++        }
++    '); then
++        printf 'mailsync: %s: %s\n' "$account" "$reason" >&2
++    else
++        printf 'mailsync: %s: %s\n' "$account" "$reason" >&2
++        status=1
++    fi
+ done
+-
+-wait
+-
+-notmuch new 2>/dev/null
+-
+-#Create a touch file that indicates the time of the last run of mailsync
+-touch "$lastrun"
++exit "$status"

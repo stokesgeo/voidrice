@@ -73,7 +73,7 @@ t_writing_last_file_and_words() {
 	touch "$WRITING_DIR/old.md"
 	eq "follows the newest" "📝3" "$(sb-words)"
 	fakeblocks
-	has "sbar shows it" "net 📝3 clock" "$(sbar -1)"
+	has "sbar shows it" "net | 📝3 | clock" "$(sbar -1)"
 }
 
 t_writing_proof() {
@@ -126,10 +126,10 @@ EOF
 }
 
 t_writing_cwm_key() {
-	# Super+Shift+F2 was free: bound once, to writemode. cwm -n and the
-	# function-name check (config.sh) cover the rest of the line.
-	eq "Super+Shift+F2" "writemode" \
-		"$(awk '$1 == "bind-key" && $2 == "4S-F2" { print $3 }' "$REPO/.config/cwm/cwmrc")"
+	# Super+Control+F2 is the tool layer: bound once, to writemode. cwm -n
+	# and the function-name check (config.sh) cover the rest of the line.
+	eq "Super+Control+F2" "writemode" \
+		"$(awk '$1 == "bind-key" && $2 == "4C-F2" { print $3 }' "$REPO/.config/cwm/cwmrc")"
 }
 
 t_writing_nvim_prose() {
@@ -163,6 +163,46 @@ dict
 :Man" "$(cat "$T/kp")"
 }
 
+# Exercise ONLY the two source mappings, never the full init/plugin bootstrap.
+t_writing_nvim_render_view_mappings() {
+	[ -x "$VT_REAL_NVIM" ] || skip 'no native nvim'
+	awk '/^[[:space:]]*map <leader>[cp] / { print }' "$REPO/.config/nvim/init.vim" >"$T/mappings.vim"
+	eq 'two mappings extracted' 2 "$(wc -l <"$T/mappings.vim" | tr -d ' ')"
+	for cmd in compiler opout; do
+		cat >"$T/bin/$cmd" <<'EOF'
+#!/bin/sh
+printf '%s\n' "$#" "$@" >"$VT_STATE/${0##*/}.args"
+cat "$1" >"$VT_STATE/${0##*/}.content"
+EOF
+		chmod +x "$T/bin/$cmd"
+	done
+	cat >"$T/check.vim" <<'EOF'
+let mapleader = ','
+execute 'source ' . fnameescape($T . '/mappings.vim')
+execute 'edit ' . fnameescape($OP_FILE)
+call setline(1, 'saved render')
+normal ,c
+call setline(1, 'unsaved view')
+normal ,p
+call writefile([string(&modified), getline(1)], $T . '/buffer-state')
+qa!
+EOF
+	# Literal harmless shell/Ex special characters, including both quotes.
+	for name in 'a page' 'dollar$OPTEST' 'bang!' 'percent%' 'hash#' "single'quote" 'double"quote' 'all$ ! % # '\''"'; do
+		file=$T/$name.md
+		printf 'original\n' >"$file"
+		OPTEST=EXPANDED OP_FILE="$file" "$VT_REAL_NVIM" --headless -u NONE -i NONE -n -S "$T/check.vim" >"$T/nvim.out" 2>&1 || fail "isolated nvim: $name"
+		for cmd in compiler opout; do
+			eq "$cmd gets one literal absolute argument" "1
+$file" "$(cat "$VT_STATE/$cmd.args")"
+			eq "$cmd sees saved disk contents" 'saved render' "$(cat "$VT_STATE/$cmd.content")"
+		done
+		eq ',c saved; ,p did not save' 'saved render' "$(cat "$file")"
+		eq ',p leaves modified buffer' '1
+unsaved view' "$(cat "$T/buffer-state")"
+	done
+}
+
 # compiler's Markdown order, the owner's pick: lowdown into groff, then
 # pandoc if installed, else a message. groffdown (no port) is gone.
 cm_mock() { for v; do ln -s "$VT_MOCKS/_log" "$T/bin/$v"; done; }
@@ -177,10 +217,68 @@ t_compiler_markdown_lowdown() {
 	cm_mock lowdown groff pandoc
 	: >"$T/doc.md"
 	compiler "$T/doc.md"
-	logged '^lowdown --parse-no-intraemph .*doc\.md -Tms$'
+	logged '^lowdown --parse-no-intraemph --roff-no-numbered .*doc\.md -Tms$'
 	logged '^groff -mpdfmark -ms -kept -T pdf$'
 	notlogged '^pandoc'
 	notlogged 'groffdown'
+}
+
+t_compiler_markdown_paths() {
+	cm_mock lowdown groff pandoc
+	printf 'mock PDF\n' >"$VT_STATE/out.groff"
+	mkdir -p 'part one'
+	for name in doc 'a page'; do
+		for file in "$name.md" "./$name.md" "part one/$name.md" "$T/part one/$name.md"; do
+			printf '# Source retained\n' >"$file"
+			cp "$file" "$T/original"
+			: >"$VT_STATE/log"
+			compiler "$file" || fail "compile $file"
+			eq "adjacent output: $file" 'mock PDF' "$(cat "${file%.md}.pdf")"
+			cmp -s "$T/original" "$file" || fail "source changed: $file"
+			has 'correct source passed to lowdown' \
+				"lowdown --parse-no-intraemph --roff-no-numbered ./${file##*/} -Tms" "$(cat "$VT_STATE/log")"
+			notlogged '^pandoc'
+			rm "${file%.md}.pdf"
+		done
+	done
+}
+
+t_compiler_markdown_native() {
+	for tool in lowdown groff pdftotext; do
+		PATH=$syspath command -v "$tool" >/dev/null 2>&1 || skip "no native $tool"
+	done
+	printf '# First heading\n\nFirst body.\n\n## Second heading\n\nSecond body.\n\n### Third heading\n\nThird body.\n' >'native page.md'
+	cp 'native page.md' original
+	PATH=$syspath "$VT_SH" "$REPO/.local/bin/compiler" 'native page.md' || fail 'native compiler'
+	cmp -s original 'native page.md' || fail 'native source changed'
+	[ -s 'native page.pdf' ] || fail 'native PDF missing'
+	PATH=$syspath pdftotext -layout 'native page.pdf' native.txt || fail 'PDF text extraction'
+	for heading in First Second Third; do
+		grep -Eq "^[[:space:]]*$heading heading[[:space:]]*$" native.txt || fail "numbered or missing $heading heading"
+	done
+	PATH=$syspath lowdown --parse-no-intraemph --roff-no-numbered 'native page.md' -Tms >native.ms || fail 'native roff'
+	eq 'heading macro depths retained' '.SH 1
+.SH 2
+.SH 3' "$(grep '^\.SH ' native.ms)"
+	! grep -q '^\.NH' native.ms || fail 'numbered heading macro'
+	# Native render + candidate opener: only the viewer submission is stubbed.
+	cat >"$T/bin/detach" <<'EOF'
+#!/bin/sh
+printf '%s\n' "$#" "$@" >"$VT_STATE/native-launch"
+EOF
+	chmod +x "$T/bin/detach"
+	mkdir elsewhere alias
+	(cd elsewhere && opout "$T/native page.md") || fail 'native output submission'
+	eq 'native exact output' "2
+xdg-open
+$T/native page.pdf" "$(cat "$VT_STATE/native-launch")"
+	ln -s '../native page.md' alias/linked.md
+	PATH=$syspath "$VT_SH" "$REPO/.local/bin/compiler" alias/linked.md || fail 'native symlink render'
+	[ -s alias/linked.pdf ] || fail 'native alias PDF missing'
+	(cd elsewhere && opout ../alias/linked.md) || fail 'native symlink output submission'
+	eq 'native final source symlink identity' "2
+xdg-open
+$T/alias/linked.pdf" "$(cat "$VT_STATE/native-launch")"
 }
 
 t_compiler_markdown_pandoc() {
@@ -200,7 +298,9 @@ t_compiler_markdown_none() {
 
 t_compiler_cpp_uses_cxx() {
 	cm_mock c++
+	ln -s "$VT_MOCKS/_log" "$T/a"
 	: >"$T/a.cpp"
-	compiler "$T/a.cpp" >/dev/null 2>&1
-	logged '^c\+\+ .*a\.cpp -o .*/a$'
+	compiler "$T/a.cpp" >/dev/null 2>&1 || fail 'compile/run C++'
+	logged '^c\+\+ \./a\.cpp -o \./a$'
+	logged '^a '
 }

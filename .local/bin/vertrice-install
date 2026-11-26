@@ -21,14 +21,37 @@
 [ "$(uname)" = Darwin ] && exec sh "$(dirname "$0")/../share/darwin/install" "$@"
 
 set -e
+printf '%s\n' \
+    'WARNING: this provisions or reapplies the OpenBSD system configuration.' \
+    'It overwrites system configuration and firewall rules, loads the firewall,' \
+    'and resets service settings and power tuning to the shipped defaults.' \
+    'This is not routine maintenance; earlier changes are not rolled back on failure.' >&2
+printf 'Type yes to continue: ' >&2
+if ! IFS= read -r answer || [ "$answer" != yes ]; then
+	echo 'vertrice-install: cancelled; no changes made' >&2
+	exit 1
+fi
+
 cron_tmp=
 trap 'rm -f /etc/doas.new; [ -z "$cron_tmp" ] || rm -rf "$cron_tmp"' EXIT
 
 # Root runs this, so "you" is found as the owner of the script. Root's mail
 # goes to you.
 u=$(stat -f %Su "$0")
+# Literal sed replacement and cron argument, not arbitrary shell text.
+case $u in
+''|root|[!a-zA-Z_]*|*[!a-zA-Z0-9_-]*)
+	echo 'vertrice-install: script owner must be a nonroot Unix login name' >&2
+	exit 1 ;;
+esac
 cd "$(dirname "$0")/../share/openbsd" || exit
 pkg_add -l pkglist			# the optional rest: pkg_add -l pkglist.extra
+install -d -o _clamav -g _clamav -m 755 /var/db/clamav
+install -d -o root -g wheel -m 755 /etc/clamav-certs
+install -o root -g wheel -m 644 /usr/local/share/examples/clamav/certs/clamav.crt /etc/clamav-certs/clamav.crt
+install -o root -g wheel -m 644 freshclam.conf /etc/freshclam.conf
+printf '%s\n' 'Refreshing required ClamAV signatures in the foreground.' >&2
+/usr/local/bin/freshclam --config-file=/etc/freshclam.conf --foreground
 # The joined doas rules and pf rules are syntax-checked before installation.
 # Parsing does not establish that the rules preserve access.
 # doas.conf is the two rule files joined; doas -C parses the result.
@@ -47,6 +70,9 @@ mkdir -p /etc/apm
 install -m 755 apm-suspend /etc/apm/suspend
 ln -sf suspend /etc/apm/hibernate
 install -m 755 hotplug-attach /etc/hotplug/attach
+install -m 755 hotplug-detach /etc/hotplug/detach
+install -o root -g wheel -m 755 usbctl /usr/local/bin/usbctl
+install -o root -g wheel -m 755 upgrade.sh /usr/local/sbin/vertrice-upgrade
 # It writes each new disk's name here, for hotplug-watch. Made once: a
 # second run must not look like an attach.
 [ -e /var/db/hotplug-disk ] || install -m 644 /dev/null /var/db/hotplug-disk
@@ -64,14 +90,26 @@ else
 		exit 1
 	fi
 fi
-# Own only the marked job and the exact legacy shipped job/comment, not
-# unrelated commands mentioning /var/db/updates. crontab checks syntax itself.
+# Own exact shipped rows/comments and old suffix-marked jobs only. Reading
+# both fragments first also recognizes their standalone marker blocks; never
+# consume an unrelated line after a marker. crontab checks syntax itself.
 legacy='~	*/4	*	*	*	-ns (syspatch -c; pkg_add -u -n -v | grep "^Adding.*->" | sort -u) >/var/db/updates'
+overnight='30	3	*	*	* /usr/local/sbin/vertrice-upgrade'
+system_overnight='30	3	*	*	*	-s /usr/local/sbin/vertrice-upgrade'
 comment='# /var/db/updates: what syspatch and pkg_add -u would install, one a line; sb-updates counts them.'
-awk -v legacy="$legacy" -v comment="$comment" '
-	$0 != legacy && $0 != comment && $0 !~ / # vertrice-update-count$/ { print }
-' "$cron_tmp/old" >"$cron_tmp/new"
+awk -v old="$cron_tmp/old" -v legacy="$legacy" -v overnight="$overnight" \
+    -v system_overnight="$system_overnight" -v comment="$comment" '
+	FILENAME != old { if ($0 != "") owned[$0] = 1; next }
+	!($0 in owned) && $0 != legacy && $0 != overnight &&
+	    $0 != system_overnight && $0 != comment &&
+	    $0 !~ / # vertrice-(update-count|overnight-upgrade)$/ { print }
+' updates.cron upgrade.cron "$cron_tmp/old" >"$cron_tmp/new"
 cat updates.cron >>"$cron_tmp/new"
+sed "s/@USER@/$u/g" upgrade.cron >>"$cron_tmp/new"
+if grep -q '@USER@' "$cron_tmp/new"; then
+	echo 'vertrice-install: unresolved nightly user; not replacing crontab' >&2
+	exit 1
+fi
 crontab "$cron_tmp/new"
 rm -rf "$cron_tmp"
 cron_tmp=
@@ -81,11 +119,12 @@ grep -q '^root:' /etc/mail/aliases || echo "root: $u" >>/etc/mail/aliases; newal
 # enabled apart.
 rcctl enable apmd hotplugd unwind	# in base
 rcctl enable messagebus obsdfreqd	# from pkglist
-# apmd suspends at 7% battery.
-rcctl set apmd flags -z 7
-# obsdfreqd(1) pairs are on AC, on battery. -T: above this many degrees C,
-# the top speed drops until the CPU cools.
-rcctl set obsdfreqd flags -m 100,50 -r 50,90 -T 85,65
+# apmd suspends at 17% battery. -L leaves frequency control manual for
+# obsdfreqd; start apmd first, since -L initialises hw.setperf to 0.
+rcctl set apmd flags -L -z 17
+# obsdfreqd(1) pairs are on AC, on battery. -r 20 boosts sooner on AC;
+# keep battery tuning unchanged. -T lowers the top speed above these degrees C.
+rcctl set obsdfreqd flags -m 100,75 -r 20,90 -T 85,60
 # Keep existing settings and add each shipped line only once.
 for f in wsconsctl.conf fbtab; do
 	touch "/etc/$f"

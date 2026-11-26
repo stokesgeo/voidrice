@@ -1,5 +1,5 @@
 .\" vertrice(7): voidrice on OpenBSD for the ThinkPad X220, and on the Mac.
-.\" Licensed under the GNU GPL, version 3, as the rest of vertrice.
+.\" This manual is licensed under the GNU GPL, version 3.
 .Dd $Mdocdate: September 30 2026 $
 .Dt VERTRICE 7
 .Os
@@ -10,7 +10,10 @@
 .Nm
 is voidrice, a set of dotfiles for Linux, ported to
 .Ox
-and set up for a ThinkPad X220.
+with defaults for ThinkPads X220 and X210AI.
+X210AI hardware has not yet been tested.
+Pi and Crush are both required supported assistants; account sign-in stays
+local.
 The same files install on a Mac with Apple silicon; see
 .Sx The Mac .
 It keeps the voidrice layout: scripts in
@@ -54,10 +57,10 @@ on a Mac, and the checkout and every later pull write only the files
 they name.
 Files for the other system, and those for working on
 .Nm
-itself (the README, the spec and the test suite), stay in the
+itself (the README and test suite), stay in the
 repository.
-After a pull that changes the list, run the second and third commands
-again.
+Selection changes require review before another checkout.
+This fresh-home procedure is not adoption into managed source updates.
 .Pp
 The checkout replaces the
 .Pa .profile
@@ -67,7 +70,11 @@ copied in.
 The system half is
 .Pa ~/.local/bin/vertrice-install ,
 a plain list of commands.
-Read it, then run it as root:
+Read it before running it as root.
+Use a local console: the installer replaces system configuration and firewall
+rules, then loads the firewall, which can interrupt inbound SSH.
+Earlier changes are not rolled back after a failure.
+With configured doas:
 .Pp
 .Dl $ doas sh ~/.local/bin/vertrice-install
 .Pp
@@ -122,7 +129,8 @@ which writes each new disk's name to
 .Pa /var/db/hotplug-disk
 for the notice;
 .It
-adds a line to root's crontab that counts waiting updates;
+installs root cron jobs for update counts, daily ClamAV signature refresh
+and overnight whole-machine maintenance;
 .It
 adds
 .Dq root: Ar user
@@ -134,7 +142,7 @@ unless root already has an alias, and runs
 enables
 .Xr apmd 8
 (with
-.Fl z Ar 7 ) ,
+.Fl L Fl z Ar 17 ) ,
 .Xr hotplugd 8 ,
 messagebus,
 .Xr obsdfreqd 1
@@ -152,31 +160,44 @@ Reruns do not duplicate the shipped wsconsctl.conf and fbtab lines.
 The installer stops on failed commands and validates doas/pf files before
 installation; earlier changes are not rolled back if a later step fails.
 .Pp
-The optional packages (mail, news, passwords, torrents, downloads, the
-dictionary and others) are in a second list:
+Optional packages for mail, news, passwords, torrents, downloads, dictionary
+and other workflows are listed in
+.Pa ~/.local/share/openbsd/pkglist.extra .
+Choose only the packages needed for wanted workflows, rather than installing
+the entire list.
+For the local dictionary, install
+.Ic dictd-client , dictd-server
+and
+.Ic gcide .
+Review
+.Pa ~/.local/bin/vertrice-dict
+before explicitly running it as root:
 .Pp
-.Dl $ doas pkg_add -l ~/.local/share/openbsd/pkglist.extra
+.Dl $ doas sh ~/.local/bin/vertrice-dict
 .Pp
-After them,
-.Ic doas sh ~/.local/bin/vertrice-dict
-builds the dictionary once.
+It writes the dictionary configuration, builds GCIDE data, fetches Roget's
+Thesaurus from Project Gutenberg, and enables and restarts
+.Ic dictd
+with a localhost-only listener.
 .Pp
 The shell function
 .Ic config
-is
-.Xr git 1
-with that repository and the home directory as its work tree.
-Update with:
-.Pp
-.Dl $ config pull origin master
-.Pp
-The bare clone has no fetch refspec, so the remote and branch are named.
-Add files by name, never with
+operates on the bare HOME repository, not on a separate source checkout.
+Never use
 .Ic config add .\&
-in the home directory.
-After an update that changes
-.Pa ~/.local/share/openbsd ,
-run the installer again.
+in HOME.
+Fresh installation, source adoption and routine updates are separate operations;
+see
+.Pa ~/.local/share/vertrice/SOURCE-UPDATES.md .
+Do not force checkout or rerun system provisioning as routine repair.
+.Pp
+The required scanner needs a current readable signature database.
+System installation provisions the certificate in
+.Pa /etc/clamav-certs ,
+runs the initial foreground signature refresh and schedules daily refreshes.
+Do not bypass a missing database or failed scan.
+A clone or prepared generation does not establish a complete environment.
+Check application use and account sign-in locally.
 .Ss Session
 Logging in on
 .Pa /dev/ttyC0
@@ -238,10 +259,10 @@ their account setup.
 Super+w opens qutebrowser, the human default selected by
 .Ev BROWSER
 in the profile.
-Chromium is for agents;
-Super+Shift+w opens its
-.Ox
-program
+Super+Shift+w opens
+.Ic dmenuwifi
+for wireless selection.
+Chromium remains available separately as
 .Ic chrome .
 Check rendering and input on the machine without disabling its sandbox
 or TLS checks.
@@ -267,49 +288,86 @@ also shows the status line as a notification.
 The keys that differ from voidrice:
 .Bl -tag -width "4C-F11" -offset indent
 .It Ic 4-Return
-.Ic sd :
-a terminal in the folder of the focused window's program, or in home.
-The helper that finds the folder,
-.Pa ~/.local/src/sd/proc-cwd ,
-is built on first use.
+A terminal in HOME.
+The separate
+.Ic sd
+command opens a terminal in the focused program's folder when available.
 .It Ic 4S-F1
 .Ic manpick :
 pick any manual page in dmenu.
+.It Ic 4-F2
+.Ic xlock :
+lock the session.
 .It Ic 4S-F2
+.Ic tutorialvids :
+tutorial menu.
+.It Ic 4C-F2
 .Ic writemode :
-full-screen nvim in Goyo on the last file changed in
-.Pa ~/writing .
+full-screen writing in Neovim.
+.It Ic 4-F3
+.Ic batt :
+battery and power status.
 .It Ic 4-F4
 .Ic nightlight :
 a warm screen, on or off.
+.It Ic 4-F5
+.Ic sndio-mixer :
+audio mixer.
+.It Ic 4-F6
+.Xr video 1 :
+webcam view.
+.It Ic 4C-F6
+.Ic rectoggle :
+toggle microphone and camera recording with local administrator authentication.
+.It Ic 4-F7
+.Ic displayselect :
+select displays.
 .It Ic 4-F8
+.Ic td-toggle :
+toggle Transmission.
+.It Ic 4-F9
+.Ic mounter :
+mount menu.
+.It Ic 4-F10
+.Ic unmounter :
+unmount menu.
+.It Ic 4-F11
 .Ic theme toggle :
 the day or night palette.
-.It Ic 4-F11
-.Xr video 1 :
-the webcam view.
-.It Ic 4C-F11
-.Ic rectoggle :
-turn the microphone and camera on for a call, or off again.
-It asks for the doas password in a terminal.
-It is not named rec because sox has a rec command.
-.It Ic 4S-F11
-.Ic dmenuwifi :
-join a wireless network picked in dmenu, and offer to add it to
-.Pa /etc/hostname.\& Ns Ar if
-when that file exists.
 .It Ic 4-F12
 .Ic remaps :
 the keyboard and TrackPoint settings again.
 .El
-.Ss Pi and the live writing seat
-After the system install, run
-.Ic vertrice-pi-setup
-as the ordinary user.
-It installs the locked Pi runtime and seeds absent settings;
-it preserves existing settings.
-Provider sign-in is separate: never give passwords or API keys to an agent
-conversation.
+.Ss Pi, Crush and live writing
+Pi and Crush are both required supported assistants.
+After system provisioning, run both first-only setup commands as the ordinary
+user:
+.Bd -literal -offset indent
+$ vertrice-pi-setup
+$ vertrice-crush-setup
+.Ed
+They acquire pinned public inputs and build without root.
+Existing installations are retained, not overwritten or migrated.
+Do not substitute a stock upstream build for the supported safety behavior.
+Provider sign-in happens locally in each application, not in agent
+conversations.
+Pi application generations and the account-local profile are separate.
+First-only profile initialization creates generic settings and an empty
+.Pa auth.json
+object with mode 0600, not credentials; existing profiles are not overwritten.
+.Pp
+Run
+.Ic crush
+in a terminal from the intended working directory once the supported build is
+installed.
+The shipped Crush defaults allow
+.Ic view , ls , glob
+and
+.Ic grep ;
+other operations retain native fresh approval prompts.
+Read grants do not authorize commands, writes or administrator work.
+Optional LSP servers and remote services are not configured automatically.
+Roles and prompts are not OS sandboxes.
 .Pp
 Super+a opens Pi.
 From the intended work directory,
@@ -361,14 +419,18 @@ gives the camera to whoever logs in on the console.
 .Xr apmd 8
 runs
 .Pa /etc/apm/suspend
-before sleeping, and it locks X first.
+before sleeping and requests an X lock.
+Verify the locked state on the machine; a signal and pause are not a lock
+acknowledgment.
 .Ic zzz
 suspends,
 .Ic ZZZ
-hibernates, and apmd suspends at 7% battery.
+hibernates, and apmd suspends at 17% battery.
 .It CPU speed
 .Xr obsdfreqd 1 ,
-at full speed on power and half on battery.
+with shipped maximum requests of 100% on AC and 75% on battery,
+and temperature limits of 85 and 60 degrees C respectively.
+Check actual behavior on the machine.
 .It Firewall
 .Xr pf.conf 5
 blocks all that comes in unasked and passes all that goes out.
@@ -478,7 +540,7 @@ and
 in one pager.
 .It Ic writemode
 Full-screen writing
-.Pq Ic 4S-F2 .
+.Pq Ic 4C-F2 .
 .It Ic sb-words
 The word count of the last file changed in
 .Pa ~/writing .
@@ -521,16 +583,24 @@ set the light or dark appearance, and Ghostty, SketchyBar and the menus
 follow it; to follow the clock, set Appearance to Auto in System
 Settings.
 .Ss Updates
-Every four hours root's crontab writes what
-.Xr syspatch 8
-and
-.Ic pkg_add -u
-would install to
+On a provisioned
+.Ox
+installation, run
+.Ic vertrice-update
+as the normal user for system maintenance followed by the unprivileged user
+phase.
+It requests local doas authentication.
+.Ic vertrice-update --user
+runs only the user phase.
+Root cron also schedules overnight whole-machine maintenance, daily scanner
+signature refreshes and four-hourly update counts in
 .Pa /var/db/updates .
-.Ic sb-updates
-counts it in the status line;
-.Ic sb-popupgrade
-installs the updates in a terminal.
+The status popup calls the whole-machine updater.
+An update count is not an installed update or a verified reboot.
+Source review and HOME deployment are separate; see
+.Pa ~/.local/share/vertrice/SOURCE-UPDATES.md .
+Retain failed candidates and recovery material for review rather than deleting
+locks or rerunning provisioning blindly.
 On a Mac a launchd agent writes
 .Pa ${XDG_CACHE_HOME:-$HOME/.cache}/updates
 from
@@ -643,8 +713,6 @@ A silent background close, hide, minimize or native fullscreen exit can wait
 for the next focus event or Super+t.
 Native command batches are not atomic.
 The helper requires Python 3 and AeroSpace 0.21.3 or compatible commands.
-The experimental laptop gesture trial is separate from these public defaults;
-physical gestures and a fresh login still require acceptance.
 .Pp
 The top row of a Mac keyboard sets brightness, volume and media, so the
 keys on F1 to F8 need Fn held as well, unless standard function keys are
@@ -855,9 +923,11 @@ Small base programs worth reading: the manual first, then the source.
 .It Pa ~/.local/share/vertrice/POST-INSTALL.md
 The
 .Ox
-configuration and daily-use checklist; keep a working copy per machine.
+configuration and daily-use guide.
 .It Pa ~/.local/share/vertrice/OPENBSD.md
 What vertrice is and why, in short.
+.It Pa ~/.local/share/vertrice/SOURCE-UPDATES.md
+Source review, HOME adoption and routine maintenance boundaries.
 .It Pa /var/db/updates
 Waiting updates, one to a line.
 .It Pa /etc/dumpdates
@@ -941,6 +1011,6 @@ Use a working copy of
 .Pa ~/.local/share/vertrice/POST-INSTALL.md
 on
 .Ox
-to record configuration and daily-use checks.
+for configuration and daily-use checks.
 Developer tests and qualification history stay in the repository, not the
 normal installed home.

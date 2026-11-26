@@ -1,10 +1,12 @@
 #!/bin/ksh
 
+# The wal argument reads the native shim's colors.Xresources
+# ($XDG_CACHE_HOME/wal); the day/night schemes are the default.
 # theme day|night|toggle|auto|clock|wal: the terminals' palette
 # (x11/themes/NAME), and dunst's and zathura's colours from it (wal's own).
-# Day and night also write gtk-3.0/settings.ini and gtk.css (wal leaves
-# them), which is why the dotfiles do not track them.
-# Super+F8 toggles; xprofile runs `theme clock`: day from 07:00, night from 19:00.
+# Day, night and wal also write gtk-3.0/settings.ini and gtk.css, which
+# is why the dotfiles do not track them.
+# Super+F11 toggles; xprofile runs `theme clock`: day from 07:00, night from 19:00.
 # Open terminals are recoloured with OSC sequences; zathura and GTK
 # programs on their next start. On the Mac, see mac below.
 
@@ -54,24 +56,42 @@ gtkcss() {
 	@define-color theme_selected_fg_color $1;
 	.background, .view, textview text, entry { color: $2; background-color: $1; }
 	selection, *:selected { color: $1; background-color: $3; }
+	scrollbar, scrollbar trough { background-color: $1; }
+	scrollbar slider { background-color: $3; }
 	EOF
 }
 
 auto() { h=$(date +%H); [ "$h" -ge 7 ] && [ "$h" -lt 19 ] && print day || print night; }
 
 apply() {
-	typeset p=$dir/$1 k v seq= fg bg acc u
-	[ "$1" = wal ] && p=$wal/colors.Xresources
-	[ -n "$DISPLAY" ] && xrdb -merge "$p"
+	typeset p=$dir/$1 k v seq= fg bg acc c8 u
+	if [ "$1" = wal ]; then
+		p=$wal/colors.Xresources
+		for u in "$p" "$wal/dunstrc" "$wal/zathurarc"; do
+			[ -f "$u" ] && continue
+			print -u2 "theme: missing $u; run setbg with PALETTE=wal"
+			return 1
+		done
+	fi
+	[ -r "$p" ] || { print -u2 "theme: cannot read $p"; return 1; }
+	if [ -n "$DISPLAY" ]; then
+		xrdb -merge "$p" || return 1
+	fi
 	while read -r k v; do
 		case $k in
 		\*.color*:)	k=${k#\*.color}; k=${k%:}; seq="$seq\033]4;$k;$v\007"
-			[ "$k" = 4 ] && acc=$v ;;	# the accent, as in dmenu
+			[ "$k" = 4 ] && acc=$v; [ "$k" = 8 ] && c8=$v ;;	# accent; color8 is dim
 		\*.foreground:)	seq="$seq\033]10;$v\007" fg=$v ;;
 		\*.background:)	seq="$seq\033]11;$v\007" bg=$v ;;
 		\*.cursorColor:) seq="$seq\033]12;$v\007" ;;
 		esac
 	done < "$p"
+	# The scrollbar thumb is the foreground by default: too bright on a dark
+	# palette. Keep the trough and thumb in the palette.
+	if [ -n "$DISPLAY" ]; then
+		printf '*.Scrollbar.background: %s\n*.Scrollbar.foreground: %s\n' "$bg" "$c8" |
+			xrdb -merge || return 1
+	fi
 	# A process may outlive its terminal. Only repaint ptys with an open master.
 	for t in $(fstat -u "$(id -un)" | awk '$NF ~ /^pty[pqrs]/ { sub(/^pty/, "tty", $NF); print $NF }' | sort -u); do
 		[ -w "/dev/$t" ] && printf "$seq" > "/dev/$t" 2>/dev/null
@@ -95,6 +115,7 @@ apply() {
 	case $1 in
 	day)	gtk "$gtkday"; gtkcss "$bg" "$fg" "$acc" ;;
 	night)	gtk "$gtknight"; gtkcss "$bg" "$fg" "$acc" ;;
+	wal)	gtk "$gtknight"; gtkcss "$bg" "$fg" "$acc" ;;
 	*)	[ -f "$conf/gtk-3.0/settings.ini" ] || gtk "$gtkday" ;;
 	esac
 	print "$1" > "$state"
@@ -133,8 +154,14 @@ mac() {
 
 case $1 in
 day|night|wal)	apply "$1" ;;
-toggle)		[ "$(cat "$state" 2>/dev/null)" = day ] && apply night || apply day ;;
-auto)		apply "$(auto)" ;;
+toggle)		[ "$PALETTE" = wal ] && exit 0	# the wallpaper sets the colours
+		if [ "$(cat "$state" 2>/dev/null)" = day ]; then
+			apply night
+		else
+			apply day
+		fi ;;
+auto)		[ "$PALETTE" = wal ] && exit 0
+		apply "$(auto)" ;;
 clock)
 	[ "$PALETTE" = wal ] && exit 0	# the wallpaper sets the colours
 	trap 'kill "$timer" 2>/dev/null; exit' HUP INT TERM
@@ -144,7 +171,7 @@ clock)
 	last=
 	while xrdb -query >/dev/null 2>&1; do
 		now=$(auto)
-		[ "$now" != "$last" ] && { apply "$now"; last=$now; }
+		[ "$now" != "$last" ] && apply "$now" && last=$now
 		sleep 300 & timer=$!
 		wait "$timer"
 	done

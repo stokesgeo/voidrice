@@ -1,5 +1,5 @@
 # cwmrc(5): appearance, then the key map. Key names: 4 = Super, S = Shift,
-# C = Control. Super+F1 lists every bind. Super+F5 rereads this file.
+# C = Control. Super+F1 lists every bind. Super+Control+F5 rereads this file.
 #
 # Pattern: Super+key acts; Super+Shift+key is its bigger or opposite form;
 # Super+Control+key adjusts finely or toggles. Windows float; Super+t tiles.
@@ -10,19 +10,20 @@ sticky yes
 vtile 55			# master window takes 55% of the screen
 htile 55
 borderwidth 7			# thick frames: red focused, blue not
-color activeborder "#8b0000"
-color inactiveborder "#4a64b0"
-color groupborder "#e3c98d"
-color ungroupborder "#908b9f"
-color urgencyborder "#e89c9c"
+color activeborder "#ff0000"
+color inactiveborder "#0000ff"
+color groupborder "#e9c46a"
+color ungroupborder "#8f8a9f"
+color urgencyborder "#f28b82"
 color menubg "#bebebe"
-color menufg "#8b0000"
+color menufg "#a00000"
 color font "#1c1c1c"
 color selfont "#f5f1e8"
 fontname "IBM Plex Mono:size=10"
 snapdist 4
 
-autogroup 0 "spterm,XTerm"	# scratchpads (`scratch`) show on every group
+autogroup 0 "spterm,XTerm"	# scratchpads (`scratch`) show on every group. The St lines are for an
+# optional st (pkg_add st); the base is XTerm.
 autogroup 0 "spcalc,XTerm"
 autogroup 0 "spterm,St"
 autogroup 0 "spcalc,St"
@@ -42,6 +43,9 @@ unbind-key all
 # --- windows: j k focus, q close, t tile, h l resize, S+hjkl move --------
 bind-key 4-j		window-cycle-ingroup
 bind-key 4-k		window-rcycle-ingroup
+bind-key 4-Tab		window-cycle-ingroup
+bind-key 4S-Tab		window-rcycle-ingroup	# reverse within current group only
+bind-key 4-u		menu-window		# search all windows; recover hidden ones
 bind-key 4-q		window-close
 bind-key 4-t		window-vtile
 bind-key 4S-t		window-htile
@@ -54,6 +58,7 @@ bind-key 4S-h		window-move-left-big
 bind-key 4S-j		window-move-down-big
 bind-key 4S-k		window-move-up-big
 bind-key 4S-l		window-move-right-big
+bind-key 4-Down		window-lower		# send behind, keep keyboard focus
 bind-key 4C-h		window-resize-left
 bind-key 4C-j		window-resize-down
 bind-key 4C-k		window-resize-up
@@ -61,8 +66,9 @@ bind-key 4C-l		window-resize-right
 bind-key 4-s		window-stick		# show on every group
 bind-key 4S-0		window-stick
 
-# --- groups: 1-9 show one, S+1-9 send window there, C+1-9 add or drop ----
-# 0 shows all groups. Tab and \ go to the last group; g ; PgUp PgDn cycle.
+# --- groups: 1-9 show only one, S+1-9 send window there ------------------
+# C+1-9 toggles group visibility, not window membership; 0 toggles all groups.
+# \ goes to the last group; g ; PgUp PgDn cycle.
 bind-key 4-1		group-only-1
 bind-key 4-2		group-only-2
 bind-key 4-3		group-only-3
@@ -91,7 +97,6 @@ bind-key 4C-7		group-toggle-7
 bind-key 4C-8		group-toggle-8
 bind-key 4C-9		group-toggle-9
 bind-key 4-0		group-toggle-all
-bind-key 4-Tab		group-last
 bind-key 4-backslash	group-last
 bind-key 4-g		group-rcycle
 bind-key 4-semicolon	group-cycle
@@ -100,14 +105,14 @@ bind-key 4-Next		group-cycle
 
 # --- launchers: Return terminal, w web, e mail, r files, d run menu ------
 # BackSpace and S+q open the power menu (sysact). Shifted keys are variants.
-bind-key 4-Return	sd	# a terminal in the focused window's folder
+bind-key 4-Return	"sh -c 'cd \"$HOME\" && exec \"$TERMINAL\"'"
 bind-key 4S-Return	"scratch term"
 bind-key 4-apostrophe	"scratch calc"
 bind-key 4-d		menu-exec
 bind-key 4-a		"sh -c 'exec $TERMINAL -e pi'"
 bind-key 4S-d		"sh -c 'ifinstalled pass && exec passmenu'"
 bind-key 4-w		"sh -c 'exec $BROWSER'"
-bind-key 4S-w		chrome	# Chromium is for agents; qutebrowser is the human default
+bind-key 4S-w		dmenuwifi	# join a wireless network (dwm's Shift+w)
 bind-key 4-e		"sh -c 'ifinstalled neomutt && $TERMINAL -e neomutt; sb-refresh'"
 bind-key 4S-e		"sh -c 'ifinstalled abook && exec $TERMINAL -e abook'"
 bind-key 4-r		"sh -c 'exec $TERMINAL -e lfub'"
@@ -140,23 +145,35 @@ bind-key 4-equal	"sh -c 'sndioctl -q output.level=+0.05; sb-refresh'"
 bind-key 4S-equal	"sh -c 'sndioctl -q output.level=+0.15; sb-refresh'"
 bind-key 4S-m		"sh -c 'sndioctl -q output.mute=!; sb-refresh'"
 
-# --- function keys: help, display, theme, mounts, camera, then Print ----
-# Print takes a screenshot; Super+Print records the screen.
+# X220 Fn+Home/End brightness is handled by acpithinkpad, not assumed X keys.
+# X shortcuts: Super+End dims, Super+Home brightens by 10pp (25-100% requests).
+# Panel quantization may read below 25%; down then leaves it unchanged.
+bind-key 4-End		"sb-brightness down"
+bind-key 4-Home		"sb-brightness up"
+
+# --- function keys: ThinkPad-inspired Super row, inherited variants on Shift
+# Not a literal native Fn map or an inventory of physical keycap legends.
+# F4's moon means nightlight, not suspend. Explicit exceptions: F5 audio,
+# F8 Transmission torrents (not fan/touchpad), F12 remaps (not hibernate).
 bind-key 4-F1		"sh -c 'grep ^bind ~/.config/cwm/cwmrc | expand -t 4 | dmenu -i -l 40 -p Keys:'"
 bind-key 4S-F1		manpick			# any manual page, picked in dmenu
-bind-key 4-F2		tutorialvids
-bind-key 4S-F2		writemode		# full-screen writing, nvim in Goyo
-bind-key 4-F3		displayselect
-bind-key 4-F4		nightlight		# warm screen on/off (sct)
-bind-key 4-F5		restart			# reread this file
-bind-key 4-F6		torwrap
-bind-key 4-F7		td-toggle
-bind-key 4-F8		"theme toggle"		# day / night palette
-bind-key 4-F9		"sh -c 'exec $TERMINAL -e mounter'"
-bind-key 4-F10		"sh -c 'exec $TERMINAL -e unmounter'"
-bind-key 4-F11		video			# webcam view, base video(1)
-bind-key 4C-F11		"sh -c 'exec $TERMINAL -e rectoggle'"	# microphone and camera on/off
-bind-key 4S-F11		dmenuwifi		# join a wireless network
+bind-key 4-F2		xlock			# lock icon
+bind-key 4S-F2		tutorialvids		# dwm reference
+bind-key 4C-F2		writemode		# full-screen writing, nvim in Goyo
+bind-key 4-F3		batt			# battery/power icon
+bind-key 4-F4		nightlight		# moon icon; warm screen on/off (sct)
+bind-key 4-F5		sndio-mixer		# audio mixer
+bind-key 4S-F5		"sh -c 'xrdb -merge \"$XDG_CONFIG_HOME/x11/xresources\"'"	# dwm's xrdb
+bind-key 4C-F5		restart			# reread this file
+bind-key 4-F6		video			# camera icon; webcam view, base video(1)
+bind-key 4S-F6		torwrap			# dwm reference
+bind-key 4C-F6		"sh -c 'exec $TERMINAL -e rectoggle'"	# microphone and camera on/off
+bind-key 4-F7		displayselect		# display icon
+bind-key 4-F8		td-toggle		# Transmission daemon on/off
+bind-key 4S-F8		mailsync		# dwm reference
+bind-key 4-F9		"floatterm mounter 72x8 mounter"
+bind-key 4-F10		"floatterm unmounter 72x6 unmounter"
+bind-key 4-F11		"theme toggle"		# day / night palette
 bind-key 4-F12		remaps			# key and TrackPoint settings again
 bind-key Print		"sh -c 'maim pic-full-$(date +%y%m%d-%H%M-%S).png'"
 bind-key S-Print	maimpick
@@ -164,11 +181,11 @@ bind-key 4-Print	dmenurecord
 bind-key 4S-Print	"dmenurecord kill"
 bind-key 4-Delete	"dmenurecord kill"
 
-# Mouse: on the desktop, buttons 1 2 3 open the window, group and command
-# menus. Super+drag moves a window; Super+right-drag resizes it.
+# Mouse: on the desktop, buttons 1 2 3 open the window, group and run
+# menus (3 matches Super+d). Super+drag moves; Super+right-drag resizes.
 unbind-mouse all
 bind-mouse 1		menu-window
 bind-mouse 2		menu-group
-bind-mouse 3		menu-cmd
+bind-mouse 3		menu-exec
 bind-mouse 4-1		window-move
 bind-mouse 4-3		window-resize

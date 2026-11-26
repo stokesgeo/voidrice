@@ -1,0 +1,6 @@
+#!/bin/sh
+
+# batt: the battery's charge and state as a notice. Uses the same block as
+# the bar, so the figure and icon match.
+
+notify-send "Battery" "$(sb-battery)"

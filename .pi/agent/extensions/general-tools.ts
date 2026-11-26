@@ -1,4 +1,5 @@
 import { spawn } from "node:child_process";
+import { randomUUID } from "node:crypto";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
 import { Text } from "@earendil-works/pi-tui";
@@ -14,6 +15,16 @@ function reply(text: string) {
 }
 
 export default function (pi: ExtensionAPI) {
+ // Advisory, content-free cooperative spans. Never let an observer change a
+ // decision's result or approval path. An entire multi-dialog answer is one span.
+ const emitDecision = (category: string, phase: string, id: string) => {
+  try { pi.events.emit("owner:decision", { category, phase, id }); } catch { /* telemetry only */ }
+ };
+ const decision = async <T>(category: string, action: () => Promise<T>): Promise<T> => {
+  const id = randomUUID();
+  emitDecision(category, "start", id);
+  try { return await action(); } finally { emitDecision(category, "end", id); }
+ };
 	pi.registerTool({
 		name: "ask_user",
 		label: "Ask owner",
@@ -25,6 +36,7 @@ export default function (pi: ExtensionAPI) {
 		executionMode: "sequential",
 		async execute(_id, params, signal, _update, ctx) {
 			if (ctx.mode !== "tui" || !ctx.hasUI || signal?.aborted) return reply("Decision cancelled; no interactive owner decision.");
+   return decision("ask_user", async () => {
 			const options = params.options.map((option, index) => `${index + 1}. ${quoted(option)}`);
 			const free = "Write a different answer";
 			const choice = await ctx.ui.select(quoted(params.question), [...options, free], { signal });
@@ -37,6 +49,7 @@ export default function (pi: ExtensionAPI) {
 			}
 			const index = options.indexOf(choice);
 			return index < 0 ? reply("Decision cancelled.") : reply(`Owner selected: ${quoted(params.options[index])}`);
+   });
 		},
 	});
 
@@ -77,10 +90,10 @@ export default function (pi: ExtensionAPI) {
 			};
 			if (!fits()) return reply("Admin step cancelled; enlarge the terminal to display the full approval, then retry.");
 			// Pi's installed native selector starts on item zero. confirm starts on Yes.
-			const choice = await ctx.ui.select(title, ["No", "Yes"], { signal });
+			const choice = await decision("admin_approval", () => ctx.ui.select(title, ["No", "Yes"], { signal }));
 			if (choice !== "Yes" || signal?.aborted || !interactive() || !fits()) return reply("Admin step cancelled; not executed.");
 
-			const exitCode = await ctx.ui.custom<number | null>(async (tui, _theme, _keys, done) => {
+			const exitCode = await decision("admin_terminal", () => ctx.ui.custom<number | null>(async (tui, _theme, _keys, done) => {
 				let code: number | null = null;
 				const originalSigint = process.rawListeners("SIGINT");
 				const ignoreSigint = () => {};
@@ -131,7 +144,7 @@ export default function (pi: ExtensionAPI) {
 					}
 				}
 				return { render: () => [], invalidate: () => {} };
-			});
+			}));
 			return reply(exitCode === null
 				? "Admin step ended without an exit code (cancelled, failed to start, or interrupted); completion is unverified."
 				: `Admin step completed; exit code ${exitCode}.`);

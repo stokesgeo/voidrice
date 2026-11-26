@@ -6,12 +6,27 @@
 
 inst_setup() {
 	R=$T/sys
-	mkdir -p "$T/x/bin" "$T/x/share" "$R/etc/hotplug" "$R/etc/login.conf.d" "$R/root" "$R/var/db"
+	mkdir -p "$T/x/bin" "$T/x/share" "$R/etc/hotplug" "$R/etc/login.conf.d" "$R/root" "$R/var/db" "$R/usr/local/sbin" "$R/usr/local/bin"
 	cp -R "$REPO/.local/share/openbsd" "$T/x/share/"
 	echo 'permit nopass :wheel as root cmd /usr/sbin/rcctl args restart sndiod' \
 		>>"$T/x/share/openbsd/doas-agent.conf"
 	derived .local/bin/vertrice-install x/bin/vertrice-install \
-		"s|/etc/|$R/etc/|g; s|/root/|$R/root/|g; s|/var/db/hotplug-disk|$R/var/db/hotplug-disk|g" >/dev/null
+		"s|/etc/|$R/etc/|g; s|/root/|$R/root/|g; s|/var/db/hotplug-disk|$R/var/db/hotplug-disk|g; s|/var/db/clamav|$R/var/db/clamav|g; s|/usr/local/share/examples/clamav/certs/clamav.crt|$T/clamav.crt|g; s|/usr/local/bin/|$R/usr/local/bin/|g; s|upgrade.sh /usr/local/sbin/vertrice-upgrade|upgrade.sh $R/usr/local/sbin/vertrice-upgrade|" >/dev/null
+	# Verify the future root:wheel argv without changing fixture ownership.
+	cat >"$T/bin/install" <<'EOF'
+#!/bin/sh
+printf 'install %s\n' "$*" >>"$VT_STATE/log"
+if [ "$1" = -d ]; then
+	shift
+	if [ "$1" = -o ]; then shift 4; fi
+	exec /usr/bin/install -d "$@"
+fi
+if [ "$1" = -o ]; then shift 4; fi
+exec /usr/bin/install "$@"
+EOF
+	chmod +x "$T/bin/install"
+	printf 'package CA fixture\n' >"$T/clamav.crt"
+	ln -s "$VT_MOCKS/_log" "$R/usr/local/bin/freshclam"
 	for m in rcctl stat newaliases; do ln -s "$VT_MOCKS/_log" "$T/bin/$m"; done
 	printf '#!/bin/sh\necho user\n' >"$T/bin/id"; chmod +x "$T/bin/id"
 	echo puffy >"$VT_STATE/out.stat"	# stat -f %Su: the checkout's owner
@@ -24,11 +39,60 @@ inst_setup() {
 	joined=$T/joined
 	cat "$data/doas.conf" "$data/doas-agent.conf" >"$joined"
 }
-inst() { "$VT_SH" "$T/x/bin/vertrice-install" >"$T/out" 2>&1; }
+inst_run() { "$VT_SH" "$T/x/bin/vertrice-install" >"$T/out" 2>&1; }
+inst() { printf 'yes\n' | inst_run; }
+inst_fragments() {
+	cat "$data/updates.cron"
+	sed 's/@USER@/puffy/g' "$data/upgrade.cron"
+}
+
+t_install_consent() {
+	inst_setup
+	inst || fail "explicit consent rejected: $(cat "$T/out")"
+	has "overwrite warning" 'overwrites system configuration and firewall rules' "$(cat "$T/out")"
+	has "reset warning" 'resets service settings and power tuning' "$(cat "$T/out")"
+	has "explicit prompt" 'Type yes to continue:' "$(cat "$T/out")"
+	logged '^pkg_add -l pkglist$'
+}
+
+inst_cancelled() {
+	has "clean cancellation" 'cancelled; no changes made' "$(cat "$T/out")"
+	[ ! -s "$VT_STATE/log" ] || fail "commands ran before consent: $(cat "$VT_STATE/log")"
+	diff -r "$T/sys.before" "$R" || fail "system files changed without consent"
+	cmp -s "$T/cron.before" "$VT_STATE/crontab.user" || fail "crontab changed without consent"
+}
+
+inst_cancel_setup() {
+	inst_setup
+	# A refusal must not even run the exit trap's cleanup.
+	echo 'existing staging file' >"$R/etc/doas.new"
+	cp -R "$R" "$T/sys.before"
+	cp "$VT_STATE/crontab.user" "$T/cron.before"
+}
+
+t_install_decline() {
+	inst_cancel_setup
+	for reply in no '' y YES 'yes please'; do
+		printf '%s\n' "$reply" | inst_run && fail "accepted refusal: $reply"
+		inst_cancelled
+	done
+}
+
+t_install_eof() {
+	inst_cancel_setup
+	inst_run </dev/null && fail "accepted EOF"
+	inst_cancelled
+	printf yes | inst_run && fail "accepted incomplete input at EOF"
+	inst_cancelled
+}
 
 t_install_system() {
 	inst_setup; inst
 	logged '^pkg_add -l pkglist$'
+	cmp -s "$T/clamav.crt" "$R/etc/clamav-certs/clamav.crt" || fail "CA not installed"
+	cmp -s "$data/freshclam.conf" "$R/etc/freshclam.conf" || fail "refresh config not installed"
+	logged "^freshclam --config-file=$R/etc/freshclam.conf --foreground\$"
+	[ -d "$R/var/db/clamav" ] || fail "database directory not installed"
 	cmp -s "$joined" "$R/etc/doas.conf" || fail "doas.conf is not doas.conf + doas-agent.conf"
 	logged "^doas -C $R/etc/doas.new\$"
 	[ -e "$R/etc/doas.new" ] && fail "doas.new left"
@@ -40,14 +104,19 @@ t_install_system() {
 	cmp -s "$data/apm-suspend" "$R/etc/apm/suspend" || fail "no /etc/apm/suspend"
 	eq "hibernate" suspend "$(readlink "$R/etc/apm/hibernate")"
 	cmp -s "$data/hotplug-attach" "$R/etc/hotplug/attach" || fail "no /etc/hotplug/attach"
+	cmp -s "$data/hotplug-detach" "$R/etc/hotplug/detach" || fail "no /etc/hotplug/detach"
+	cmp -s "$data/usbctl" "$R/usr/local/bin/usbctl" || fail "no usbctl"
 	[ -f "$R/var/db/hotplug-disk" ] && [ ! -s "$R/var/db/hotplug-disk" ] ||
 		fail "no empty /var/db/hotplug-disk for hotplug-watch"
-	eq "root's crontab: kept, plus the update count" "$(printf '0\t*\t*\t*\t*\t/usr/bin/newsyslog\n'; cat "$data/updates.cron")" \
+	cmp -s "$data/upgrade.sh" "$R/usr/local/sbin/vertrice-upgrade" || fail "updater not installed"
+	[ -n "$(find "$R/usr/local/sbin/vertrice-upgrade" -perm 0755)" ] || fail "updater mode is not 0755"
+	logged "^install -o root -g wheel -m 755 upgrade.sh $R/usr/local/sbin/vertrice-upgrade\$"
+	eq "root's crontab: kept, plus both updater jobs" "$(printf '0\t*\t*\t*\t*\t/usr/bin/newsyslog\n'; inst_fragments)" \
 		"$(cat "$VT_STATE/crontab.user")"
 	logged '^rcctl enable apmd hotplugd unwind$'
 	logged '^rcctl enable messagebus obsdfreqd$'
-	logged '^rcctl set apmd flags -z 7$'
-	logged '^rcctl set obsdfreqd flags -m 100,50 -r 50,90 -T 85,65$'
+	logged '^rcctl set apmd flags -L -z 17$'
+	logged '^rcctl set obsdfreqd flags -m 100,75 -r 20,90 -T 85,60$'
 	cmp -s "$data/wsconsctl.conf" "$R/etc/wsconsctl.conf" || fail "wsconsctl.conf"
 	[ -e "$R/etc/sysctl.conf" ] && fail "sysctl.conf written: recording is per call (rec)"
 	eq "fbtab: kept, plus the camera" "$(printf '/dev/ttyC0\t0600\t/dev/console\n'; cat "$data/fbtab")" "$(cat "$R/etc/fbtab")"
@@ -71,8 +140,11 @@ t_install_twice() {
 	# A second run keeps the agent doas rules and adds the cron line once.
 	inst_setup; inst; inst
 	cmp -s "$joined" "$R/etc/doas.conf" || fail "agent rules dropped: $(cat "$R/etc/doas.conf")"
-	eq "one update job" 1 "$(grep -c '^~.*/var/db/updates' "$VT_STATE/crontab.user")"
-	eq "one owned update marker" 1 "$(grep -c ' # vertrice-update-count$' "$VT_STATE/crontab.user")"
+	eq "one check job" 1 "$(grep -c '^~.*/usr/local/sbin/vertrice-upgrade --check$' "$VT_STATE/crontab.user")"
+	eq "one update job" 1 "$(grep -c '^30.*/usr/local/sbin/vertrice-upgrade --nightly puffy # vertrice-overnight-upgrade$' "$VT_STATE/crontab.user")"
+	grep -q '@USER@' "$VT_STATE/crontab.user" && fail "nightly placeholder was deployed"
+	eq "one owned check marker" 1 "$(grep -c '^# vertrice-update-count (root per-user table)$' "$VT_STATE/crontab.user")"
+	eq "one owned update marker" 1 "$(grep -c '^# vertrice-overnight-upgrade (root per-user table)$' "$VT_STATE/crontab.user")"
 	eq "no calendar job" 0 "$(grep -c calendar "$VT_STATE/crontab.puffy")"
 	eq "the owner's own job kept" 1 "$(grep -c 'logger monday' "$VT_STATE/crontab.puffy")"
 	eq "one root alias" 1 "$(grep -c '^root:' "$R/etc/mail/aliases")"
@@ -111,9 +183,9 @@ t_install_cron_absent() {
 	inst_setup
 	rm "$VT_STATE/crontab.user"
 	inst || fail "absent table rejected: $(cat "$T/out")"
-	eq "new table" "$(cat "$data/updates.cron")" "$(cat "$VT_STATE/crontab.user")"
+	eq "new table" "$(inst_fragments)" "$(cat "$VT_STATE/crontab.user")"
 	inst || fail "repeat failed"
-	eq "repeat unchanged" "$(cat "$data/updates.cron")" "$(cat "$VT_STATE/crontab.user")"
+	eq "repeat unchanged" "$(inst_fragments)" "$(cat "$VT_STATE/crontab.user")"
 }
 
 t_install_cron_read_failure() {
@@ -159,14 +231,31 @@ t_install_cron_absent_diagnostic_must_be_exact() {
 t_install_cron_unrelated_and_legacy() {
 	inst_setup
 	printf '0 1 * * * cp /var/db/updates /tmp/update-history\n# monitor /var/db/updates\n' >>"$VT_STATE/crontab.user"
-	sed 's/ # vertrice-update-count$//; s|>/var/db/updates|>/var/db/updates.custom|' "$data/updates.cron" >>"$VT_STATE/crontab.user"
+	cat >>"$VT_STATE/crontab.user" <<'EOF'
+MAILTO=operator
+SHELL=/bin/ksh
+
+30 3 * * * /usr/local/sbin/vertrice-upgrade --custom
+~	*/4	*	*	*	-ns (syspatch -c; pkg_add -u -n -v | grep "^Adding.*->" | sort -u) >/var/db/updates.custom
+# vertrice-update-count (root per-user table) extra
+0 2 * * * logger unrelated # vertrice-update-count extra
+EOF
 	cp "$VT_STATE/crontab.user" "$T/cron.unrelated"
-	# The exact formerly shipped entry and comment; a modified job is not ours.
-	printf '%s\n' '# /var/db/updates: what syspatch and pkg_add -u would install, one a line; sb-updates counts them.' >>"$VT_STATE/crontab.user"
-	sed 's/ # vertrice-update-count$//' "$data/updates.cron" >>"$VT_STATE/crontab.user"
-	printf '0 2 * * * logger old-job # vertrice-update-count\n' >>"$VT_STATE/crontab.user"
+	# Exact historical rows, suffix markers, and repeated current blocks.
+	cat >>"$VT_STATE/crontab.user" <<'EOF'
+# /var/db/updates: what syspatch and pkg_add -u would install, one a line; sb-updates counts them.
+~	*/4	*	*	*	-ns (syspatch -c; pkg_add -u -n -v | grep "^Adding.*->" | sort -u) >/var/db/updates
+30	3	*	*	* /usr/local/sbin/vertrice-upgrade
+30	3	*	*	*	-s /usr/local/sbin/vertrice-upgrade
+0 2 * * * logger old-job # vertrice-update-count
+30 3 * * * /usr/local/sbin/vertrice-upgrade # vertrice-overnight-upgrade
+EOF
+	# An orphan standalone marker must not swallow the unrelated following job.
+	printf '# vertrice-update-count (root per-user table)\n0 6 * * * logger preserve-me\n' >>"$VT_STATE/crontab.user"
+	printf '0 6 * * * logger preserve-me\n' >>"$T/cron.unrelated"
+	cat "$data/updates.cron" "$data/upgrade.cron" "$data/updates.cron" "$data/upgrade.cron" >>"$VT_STATE/crontab.user"
 	inst || fail "migration failed"
-	{ cat "$T/cron.unrelated"; cat "$data/updates.cron"; } >"$T/cron.expected"
+	{ cat "$T/cron.unrelated"; inst_fragments; } >"$T/cron.expected"
 	cmp -s "$T/cron.expected" "$VT_STATE/crontab.user" || fail "unrelated entries lost or legacy retained"
 	inst || fail "repeat migration failed"
 	cmp -s "$T/cron.expected" "$VT_STATE/crontab.user" || fail "repeat changed table"
@@ -175,9 +264,12 @@ t_install_cron_unrelated_and_legacy() {
 t_install_cron_generation_failure() {
 	inst_setup
 	cp "$VT_STATE/crontab.user" "$T/cron.original"
-	rm "$data/updates.cron"
-	inst && fail "missing shipped job accepted"
-	cmp -s "$T/cron.original" "$VT_STATE/crontab.user" || fail "table replaced on generation failure"
+	for fragment in updates.cron upgrade.cron; do
+		mv "$data/$fragment" "$T/$fragment.saved"
+		inst && fail "missing $fragment accepted"
+		cmp -s "$T/cron.original" "$VT_STATE/crontab.user" || fail "table replaced on generation failure"
+		mv "$T/$fragment.saved" "$data/$fragment"
+	done
 	notlogged '^crontab /'
 }
 
@@ -212,6 +304,29 @@ t_install_package_failure_stops() {
 	if inst; then fail "package failure reported success"; fi
 	notlogged '^doas -C'
 	[ ! -e "$R/etc/pf.conf" ] || fail "configuration changed after package failure"
+}
+
+t_install_signature_failure_stops() {
+	inst_setup
+	printf 'existing policy\n' >"$R/etc/doas.conf"
+	cp "$VT_STATE/crontab.user" "$T/cron.original"
+	echo 54 >"$VT_STATE/rc.freshclam"
+	inst && fail "signature acquisition failure accepted"
+	logged "^freshclam --config-file=$R/etc/freshclam.conf --foreground\$"
+	notlogged '^doas -C'
+	notlogged '^rcctl'
+	notlogged '^crontab'
+	eq "policy preserved after refresh failure" 'existing policy' "$(cat "$R/etc/doas.conf")"
+	cmp -s "$T/cron.original" "$VT_STATE/crontab.user" || fail "cron replaced after refresh failure"
+	[ -f "$R/etc/freshclam.conf" ] || fail "completed nontransactional setup missing"
+}
+
+t_install_certificate_failure_stops() {
+	inst_setup
+	rm "$T/clamav.crt"
+	inst && fail "missing package CA accepted"
+	notlogged '^freshclam'
+	notlogged '^doas -C'
 }
 
 t_install_doas_failure_stops() {

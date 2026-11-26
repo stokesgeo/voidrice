@@ -1,0 +1,599 @@
+[
+  {
+    "path": "node_modules/@earendil-works/pi-tui/dist/components/markdown.js",
+    "input": "88a6fd1b0388719335b38e6bdf614e2e5a8f68ccddcc5d0307b20146e768db88",
+    "replacements": [
+      [
+        "import { applyBackgroundToLine, cjkPunctuationRegex, flattenLines, visibleWidth, wrapTextWithAnsi } from \"../utils.js\";",
+        "import { applyBackgroundToLine, cjkPunctuationRegex, flattenLines, sliceWithWidth, visibleWidth, wrapTextWithAnsi } from \"../utils.js\";"
+      ],
+      [
+        "                const indent = this.theme.codeBlockIndent ?? \"  \";\n                lines.push(this.theme.codeBlockBorder(`\\`\\`\\`${token.lang || \"\"}`));",
+        "                // Reserve two columns before wrapping; tiny widths need all columns for code.\n                const indent = width >= 4 ? this.theme.codeBlockBorder(\"│ \") : \"\";\n                const codeWidth = Math.max(2, width - (width >= 4 ? 2 : 0));\n                const appendCodeLine = (line) => {\n                    const columns = visibleWidth(line);\n                    if (columns === 0) lines.push(indent + line + \"\\x1b[0m\");\n                    for (let start = 0; start < columns;) {\n                        const chunk = sliceWithWidth(line, start, codeWidth, true);\n                        lines.push(indent + chunk.text + \"\\x1b[0m\");\n                        start += chunk.width;\n                    }\n                };"
+      ],
+      [
+        "                        lines.push(`${indent}${hlLine}`);",
+        "                        appendCodeLine(hlLine);"
+      ],
+      [
+        "                        lines.push(`${indent}${this.theme.codeBlock(codeLine)}`);",
+        "                        appendCodeLine(this.theme.codeBlock(codeLine));"
+      ],
+      [
+        "                lines.push(this.theme.codeBlockBorder(\"```\"));\n",
+        ""
+      ]
+    ],
+    "output": "79f1eb78931e576a1f844536c5cf9b7cf80df1ac8e309c8cc140d369c2140194"
+  },
+  {
+    "path": "node_modules/@earendil-works/pi-coding-agent/dist/bundle/chunks/chunk-X26YOAEH.js",
+    "input": "1dc7029d526f9d5e81429c9c26a691f7777f2062dcf1df06d1b6a99127fd4425",
+    "replacements": [
+      [
+        "let indent=this.theme.codeBlockIndent??\"  \";if(lines.push(this.theme.codeBlockBorder(`\\`\\`\\`${token.lang||\"\"}`)),this.theme.highlightCode){let key=`${token.lang??\"\"}\\0${token.text}`,highlighted=this.blockHighlightedCode?.get(key);highlighted||(highlighted=this.theme.highlightCode(token.text,token.lang),this.blockHighlightedCode?.set(key,highlighted));for(let hlLine of highlighted)lines.push(`${indent}${hlLine}`)}else{let codeLines=token.text.split(`\n`);for(let codeLine of codeLines)lines.push(`${indent}${this.theme.codeBlock(codeLine)}`)}lines.push(this.theme.codeBlockBorder(\"```\")),nextTokenType&&nextTokenType!==\"space\"&&lines.push(\"\");break}",
+        "let indent=width>=4?this.theme.codeBlockBorder(\"│ \"):\"\",codeWidth=Math.max(2,width-(width>=4?2:0)),appendCodeLine=line=>{let columns=visibleWidth(line);if(columns===0)lines.push(indent+line+\"\\x1b[0m\");for(let start=0;start<columns;){let chunk=sliceWithWidth(line,start,codeWidth,true);lines.push(indent+chunk.text+\"\\x1b[0m\");start+=chunk.width}};if(this.theme.highlightCode){let key=`${token.lang??\"\"}\\0${token.text}`,highlighted=this.blockHighlightedCode?.get(key);highlighted||(highlighted=this.theme.highlightCode(token.text,token.lang),this.blockHighlightedCode?.set(key,highlighted));for(let hlLine of highlighted)appendCodeLine(hlLine)}else{let codeLines=token.text.split(`\n`);for(let codeLine of codeLines)appendCodeLine(this.theme.codeBlock(codeLine))}nextTokenType&&nextTokenType!==\"space\"&&lines.push(\"\");break}"
+      ]
+    ],
+    "output": "f2907c5ff05d35604fa1f74e3067ef3033b79e1ebd595975edc03ae54b674128"
+  },
+  {
+    "path": "node_modules/@earendil-works/pi-coding-agent/dist/modes/interactive/components/status-indicator.js",
+    "input": "bf3ba6649b4018d3c7a795911aa6417cb9399efad56667229ef91450ec60e0d9",
+    "replacements": [
+      [
+        "        super(\"working\", ui, colorFn ?? ((text) => theme.fg(\"accent\", text)), colorFn ?? ((text) => theme.fg(\"muted\", text)), message, indicator);",
+        "        super(\"working\", ui, colorFn ?? ((text) => theme.fg(\"accent\", text)), colorFn ?? ((text) => theme.fg(\"muted\", text)), message, indicator);\n        if (indicator === undefined) {\n            this.intervalMs = 250;\n            this.restartAnimation();\n        }"
+      ]
+    ],
+    "output": "7ec7416c72aea4ad1f4caaf45d248c0d9ada1f43cc205140bf4b1704379f9840"
+  },
+  {
+    "path": "node_modules/@earendil-works/pi-coding-agent/dist/bundle/chunks/chunk-KSDI5FD4.js",
+    "input": "5558c943edf1c00ca788788bc6b041d6a70a50ae7e646be2192ad399f1df7e34",
+    "replacements": [
+      [
+        "super(\"working\",ui,colorFn??(text=>theme.fg(\"accent\",text)),colorFn??(text=>theme.fg(\"muted\",text)),message,indicator)",
+        "super(\"working\",ui,colorFn??(text=>theme.fg(\"accent\",text)),colorFn??(text=>theme.fg(\"muted\",text)),message,indicator);if(indicator===undefined){this.intervalMs=250;this.restartAnimation()}"
+      ],
+      [
+        "let{migratedAuthProviders:migratedProviders,deprecationWarnings}=runMigrations(cwd);",
+        "let{migratedAuthProviders:migratedProviders,deprecationWarnings}={migratedAuthProviders:[],deprecationWarnings:[]};"
+      ],
+      [
+        "_appendEntry(entry){let previousLeafId=",
+        "_appendEntry(entry){accountEntry(entry,this.sessionId);let previousLeafId="
+      ],
+      [
+        "parentSession:this.persist?previousSessionFile:void 0",
+        "costLineageIncomplete:!0,parentSession:this.persist?previousSessionFile:void 0"
+      ],
+      [
+        "this._emit(event.type===\"agent_end\"?",
+        "captureEnding(event,this.sessionId),this._emit(event.type===\"agent_end\"?"
+      ],
+      [
+        "contextUsage:this.getContextUsage()",
+        "aggregateUsage:aggregateSession(this.sessionManager),contextUsage:this.getContextUsage()"
+      ],
+      [
+        "limitsModel,usageTotals,latestCacheHitRate,contextUsage},this.sessionStats",
+        "limitsModel,usageTotals,latestCacheHitRate,aggregateUsage:aggregateSession(sessionManager),contextUsage},this.sessionStats"
+      ],
+      [
+        "render(width){let state2=this.session.state,{usageTotals,latestCacheHitRate,contextUsage}=this.getSessionStats(),contextWindow=contextUsage?.contextWindow??state2.model?.contextWindow??0,contextPercentValue=contextUsage?.percent??0,contextPercent=contextUsage?.percent!==null?contextPercentValue.toFixed(1):\"?\",pwd=formatCwdForFooter(this.session.sessionManager.getCwd(),process.env.HOME||process.env.USERPROFILE),branch=this.footerData.getGitBranch();branch&&(pwd=`${pwd} (${branch})`);let sessionName=this.session.sessionManager.getSessionName();sessionName&&(pwd=`${pwd} \\u2022 ${sessionName}`);let statsParts=[];usageTotals.input&&statsParts.push(`\\u2191${formatTokens(usageTotals.input)}`),usageTotals.output&&statsParts.push(`\\u2193${formatTokens(usageTotals.output)}`),usageTotals.cacheRead&&statsParts.push(`R${formatTokens(usageTotals.cacheRead)}`),usageTotals.cacheWrite&&statsParts.push(`W${formatTokens(usageTotals.cacheWrite)}`),(usageTotals.cacheRead>0||usageTotals.cacheWrite>0)&&latestCacheHitRate!==void 0&&statsParts.push(`CH${latestCacheHitRate.toFixed(1)}%`);let usingSubscription=state2.model?state2.model.provider===\"kimi-coding\"||this.session.modelRuntime.isUsingSubscription(state2.model.provider):!1;if(usageTotals.cost||usingSubscription){let costStr=`$${usageTotals.cost.toFixed(3)}${usingSubscription?\" (sub)\":\"\"}`;statsParts.push(costStr)}let contextPercentStr,autoIndicator=this.autoCompactEnabled?\" (auto)\":\"\",contextPercentDisplay=contextPercent===\"?\"?`?/${formatTokens(contextWindow)}${autoIndicator}`:`${contextPercent}%/${formatTokens(contextWindow)}${autoIndicator}`;contextPercentValue>90?contextPercentStr=theme.fg(\"error\",contextPercentDisplay):contextPercentValue>70?contextPercentStr=theme.fg(\"warning\",contextPercentDisplay):contextPercentStr=contextPercentDisplay,statsParts.push(contextPercentStr),areExperimentalFeaturesEnabled()&&statsParts.push(`${theme.fg(\"dim\",\"\\u2022\")} ${theme.bold(theme.fg(\"warning\",\"xp\"))}`);let statsLeft=statsParts.join(\" \"),modelName=state2.model?.id||\"no-model\",statsLeftWidth=visibleWidth(statsLeft);statsLeftWidth>width&&(statsLeft=truncateToWidth(statsLeft,width,\"...\"),statsLeftWidth=visibleWidth(statsLeft));let minPadding=2,rightSideWithoutProvider=modelName;if(state2.model?.reasoning){let thinkingLevel=state2.thinkingLevel||\"off\";rightSideWithoutProvider=thinkingLevel===\"off\"?`${modelName} \\u2022 thinking off`:`${modelName} \\u2022 ${thinkingLevel}`}let routed=this.session.routedModel;if(routed){let level=routed.thinkingLevel?` \\u2022 ${routed.thinkingLevel}`:\"\";rightSideWithoutProvider+=` \\u2192 ${routed.model.id}${level}`}let rightSide=rightSideWithoutProvider;this.footerData.getAvailableProviderCount()>1&&state2.model&&(rightSide=`(${state2.model.provider}) ${rightSideWithoutProvider}`,statsLeftWidth+minPadding+visibleWidth(rightSide)>width&&(rightSide=rightSideWithoutProvider));let rightSideWidth=visibleWidth(rightSide),totalNeeded=statsLeftWidth+minPadding+rightSideWidth,statsLine;if(totalNeeded<=width){let padding=\" \".repeat(width-statsLeftWidth-rightSideWidth);statsLine=statsLeft+padding+rightSide}else{let availableForRight=width-statsLeftWidth-minPadding;if(availableForRight>0){let truncatedRight=truncateToWidth(rightSide,availableForRight,\"\"),truncatedRightWidth=visibleWidth(truncatedRight),padding=\" \".repeat(Math.max(0,width-statsLeftWidth-truncatedRightWidth));statsLine=statsLeft+padding+truncatedRight}else statsLine=statsLeft}let dimStatsLeft=theme.fg(\"dim\",statsLeft),remainder=statsLine.slice(statsLeft.length),dimRemainder=theme.fg(\"dim\",remainder),lines=[truncateToWidth(theme.fg(\"dim\",pwd),width,theme.fg(\"dim\",\"...\")),dimStatsLeft+dimRemainder],extensionStatuses=this.footerData.getExtensionStatuses();if(extensionStatuses.size>0){let statusLine=Array.from(extensionStatuses.entries()).sort(([a],[b])=>a.localeCompare(b)).map(([,text])=>sanitizeStatusText(text)).join(\" \");lines.push(truncateToWidth(statusLine,width,theme.fg(\"dim\",\"...\")))}return lines}",
+        "render(width) {\n    if (width < 1) return [];\n    const state = this.session.state;\n    const { contextUsage, aggregateUsage } = this.getSessionStats();\n    const model = state.model;\n    const parts = [model ? `${model.provider}/${model.id}` : 'no model'];\n    if (model?.reasoning) parts.push(`thinking ${state.thinkingLevel || 'off'}`);\n    const routed = this.session.routedModel;\n    if (routed) parts.push(`→ ${routed.model.provider}/${routed.model.id}${routed.thinkingLevel ? ` · thinking ${routed.thinkingLevel}` : ''}`);\n    const percent = contextUsage?.percent;\n    const tokens = contextUsage?.tokens;\n    const window = contextUsage?.contextWindow;\n    let context = 'context unknown';\n    if (Number.isFinite(tokens) && Number.isFinite(window) && window > 0) {\n        context = `context ${formatTokens(tokens)}/${formatTokens(window)} used`;\n    }\n    parts.push(Number.isFinite(percent) && percent > 90 ? theme.fg('error', context) : Number.isFinite(percent) && percent > 70 ? theme.fg('warning', context) : context);\n    // A tracked subtotal is not an invoice, zero price is not unknown price.\n    const a = aggregateUsage;\n    if (a?.coverage === 'invalid') parts.push(theme.fg('error', 'usage accounting error · /session'));\n    else if (a?.knownCost > 0) parts.push(`tracked $${Number(a.knownCost.toPrecision(3))} (partial)`);\n    else if (a?.disjointRequestTokens > 0 && a.unknownPrice > 0) parts.push('cost unpriced');\n    if (areExperimentalFeaturesEnabled()) parts.push(theme.fg('warning', 'xp'));\n    const wrap = text => wrapTextWithAnsi(text, width);\n    // Orientation owns purpose/focus above the editor. Cwd/name remain native,\n    // except exact duplicates of that orientation (no inferred shortening).\n    const manager = this.session.sessionManager;\n    let pwd = formatCwdForFooter(manager.getCwd(), process.env.HOME || process.env.USERPROFILE);\n    const branch = this.footerData.getGitBranch();\n    if (branch) pwd += ` (${branch})`;\n    const name = manager.getSessionName();\n    const entries = manager.getBranch?.() ?? [];\n    const orientation = entries.filter(e => e.type === 'custom' && e.customType === 'vertrice-session-focus').at(-1)?.data;\n    if (name && name !== orientation?.purpose && name !== orientation?.focus && name !== [orientation?.purpose, orientation?.focus].filter(Boolean).join(' · ')) pwd += ` • ${name}`;\n    const lines = [...wrap(parts.join(' · ')), ...wrap(theme.fg('dim', pwd))];\n    const statuses = [...this.footerData.getExtensionStatuses().entries()].sort(([a], [b]) => a.localeCompare(b)).map(([, text]) => sanitizeStatusText(text)).filter(Boolean);\n    // Producers publish actionable signals only; never clip a decision/error.\n    if (statuses.length) lines.push(...wrap(statuses.join(' · ')));\n    return lines;\n}"
+      ],
+      [
+        "theme.bold(\"Cost\")",
+        "theme.bold(\"Native parent/side cost (not aggregate)\")"
+      ],
+      [
+        "return info};this.chatContainer",
+        "info+=`\\n\\n${aggregateText(stats.aggregateUsage)}\\n${stats.aggregateUsage.gaps.join(\"; \")}`;return info};this.chatContainer"
+      ],
+      [
+        "getAllThemes:()=>getAvailableThemesWithPaths(),getTheme:name=>getThemeByName(name),",
+        "getThemeSelection:()=>this.themeController.getThemeSelection(),getAllThemes:()=>getAvailableThemesWithPaths(),getTheme:name=>getThemeByName(name),"
+      ],
+      [
+        "getThemeSelection(){return this.currentThemeSetting",
+        "selectionListeners=new Set;onThemeSelectionChange(listener){return this.selectionListeners.add(listener),()=>this.selectionListeners.delete(listener)}notifySelectionChanged(){for(let listener of this.selectionListeners)listener()}getThemeSelection(){return this.currentThemeSetting"
+      ],
+      [
+        "return result.success&&(this.currentThemeSetting=themeName),result",
+        "return result.success&&(this.currentThemeSetting=themeName,this.notifySelectionChanged()),result"
+      ],
+      [
+        "setThemeSetting(themeSetting){this.currentThemeSetting=themeSetting,this.applyFromSettings()}",
+        "setThemeSetting(themeSetting){this.currentThemeSetting=themeSetting,this.applyFromSettings(),this.notifySelectionChanged()}"
+      ],
+      [
+        "dispose(){this.setAutoSync(!1),this.terminalColorSchemeUnsubscribe?.()",
+        "dispose(){this.selectionListeners.clear(),this.setAutoSync(!1),this.terminalColorSchemeUnsubscribe?.()"
+      ],
+      [
+        "getThemeSelection:()=>this.themeController.getThemeSelection(),",
+        "onThemeSelectionChange:listener=>this.themeController.onThemeSelectionChange(listener),getThemeSelection:()=>this.themeController.getThemeSelection(),"
+      ],
+      [
+        "isEnabled(server)&&hasIndirectTools(server.entry)",
+        "isEnabled(server)&&(Boolean(process.env.PI_OFFLINE)?[...configuredExposures(server.entry)].some(exposure => exposure !== \"hidden\"):hasIndirectTools(server.entry))"
+      ],
+      [
+        "intro=serversSectionIntro(new Set(reaches))",
+        "intro=Boolean(process.env.PI_OFFLINE)?\"Offline MCP servers: tools connect only on request. For requested HTTP tools call tool_search({server: \\\"exact name\\\", query: \\\"required tool\\\"}), then call the returned native tool. Stdio needs explicit /mcp reconnect <name>.\":serversSectionIntro(new Set(reaches))"
+      ],
+      [
+        "`- ${mcpNamespace(server.entry.name)} (${reaches[index]})`",
+        "`- ${mcpNamespace(server.entry.name)} (${Boolean(process.env.PI_OFFLINE) ? \"server: \" + JSON.stringify(server.entry.name) + (server.connection ? \"; \" + describeState(server, false) : \"; idle\") : reaches[index]})`"
+      ],
+      [
+        "if(!connection)return\"starting\";",
+        "if(!connection)return Boolean(process.env.PI_OFFLINE)?\"idle (offline; connects on request)\":\"starting\";"
+      ],
+      [
+        "needsToolSearch=exposures.has(\"deferred\")",
+        "needsToolSearch=exposures.has(\"deferred\")||(Boolean(process.env.PI_OFFLINE)&&servers.some(server=>isEnabled(server)&&[...configuredExposures(server.entry)].some(exposure => exposure !== \"hidden\")))"
+      ],
+      [
+        "if(!connection)return`MCP server \"${server.entry.name}\" is disabled.`;",
+        "if(!isEnabled(server))return`MCP server \"${server.entry.name}\" is disabled.`;if(!connection){try{await startConnection(server,Promise.all([server.ready,server.closing]));return server.connection?.state===\"connected\"?void 0:describeState(server)}catch(error){server.ready=void 0;return errorMessage2(error)}}"
+      ],
+      [
+        "await startConnection(server,server.closing)}",
+        "if(!Boolean(process.env.PI_OFFLINE))await startConnection(server,server.closing);emitChange()}"
+      ],
+      [
+        "(state2===\"failed\"||state2===\"disconnected\"||state2===\"connected\"||state2===\"needs-auth\")&&items.push({value:\"reconnect\",label:\"Reconnect\"})",
+        "(!connection||state2===\"failed\"||state2===\"disconnected\"||state2===\"connected\"||state2===\"needs-auth\")&&items.push({value:\"reconnect\",label:connection?\"Reconnect\":\"Connect\"})"
+      ],
+      [
+        "connection?.state??\"starting\"",
+        "connection?.state??(Boolean(process.env.PI_OFFLINE)?\"idle (offline; connects on request)\":\"starting\")"
+      ],
+      [
+        "if(enabled.length===0)",
+        "if(Boolean(process.env.PI_OFFLINE)||enabled.length===0)"
+      ],
+      [
+        "pi.on(\"tool_call\",async(event,ctx)=>{",
+        "(()=>{        // Internal execution-only bridge: tool_search emits this after the native veto pipeline.\n        const discoverHttp = async (name, signal) => {\n            const server = findServer(name);\n            if (!server || !isEnabled(server) || ![...configuredExposures(server.entry)].some(exposure => exposure !== \"hidden\")) throw new Error(\"Unknown, disabled or hidden MCP server.\");\n            if (!(\"url\" in server.entry.config)) throw new Error(\"Stdio requires explicit /mcp reconnect \" + name + \"; tool_search connects only HTTP servers.\");\n            const lifetime = session.signal;\n            const cancelled = () => signal?.aborted || lifetime.aborted;\n            if (cancelled()) throw new Error(\"MCP discovery cancelled.\");\n            let discovery = server.discovery;\n            if (!discovery) {\n                discovery = { requesters: new Set(), pending: true };\n                server.discovery = discovery;\n                discovery.ready = (async () => {\n                    if (!server.connection) await startConnection(server, server.closing);\n                    else if (server.connection.state !== \"connected\") {\n                        const failure = await reconnect(server);\n                        if (failure) throw new Error(failure);\n                    }\n                    await waitForServers([server], lifetime);\n                })().finally(() => {\n                    discovery.pending = false;\n                    if (server.discovery === discovery) server.discovery = undefined;\n                });\n            }\n            const requester = Symbol();\n            discovery.requesters.add(requester);\n            let onAbort;\n            try {\n                await Promise.race([discovery.ready, new Promise(resolve => {\n                    onAbort = resolve;\n                    signal?.addEventListener(\"abort\", onAbort, { once: true });\n                    lifetime.addEventListener(\"abort\", onAbort, { once: true });\n                    if (cancelled()) resolve();\n                })]);\n                if (cancelled() || !servers.includes(server) || !isEnabled(server)) throw new Error(\"MCP discovery cancelled.\");\n                if (server.connection?.state !== \"connected\") throw new Error(\"MCP server \" + name + \": \" + describeState(server));\n            } finally {\n                signal?.removeEventListener(\"abort\", onAbort);\n                lifetime.removeEventListener(\"abort\", onAbort);\n                discovery.requesters.delete(requester);\n                if (cancelled() && discovery.pending && discovery.requesters.size === 0 && server.discovery === discovery) {\n                    // Invalidate publication before close; a new request waits for this attempt's cleanup.\n                    server.attempt = undefined;\n                    const connection = server.connection;\n                    const ready = server.ready;\n                    server.connection = undefined;\n                    server.ready = undefined;\n                    server.discovery = undefined;\n                    server.closing = track(Promise.all([server.closing, connection?.close(), ready]).then(() => undefined));\n                }\n            }\n        };\n        pi.events.on(\"vertrice:mcp:discover-http\", request => {\n            if (Boolean(process.env.PI_OFFLINE)) request.ready = discoverHttp(request.server, request.signal);\n        });\n})(),pi.on(\"tool_call\",async(event,ctx)=>{"
+      ],
+      [
+        "if(!(signal.aborted||connecting.length===0))",
+        "if(!(Boolean(process.env.PI_OFFLINE)||signal.aborted||connecting.length===0))"
+      ],
+      [
+        "action===\"reconnect\"?candidate.connection!==void 0:usesOAuth(candidate)",
+        "action===\"reconnect\"?isEnabled(candidate):usesOAuth(candidate)"
+      ],
+      [
+        "eligible:candidate=>candidate.connection!==void 0,",
+        "eligible:candidate=>isEnabled(candidate),"
+      ]
+    ],
+    "output": "172b1bb04bc182fe3e27649e0ec97910faae2d763401bc60097ae292537b8343",
+    "prepend": "import { captureEnding, accountEntry, aggregateSession, aggregateText } from \"../../core/cost-integration/native.mjs\";\n"
+  },
+  {
+    "path": "node_modules/@earendil-works/pi-coding-agent/dist/core/auth-storage.js",
+    "input": "85c773c95be71695a27f5ed2f9f5bfaedc6c2ab3fe1fa7fcdf09707a3a73ce48",
+    "replacements": [
+      [
+        "join(getAgentDir(), \"auth.json\")",
+        "caNativeAuthPath()",
+        4
+      ],
+      [
+        "const normalizedAuthPath = normalizePath(authPath);",
+        "const normalizedAuthPath = normalizePath(caNativeAuthPath(authPath));"
+      ]
+    ],
+    "prepend": "\nimport * as caAuthFs from 'node:fs';\nimport * as caAuthPath from 'node:path';\nfunction checkAuthReference(reference,approved,fs,path) {\n if(typeof reference!=='string'||!path.isAbsolute(reference)||path.normalize(reference)!==reference||reference!==approved)throw Error('unapproved native auth reference');\n let current='/';\n for(const part of reference.split('/').filter(Boolean)) {\n  current=path.join(current,part);const st=fs.lstatSync(current);\n  if(st.isSymbolicLink()||!(current===reference?st.isFile():st.isDirectory()))throw Error('native auth reference alias/type');\n  if(current===reference&&(st.uid!==process.getuid()||(st.mode&0o7777)!==0o600||st.nlink!==1))throw Error('native auth reference ownership/mode/link');\n }\n if(fs.realpathSync(reference)!==reference)throw Error('native auth reference canonical mismatch');\n return reference;\n}\nconst caApprovedNativeAuth = \"@PORTABLE_NATIVE_AUTH@\";\nfunction caNativeAuthPath(fallback=caApprovedNativeAuth){const reference=process.env.PI_CA_NATIVE_AUTH_STORAGE;return checkAuthReference(reference===undefined?fallback:reference,caApprovedNativeAuth,caAuthFs,caAuthPath);}\n",
+    "binding": "nativeAuthStorage"
+  },
+  {
+    "path": "node_modules/@earendil-works/pi-coding-agent/dist/bundle/chunks/chunk-NV3NPOPF.js",
+    "input": "d9ca2c28d9227cbd4a3805d97a1dc8e3c7294ab29e04d80bb77fbbea453e60d2",
+    "replacements": [
+      [
+        "join(getAgentDir(),\"auth.json\")",
+        "caNativeAuthPath()",
+        4
+      ],
+      [
+        "static create(authPath=caNativeAuthPath()){let normalizedAuthPath=normalizePath(authPath);",
+        "static create(authPath=caNativeAuthPath()){let normalizedAuthPath=normalizePath(caNativeAuthPath(authPath));"
+      ]
+    ],
+    "prepend": "\nimport * as caAuthFs from 'node:fs';\nimport * as caAuthPath from 'node:path';\nfunction checkAuthReference(reference,approved,fs,path) {\n if(typeof reference!=='string'||!path.isAbsolute(reference)||path.normalize(reference)!==reference||reference!==approved)throw Error('unapproved native auth reference');\n let current='/';\n for(const part of reference.split('/').filter(Boolean)) {\n  current=path.join(current,part);const st=fs.lstatSync(current);\n  if(st.isSymbolicLink()||!(current===reference?st.isFile():st.isDirectory()))throw Error('native auth reference alias/type');\n  if(current===reference&&(st.uid!==process.getuid()||(st.mode&0o7777)!==0o600||st.nlink!==1))throw Error('native auth reference ownership/mode/link');\n }\n if(fs.realpathSync(reference)!==reference)throw Error('native auth reference canonical mismatch');\n return reference;\n}\nconst caApprovedNativeAuth = \"@PORTABLE_NATIVE_AUTH@\";\nfunction caNativeAuthPath(fallback=caApprovedNativeAuth){const reference=process.env.PI_CA_NATIVE_AUTH_STORAGE;return checkAuthReference(reference===undefined?fallback:reference,caApprovedNativeAuth,caAuthFs,caAuthPath);}\n",
+    "binding": "nativeAuthStorage"
+  },
+  {
+    "path": "node_modules/@earendil-works/pi-coding-agent/dist/main.js",
+    "input": "b63583f13649b79a9057f92e615c4ed098666a65deb362ed64eabab775eef253",
+    "replacements": [
+      [
+        "const { migratedAuthProviders: migratedProviders, deprecationWarnings } = runMigrations(cwd);",
+        "const { migratedAuthProviders: migratedProviders, deprecationWarnings } = { migratedAuthProviders: [], deprecationWarnings: [] };"
+      ]
+    ],
+    "output": "7a1a0e7b55f1eb1c02cf2680b73ef25c35f88ee83f392d325aac2b581cad3a00"
+  },
+  {
+    "path": "node_modules/@earendil-works/pi-coding-agent/dist/core/agent-session.js",
+    "input": "cd1c9fc3139e6dcd5320b55414aa5fdf12dbea32d4fd38da2c9a57be0d3677c3",
+    "replacements": [
+      [
+        "        this._emit(event.type === \"agent_end\" ?",
+        "        captureEnding(event, this.sessionId);\n        this._emit(event.type === \"agent_end\" ?"
+      ],
+      [
+        "            contextUsage: this.getContextUsage(),",
+        "            aggregateUsage: aggregateSession(this.sessionManager),\n            contextUsage: this.getContextUsage(),"
+      ]
+    ],
+    "prepend": "import { captureEnding, aggregateSession } from \"./cost-integration/native.mjs\";\n",
+    "output": "4cece78219b3d130a1a287e6088aac5cba1c92b76934fa2cbf7033fd6efcb047"
+  },
+  {
+    "path": "node_modules/@earendil-works/pi-coding-agent/dist/core/session-manager.js",
+    "input": "2628f797997ea3a133573ff8f36a050cdc1d74d2d346b856f328e5e7da42aba1",
+    "replacements": [
+      [
+        "    _appendEntry(entry) {",
+        "    _appendEntry(entry) {\n        accountEntry(entry, this.sessionId);"
+      ],
+      [
+        "            parentSession: this.persist ? previousSessionFile : undefined,",
+        "            costLineageIncomplete: true,\n            parentSession: this.persist ? previousSessionFile : undefined,"
+      ]
+    ],
+    "prepend": "import { accountEntry } from \"./cost-integration/native.mjs\";\n",
+    "output": "a8c58e7940687f7de41686973d9ea5a917ed19784b209b3c2096d706405d5774"
+  },
+  {
+    "path": "node_modules/@earendil-works/pi-coding-agent/dist/modes/interactive/components/footer.js",
+    "input": "55b8492fb4ccda5e8f53a3a1882f091157dd85e08c9577db2f05e36020b22b88",
+    "replacements": [
+      [
+        "truncateToWidth, visibleWidth",
+        "truncateToWidth, visibleWidth, wrapTextWithAnsi"
+      ],
+      [
+        "            latestCacheHitRate,\n            contextUsage,",
+        "            latestCacheHitRate,\n            aggregateUsage: aggregateSession(sessionManager),\n            contextUsage,"
+      ],
+      [
+        "    render(width) {\n        const state = this.session.state;\n        const { usageTotals, latestCacheHitRate, contextUsage } = this.getSessionStats();\n        const contextWindow = contextUsage?.contextWindow ?? state.model?.contextWindow ?? 0;\n        const contextPercentValue = contextUsage?.percent ?? 0;\n        const contextPercent = contextUsage?.percent !== null ? contextPercentValue.toFixed(1) : \"?\";\n        // Replace home directory with ~\n        let pwd = formatCwdForFooter(this.session.sessionManager.getCwd(), process.env.HOME || process.env.USERPROFILE);\n        // Add git branch if available\n        const branch = this.footerData.getGitBranch();\n        if (branch) {\n            pwd = `${pwd} (${branch})`;\n        }\n        // Add session name if set\n        const sessionName = this.session.sessionManager.getSessionName();\n        if (sessionName) {\n            pwd = `${pwd} • ${sessionName}`;\n        }\n        // Build stats line\n        const statsParts = [];\n        if (usageTotals.input)\n            statsParts.push(`↑${formatTokens(usageTotals.input)}`);\n        if (usageTotals.output)\n            statsParts.push(`↓${formatTokens(usageTotals.output)}`);\n        if (usageTotals.cacheRead)\n            statsParts.push(`R${formatTokens(usageTotals.cacheRead)}`);\n        if (usageTotals.cacheWrite)\n            statsParts.push(`W${formatTokens(usageTotals.cacheWrite)}`);\n        if ((usageTotals.cacheRead > 0 || usageTotals.cacheWrite > 0) && latestCacheHitRate !== undefined) {\n            statsParts.push(`CH${latestCacheHitRate.toFixed(1)}%`);\n        }\n        // Kimi Coding is subscription-backed despite using API-key authentication.\n        const usingSubscription = state.model\n            ? state.model.provider === \"kimi-coding\" || this.session.modelRuntime.isUsingSubscription(state.model.provider)\n            : false;\n        if (usageTotals.cost || usingSubscription) {\n            const costStr = `$${usageTotals.cost.toFixed(3)}${usingSubscription ? \" (sub)\" : \"\"}`;\n            statsParts.push(costStr);\n        }\n        // Colorize context percentage based on usage\n        let contextPercentStr;\n        const autoIndicator = this.autoCompactEnabled ? \" (auto)\" : \"\";\n        const contextPercentDisplay = contextPercent === \"?\"\n            ? `?/${formatTokens(contextWindow)}${autoIndicator}`\n            : `${contextPercent}%/${formatTokens(contextWindow)}${autoIndicator}`;\n        if (contextPercentValue > 90) {\n            contextPercentStr = theme.fg(\"error\", contextPercentDisplay);\n        }\n        else if (contextPercentValue > 70) {\n            contextPercentStr = theme.fg(\"warning\", contextPercentDisplay);\n        }\n        else {\n            contextPercentStr = contextPercentDisplay;\n        }\n        statsParts.push(contextPercentStr);\n        if (areExperimentalFeaturesEnabled()) {\n            statsParts.push(`${theme.fg(\"dim\", \"•\")} ${theme.bold(theme.fg(\"warning\", \"xp\"))}`);\n        }\n        let statsLeft = statsParts.join(\" \");\n        // Add model name on the right side, plus thinking level if model supports it\n        const modelName = state.model?.id || \"no-model\";\n        let statsLeftWidth = visibleWidth(statsLeft);\n        // If statsLeft is too wide, truncate it\n        if (statsLeftWidth > width) {\n            statsLeft = truncateToWidth(statsLeft, width, \"...\");\n            statsLeftWidth = visibleWidth(statsLeft);\n        }\n        // Calculate available space for padding (minimum 2 spaces between stats and model)\n        const minPadding = 2;\n        // Add thinking level indicator if model supports reasoning\n        let rightSideWithoutProvider = modelName;\n        if (state.model?.reasoning) {\n            const thinkingLevel = state.thinkingLevel || \"off\";\n            rightSideWithoutProvider =\n                thinkingLevel === \"off\" ? `${modelName} • thinking off` : `${modelName} • ${thinkingLevel}`;\n        }\n        // A virtual model routes each request; show where the latest response went.\n        const routed = this.session.routedModel;\n        if (routed) {\n            const level = routed.thinkingLevel ? ` • ${routed.thinkingLevel}` : \"\";\n            rightSideWithoutProvider += ` → ${routed.model.id}${level}`;\n        }\n        // Prepend the provider in parentheses if there are multiple providers and there's enough room\n        let rightSide = rightSideWithoutProvider;\n        if (this.footerData.getAvailableProviderCount() > 1 && state.model) {\n            rightSide = `(${state.model.provider}) ${rightSideWithoutProvider}`;\n            if (statsLeftWidth + minPadding + visibleWidth(rightSide) > width) {\n                // Too wide, fall back\n                rightSide = rightSideWithoutProvider;\n            }\n        }\n        const rightSideWidth = visibleWidth(rightSide);\n        const totalNeeded = statsLeftWidth + minPadding + rightSideWidth;\n        let statsLine;\n        if (totalNeeded <= width) {\n            // Both fit - add padding to right-align model\n            const padding = \" \".repeat(width - statsLeftWidth - rightSideWidth);\n            statsLine = statsLeft + padding + rightSide;\n        }\n        else {\n            // Need to truncate right side\n            const availableForRight = width - statsLeftWidth - minPadding;\n            if (availableForRight > 0) {\n                const truncatedRight = truncateToWidth(rightSide, availableForRight, \"\");\n                const truncatedRightWidth = visibleWidth(truncatedRight);\n                const padding = \" \".repeat(Math.max(0, width - statsLeftWidth - truncatedRightWidth));\n                statsLine = statsLeft + padding + truncatedRight;\n            }\n            else {\n                // Not enough space for right side at all\n                statsLine = statsLeft;\n            }\n        }\n        // Apply dim to each part separately. statsLeft may contain color codes (for context %)\n        // that end with a reset, which would clear an outer dim wrapper. So we dim the parts\n        // before and after the colored section independently.\n        const dimStatsLeft = theme.fg(\"dim\", statsLeft);\n        const remainder = statsLine.slice(statsLeft.length); // padding + rightSide\n        const dimRemainder = theme.fg(\"dim\", remainder);\n        const pwdLine = truncateToWidth(theme.fg(\"dim\", pwd), width, theme.fg(\"dim\", \"...\"));\n        const lines = [pwdLine, dimStatsLeft + dimRemainder];\n        // Add extension statuses on a single line, sorted by key alphabetically\n        const extensionStatuses = this.footerData.getExtensionStatuses();\n        if (extensionStatuses.size > 0) {\n            const sortedStatuses = Array.from(extensionStatuses.entries())\n                .sort(([a], [b]) => a.localeCompare(b))\n                .map(([, text]) => sanitizeStatusText(text));\n            const statusLine = sortedStatuses.join(\" \");\n            // Truncate to terminal width with dim ellipsis for consistency with footer style\n            lines.push(truncateToWidth(statusLine, width, theme.fg(\"dim\", \"...\")));\n        }\n        return lines;\n    }",
+        "    render(width) {\n    if (width < 1) return [];\n    const state = this.session.state;\n    const { contextUsage, aggregateUsage } = this.getSessionStats();\n    const model = state.model;\n    const parts = [model ? `${model.provider}/${model.id}` : 'no model'];\n    if (model?.reasoning) parts.push(`thinking ${state.thinkingLevel || 'off'}`);\n    const routed = this.session.routedModel;\n    if (routed) parts.push(`→ ${routed.model.provider}/${routed.model.id}${routed.thinkingLevel ? ` · thinking ${routed.thinkingLevel}` : ''}`);\n    const percent = contextUsage?.percent;\n    const tokens = contextUsage?.tokens;\n    const window = contextUsage?.contextWindow;\n    let context = 'context unknown';\n    if (Number.isFinite(tokens) && Number.isFinite(window) && window > 0) {\n        context = `context ${formatTokens(tokens)}/${formatTokens(window)} used`;\n    }\n    parts.push(Number.isFinite(percent) && percent > 90 ? theme.fg('error', context) : Number.isFinite(percent) && percent > 70 ? theme.fg('warning', context) : context);\n    // A tracked subtotal is not an invoice, zero price is not unknown price.\n    const a = aggregateUsage;\n    if (a?.coverage === 'invalid') parts.push(theme.fg('error', 'usage accounting error · /session'));\n    else if (a?.knownCost > 0) parts.push(`tracked $${Number(a.knownCost.toPrecision(3))} (partial)`);\n    else if (a?.disjointRequestTokens > 0 && a.unknownPrice > 0) parts.push('cost unpriced');\n    if (areExperimentalFeaturesEnabled()) parts.push(theme.fg('warning', 'xp'));\n    const wrap = text => wrapTextWithAnsi(text, width);\n    // Orientation owns purpose/focus above the editor. Cwd/name remain native,\n    // except exact duplicates of that orientation (no inferred shortening).\n    const manager = this.session.sessionManager;\n    let pwd = formatCwdForFooter(manager.getCwd(), process.env.HOME || process.env.USERPROFILE);\n    const branch = this.footerData.getGitBranch();\n    if (branch) pwd += ` (${branch})`;\n    const name = manager.getSessionName();\n    const entries = manager.getBranch?.() ?? [];\n    const orientation = entries.filter(e => e.type === 'custom' && e.customType === 'vertrice-session-focus').at(-1)?.data;\n    if (name && name !== orientation?.purpose && name !== orientation?.focus && name !== [orientation?.purpose, orientation?.focus].filter(Boolean).join(' · ')) pwd += ` • ${name}`;\n    const lines = [...wrap(parts.join(' · ')), ...wrap(theme.fg('dim', pwd))];\n    const statuses = [...this.footerData.getExtensionStatuses().entries()].sort(([a], [b]) => a.localeCompare(b)).map(([, text]) => sanitizeStatusText(text)).filter(Boolean);\n    // Producers publish actionable signals only; never clip a decision/error.\n    if (statuses.length) lines.push(...wrap(statuses.join(' · ')));\n    return lines;\n}"
+      ]
+    ],
+    "prepend": "import { aggregateSession } from \"../../../core/cost-integration/native.mjs\";\n",
+    "output": "eb66a89bf242c3f546f91c9a8ccd8dd48dd8caa6a47d51dd657f8baf77f1088c"
+  },
+  {
+    "path": "node_modules/@earendil-works/pi-coding-agent/dist/modes/interactive/interactive-mode.js",
+    "input": "8c98aa79a90070c5df772b308fcfe3643656ebcd6fc909b52c25a6aa98153129",
+    "replacements": [
+      [
+        "theme.bold(\"Cost\")",
+        "theme.bold(\"Native parent/side cost (not aggregate)\")"
+      ],
+      [
+        "            return info;",
+        "            info += `\\n\\n${aggregateText(stats.aggregateUsage)}\\n${stats.aggregateUsage.gaps.join(\"; \")}`;\n            return info;"
+      ],
+      [
+        "            getAllThemes: () => getAvailableThemesWithPaths(),",
+        "            getThemeSelection: () => this.themeController.getThemeSelection(),\n            getAllThemes: () => getAvailableThemesWithPaths(),"
+      ],
+      [
+        "            getThemeSelection: () => this.themeController.getThemeSelection(),",
+        "            onThemeSelectionChange: (listener) => this.themeController.onThemeSelectionChange(listener),\n            getThemeSelection: () => this.themeController.getThemeSelection(),"
+      ]
+    ],
+    "prepend": "import { aggregateText } from \"../../core/cost-integration/native.mjs\";\n",
+    "output": "96b4d7c050e4e89b3c7af2e0040028673c1d84880f5e1b6015d718b041a36d23"
+  },
+  {
+    "path": "node_modules/@earendil-works/pi-coding-agent/dist/core/agent-session.d.ts",
+    "input": "9aac1437bb0b1929e59df01f4f7eeacc9b8f3245563feb9f9fed966885537d3d",
+    "replacements": [
+      [
+        "export interface SessionStats {",
+        "export interface SessionStats {\n    aggregateUsage: AggregateUsage | InvalidAggregateUsage;"
+      ]
+    ],
+    "prepend": "import type { AggregateUsage, InvalidAggregateUsage } from \"./cost-integration/usage-shape.js\";\n",
+    "output": "891edfadd9389abb2cc58610cb7481ae3d7d7be752fd69a876ecb69299c74328"
+  },
+  {
+    "path": "node_modules/@earendil-works/pi-coding-agent/dist/core/session-manager.d.ts",
+    "input": "ec861a04237f371ef5998e1fe1d02c4acfbeef809ffc1167fa9f7952cad21c44",
+    "replacements": [
+      [
+        "export interface SessionEntryBase {",
+        "export interface SessionEntryBase extends CostCarrier {"
+      ],
+      [
+        "    cwd: string;\n    parentSession?: string;",
+        "    cwd: string;\n    parentSession?: string;\n    costLineageIncomplete?: true;"
+      ],
+      [
+        "    message: AgentMessage;",
+        "    message: AgentMessage & { costReceipt?: CostReceipt };"
+      ]
+    ],
+    "prepend": "import type { CostCarrier, CostReceipt } from \"./cost-integration/native-contract.js\";\n",
+    "output": "e7aa3b51a64c83fcaf2738ecd0ef5803f57e3832bbdd35fbc1a710c0e2530915"
+  },
+  {
+    "path": "node_modules/@earendil-works/pi-coding-agent/dist/core/extensions/types.d.ts",
+    "input": "3c1728cdf8f9255273047cb260fddb6827637c55eb4edfe06f78f3e18823afd7",
+    "replacements": [
+      [
+        "    readonly theme: Theme;",
+        "    readonly theme: Theme;\n    /** Selected fixed name or light/dark pair; read-only, available in TUI mode. */\n    getThemeSelection?(): string | undefined;"
+      ],
+      [
+        "    getThemeSelection?(): string | undefined;",
+        "    getThemeSelection?(): string | undefined;\n    /** Post-selection notification (not repaint/save). Unsubscribe on session shutdown. */\n    onThemeSelectionChange?(listener: () => void): () => void;"
+      ]
+    ],
+    "output": "df129b50c418ecefb07ad9b0837f0d97c323d59cc842854611edb9134ec654cc"
+  },
+  {
+    "path": "node_modules/@earendil-works/pi-coding-agent/dist/modes/interactive/theme/theme-controller.js",
+    "input": "a2eb66dbd859a12bdc5349731704d2fdcea4a3bd60b81091e42b4ea0f465de8e",
+    "replacements": [
+      [
+        "    getThemeSelection() {",
+        "    selectionListeners = new Set();\n    onThemeSelectionChange(listener) {\n        this.selectionListeners.add(listener);\n        return () => this.selectionListeners.delete(listener);\n    }\n    notifySelectionChanged() {\n        for (const listener of this.selectionListeners) listener();\n    }\n    getThemeSelection() {"
+      ],
+      [
+        "            this.currentThemeSetting = themeName;",
+        "            this.currentThemeSetting = themeName;\n            this.notifySelectionChanged();"
+      ],
+      [
+        "        this.currentThemeSetting = themeSetting;\n        this.applyFromSettings();",
+        "        this.currentThemeSetting = themeSetting;\n        this.applyFromSettings();\n        this.notifySelectionChanged();"
+      ],
+      [
+        "    dispose() {\n        this.setAutoSync(false);",
+        "    dispose() {\n        this.selectionListeners.clear();\n        this.setAutoSync(false);"
+      ]
+    ],
+    "output": "8341ec228d9643d2b78cf207e51853ffa71dfc500187a445fa3733ff2a7a40f7"
+  },
+  {
+    "path": "node_modules/@earendil-works/pi-coding-agent/dist/modes/interactive/theme/theme-controller.d.ts",
+    "input": "7e30913889b5d02656868e6aeda10e1672f03cb6b986e0653ec7e158433fb9b8",
+    "replacements": [
+      [
+        "    getThemeSelection(): string | undefined;",
+        "    onThemeSelectionChange(listener: () => void): () => void;\n    getThemeSelection(): string | undefined;"
+      ]
+    ],
+    "output": "c828474de038f78f03cc4010429b3022c684b99528e89553205026929a05c7bb"
+  },
+  {
+    "path": "node_modules/@earendil-works/pi-coding-agent/dist/extensions/mcp/index.js",
+    "input": "c6a894092332186687a19a4699bcf9d333307531b0c670ee19823f9787c44ef3",
+    "replacements": [
+      [
+        ".filter((server) => isEnabled(server) && hasIndirectTools(server.entry))",
+        ".filter((server) => isEnabled(server) && (Boolean(process.env.PI_OFFLINE) ? [...configuredExposures(server.entry)].some(exposure => exposure !== \"hidden\") : hasIndirectTools(server.entry)))"
+      ],
+      [
+        "const intro = serversSectionIntro(new Set(reaches));",
+        "const intro = Boolean(process.env.PI_OFFLINE) ? 'Offline MCP servers: tools connect only on request. For requested HTTP tools call tool_search({server: \"exact name\", query: \"required tool\"}), then call the returned native tool. Stdio needs explicit /mcp reconnect <name>.' : serversSectionIntro(new Set(reaches));"
+      ],
+      [
+        "`- ${mcpNamespace(server.entry.name)} (${reaches[index]})`",
+        "`- ${mcpNamespace(server.entry.name)} (${Boolean(process.env.PI_OFFLINE) ? \"server: \" + JSON.stringify(server.entry.name) + (server.connection ? \"; \" + describeState(server, false) : \"; idle\") : reaches[index]})`"
+      ],
+      [
+        "return \"starting\";",
+        "return Boolean(process.env.PI_OFFLINE) ? \"idle (offline; connects on request)\" : \"starting\";"
+      ],
+      [
+        "const needsToolSearch = exposures.has(\"deferred\");",
+        "const needsToolSearch = exposures.has(\"deferred\") || (Boolean(process.env.PI_OFFLINE) && servers.some(server => isEnabled(server) && [...configuredExposures(server.entry)].some(exposure => exposure !== \"hidden\")));"
+      ],
+      [
+        "if (!connection)\n                return `MCP server \"${server.entry.name}\" is disabled.`;",
+        "if (!isEnabled(server)) return `MCP server \"${server.entry.name}\" is disabled.`;\n            if (!connection) {\n                try { await startConnection(server, Promise.all([server.ready, server.closing])); return server.connection?.state === \"connected\" ? undefined : describeState(server); }\n                catch (error) { server.ready = undefined; return errorMessage(error); }\n            }"
+      ],
+      [
+        "            await startConnection(server, server.closing);\n            return undefined;",
+        "            if (!Boolean(process.env.PI_OFFLINE)) await startConnection(server, server.closing);\n            emitChange();\n            return undefined;"
+      ],
+      [
+        "if (state === \"failed\" || state === \"disconnected\" || state === \"connected\" || state === \"needs-auth\") {\n                    items.push({ value: \"reconnect\", label: \"Reconnect\" });",
+        "if (!connection || state === \"failed\" || state === \"disconnected\" || state === \"connected\" || state === \"needs-auth\") {\n                    items.push({ value: \"reconnect\", label: connection ? \"Reconnect\" : \"Connect\" });"
+      ],
+      [
+        "(connection?.state ?? \"starting\")",
+        "(connection?.state ?? (Boolean(process.env.PI_OFFLINE) ? \"idle (offline; connects on request)\" : \"starting\"))"
+      ],
+      [
+        "if (enabled.length === 0) {",
+        "if (Boolean(process.env.PI_OFFLINE) || enabled.length === 0) {"
+      ],
+      [
+        "        pi.on(\"tool_call\", async (event, ctx) => {",
+        "        // Internal execution-only bridge: tool_search emits this after the native veto pipeline.\n        const discoverHttp = async (name, signal) => {\n            const server = findServer(name);\n            if (!server || !isEnabled(server) || ![...configuredExposures(server.entry)].some(exposure => exposure !== \"hidden\")) throw new Error(\"Unknown, disabled or hidden MCP server.\");\n            if (!(\"url\" in server.entry.config)) throw new Error(\"Stdio requires explicit /mcp reconnect \" + name + \"; tool_search connects only HTTP servers.\");\n            const lifetime = session.signal;\n            const cancelled = () => signal?.aborted || lifetime.aborted;\n            if (cancelled()) throw new Error(\"MCP discovery cancelled.\");\n            let discovery = server.discovery;\n            if (!discovery) {\n                discovery = { requesters: new Set(), pending: true };\n                server.discovery = discovery;\n                discovery.ready = (async () => {\n                    if (!server.connection) await startConnection(server, server.closing);\n                    else if (server.connection.state !== \"connected\") {\n                        const failure = await reconnect(server);\n                        if (failure) throw new Error(failure);\n                    }\n                    await waitForServers([server], lifetime);\n                })().finally(() => {\n                    discovery.pending = false;\n                    if (server.discovery === discovery) server.discovery = undefined;\n                });\n            }\n            const requester = Symbol();\n            discovery.requesters.add(requester);\n            let onAbort;\n            try {\n                await Promise.race([discovery.ready, new Promise(resolve => {\n                    onAbort = resolve;\n                    signal?.addEventListener(\"abort\", onAbort, { once: true });\n                    lifetime.addEventListener(\"abort\", onAbort, { once: true });\n                    if (cancelled()) resolve();\n                })]);\n                if (cancelled() || !servers.includes(server) || !isEnabled(server)) throw new Error(\"MCP discovery cancelled.\");\n                if (server.connection?.state !== \"connected\") throw new Error(\"MCP server \" + name + \": \" + describeState(server));\n            } finally {\n                signal?.removeEventListener(\"abort\", onAbort);\n                lifetime.removeEventListener(\"abort\", onAbort);\n                discovery.requesters.delete(requester);\n                if (cancelled() && discovery.pending && discovery.requesters.size === 0 && server.discovery === discovery) {\n                    // Invalidate publication before close; a new request waits for this attempt's cleanup.\n                    server.attempt = undefined;\n                    const connection = server.connection;\n                    const ready = server.ready;\n                    server.connection = undefined;\n                    server.ready = undefined;\n                    server.discovery = undefined;\n                    server.closing = track(Promise.all([server.closing, connection?.close(), ready]).then(() => undefined));\n                }\n            }\n        };\n        pi.events.on(\"vertrice:mcp:discover-http\", request => {\n            if (Boolean(process.env.PI_OFFLINE)) request.ready = discoverHttp(request.server, request.signal);\n        });\n        pi.on(\"tool_call\", async (event, ctx) => {"
+      ],
+      [
+        "if (signal.aborted || connecting.length === 0)",
+        "if (Boolean(process.env.PI_OFFLINE) || signal.aborted || connecting.length === 0)"
+      ],
+      [
+        "action === \"reconnect\" ? candidate.connection !== undefined : usesOAuth(candidate)",
+        "action === \"reconnect\" ? isEnabled(candidate) : usesOAuth(candidate)"
+      ],
+      [
+        "eligible: (candidate) => candidate.connection !== undefined,",
+        "eligible: (candidate) => isEnabled(candidate),"
+      ]
+    ],
+    "output": "3eaa7c25a58b2cbb61dfb4dd4da6f2ad9d2b9b07ebfe3447ddc1ed2d6215ba5e"
+  },
+  {
+    "path": "node_modules/@earendil-works/pi-coding-agent/dist/extensions/tool-search/tool.js",
+    "input": "122024d58d7047d5a876c03abb64a4f74ad8efdd04a848f53eccc3dd5eb3d596",
+    "replacements": [
+      [
+        "    query: Type.String({ description: \"Search query for deferred tools.\" }),",
+        "    server: Type.Optional(Type.String({ description: \"Exact MCP server name. Under offline, connects only this enabled visible HTTP server on request; omit to search available tools without connecting.\" })),\n    query: Type.String({ description: \"Search query for deferred tools.\" }),"
+      ],
+      [
+        "function searchAndLoad(tools, query, limit) {",
+        "function searchAndLoad(tools, query, limit, server) {"
+      ],
+      [
+        "isSearchable(tool.exposure) && !active.includes(tool.name)",
+        "server !== undefined ? tool.namespace?.name === `mcp__${server.replace(/-/g, \"_\")}` && (isSearchable(tool.exposure) || (tool.exposure === \"direct\" && active.includes(tool.name))) : isSearchable(tool.exposure) && !active.includes(tool.name)"
+      ],
+      [
+        "tools.setActiveTools([...active, ...matches.map((match) => match.name)]);",
+        "tools.setActiveTools([...new Set([...active, ...matches.map((match) => match.name)])]);"
+      ],
+      [
+        "reachesTools: () => \"all\",",
+        "reachesTools: input => input.server !== undefined ? [`mcp__${input.server.replace(/-/g, \"_\")}`] : \"all\","
+      ],
+      [
+        "async execute(_toolCallId, { query, limit })",
+        "async execute(_toolCallId, { query, limit, server }, signal)"
+      ],
+      [
+        "searchAndLoad(options.tools, query, max)",
+        "searchAndLoad(options.tools, query, max, server)"
+      ],
+      [
+        ": `Loaded ${tools.length}",
+        ": `${server === undefined ? \"Loaded\" : \"Available\"} ${tools.length}"
+      ],
+      [
+        "For MCP tool discovery, always use \\`${TOOL_SEARCH_TOOL_NAME}\\`.",
+        "For MCP tool discovery, always use \\`${TOOL_SEARCH_TOOL_NAME}\\`. Under offline, use the exact server selector from mcp_servers to connect only a requested HTTP server; without server this searches already available tools."
+      ],
+      [
+        "            const tools = options.tools ?",
+        "            if (server !== undefined && Boolean(process.env.PI_OFFLINE)) {\n                const request = { server, signal, ready: undefined };\n                options.tools?.events?.emit(\"vertrice:mcp:discover-http\", request);\n                await request.ready;\n            }\n            const tools = options.tools ?"
+      ]
+    ],
+    "output": "384af32a6bf0103fdbc13aedc2823ca0dfc391d2e0058d3c3f7e7e7479c79ae8"
+  },
+  {
+    "path": "node_modules/@earendil-works/pi-coding-agent/dist/extensions/tool-search/tool.d.ts",
+    "input": "24333ccaf2c06d7550ae96cd55404ea0a1a1d780f33be44f7aa1e1adb4f7025a",
+    "replacements": [
+      [
+        "export declare const toolSearchSchema: Type.TObject<{",
+        "export declare const toolSearchSchema: Type.TObject<{\n    server: Type.TOptional<Type.TString>;"
+      ],
+      [
+        "For MCP tool discovery, always use `tool_search`.\";",
+        "For MCP tool discovery, always use `tool_search`. Under offline, use the exact server selector from mcp_servers to connect only a requested HTTP server; without server this searches already available tools.\";"
+      ],
+      [
+        "tools?: Pick<ExtensionAPI, \"getAllTools\" | \"getActiveTools\" | \"setActiveTools\">;",
+        "tools?: Pick<ExtensionAPI, \"getAllTools\" | \"getActiveTools\" | \"setActiveTools\"> & Partial<Pick<ExtensionAPI, \"events\">>;"
+      ]
+    ],
+    "output": "d833f493fff70e29bd17d76258b14e37a605036a14112f6b9c490aa8c5b6328f"
+  },
+  {
+    "path": "node_modules/@earendil-works/pi-coding-agent/dist/extensions/mcp/cli.js",
+    "input": "2e7121b30d2d53c47c9ecf6c0b00d00d0d1d0141d3607769b4a3cc03eae15be7",
+    "replacements": [
+      [
+        "const credentials = options.credentials ?? new McpOAuthCredentialStore();",
+        "const credentials = command === \"list\" && Boolean(process.env.PI_OFFLINE) ? undefined : options.credentials ?? new McpOAuthCredentialStore();"
+      ],
+      [
+        "        const connection = createConnection(entry, options, credentials, providerToken);\n        try {",
+        "        if (Boolean(process.env.PI_OFFLINE)) { report.state = \"idle\"; return report; }\n        const connection = createConnection(entry, options, credentials, providerToken);\n        try {"
+      ],
+      [
+        "report.enabled && report.state !== \"connected\"",
+        "report.enabled && report.state !== \"connected\" && report.state !== \"idle\""
+      ],
+      [
+        "list                    Show state, tools, and errors (exits 1 on failure)",
+        "list                    Show state, tools, and errors (offline: metadata only; idle is not a connection check)"
+      ]
+    ],
+    "output": "d871bb6b7558942bfc15055f93062ad14f4d8b6f9273860c52943c4deb01508a"
+  },
+  {
+    "path": "node_modules/@earendil-works/pi-coding-agent/dist/bundle/chunks/chunk-XGGZYFNG.js",
+    "input": "e79117ae45c426c03f79c5a7495e9b6b09341d50cf8743835d021442491939a8",
+    "replacements": [
+      [
+        "toolSearchSchema=typebox_exports.Object({query:",
+        "toolSearchSchema=typebox_exports.Object({server:typebox_exports.Optional(typebox_exports.String({description:\"Exact MCP server name; offline connects only this requested enabled visible HTTP server.\"})),query:"
+      ],
+      [
+        "function searchAndLoad(tools,query,limit)",
+        "function searchAndLoad(tools,query,limit,server)"
+      ],
+      [
+        "isSearchable(tool.exposure)&&!active.includes(tool.name)",
+        "server !== undefined ? tool.namespace?.name === `mcp__${server.replace(/-/g, \"_\")}` && (isSearchable(tool.exposure) || (tool.exposure === \"direct\" && active.includes(tool.name))) : isSearchable(tool.exposure) && !active.includes(tool.name)"
+      ],
+      [
+        "tools.setActiveTools([...active,...matches.map(match=>match.name)])",
+        "tools.setActiveTools([...new Set([...active,...matches.map(match=>match.name)])])"
+      ],
+      [
+        "reachesTools:()=>\"all\",async execute(_toolCallId,{query,limit})",
+        "reachesTools:input=>input.server!==undefined?[`mcp__${input.server.replace(/-/g,\"_\")}`]:\"all\",async execute(_toolCallId,{query,limit,server},signal)"
+      ],
+      [
+        "searchAndLoad(options.tools,query,max)",
+        "searchAndLoad(options.tools,query,max,server)"
+      ],
+      [
+        "`Loaded ${tools.length}",
+        "`${server===undefined?\"Loaded\":\"Available\"} ${tools.length}"
+      ],
+      [
+        "For MCP tool discovery, always use \\`${TOOL_SEARCH_TOOL_NAME}\\`.",
+        "For MCP tool discovery, always use \\`${TOOL_SEARCH_TOOL_NAME}\\`. Under offline, use the exact server selector from mcp_servers to connect only a requested HTTP server; without server this searches already available tools."
+      ],
+      [
+        "let tools=options.tools?",
+        "if (server !== undefined && Boolean(process.env.PI_OFFLINE)) {\n                const request = { server, signal, ready: undefined };\n                options.tools?.events?.emit(\"vertrice:mcp:discover-http\", request);\n                await request.ready;\n            }\n            let tools=options.tools?"
+      ]
+    ],
+    "output": "9b988d2818a3668d5b8006e5833ab9a47b1f43d36b3b708d125da2b5578c1a39"
+  },
+  {
+    "path": "node_modules/@earendil-works/pi-coding-agent/dist/bundle/chunks/cli-6VYTH55I.js",
+    "input": "ec517916bbfdf33d11ee5e02a008888f76843e4f2e5290ea603a34e015414750",
+    "replacements": [
+      [
+        "credentials=options.credentials??new McpOAuthCredentialStore",
+        "credentials=command===\"list\"&&Boolean(process.env.PI_OFFLINE)?undefined:options.credentials??new McpOAuthCredentialStore"
+      ],
+      [
+        "if(!report.enabled)return report;let connection=",
+        "if(!report.enabled)return report;if(Boolean(process.env.PI_OFFLINE)){report.state=\"idle\";return report}let connection="
+      ],
+      [
+        "report.enabled&&report.state!==\"connected\"",
+        "report.enabled&&report.state!==\"connected\"&&report.state!==\"idle\""
+      ],
+      [
+        "list                    Show state, tools, and errors (exits 1 on failure)",
+        "list                    Show state, tools, and errors (offline: metadata only; idle is not a connection check)"
+      ]
+    ],
+    "output": "220542e57c52ed8f34758a6da1de1a9ee7b8a3a2cb91c5d5b47e965c2b794b55"
+  }
+]

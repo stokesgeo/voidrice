@@ -1,4 +1,9 @@
-# OpenBSD: preserve normal HTML opening; the profile selects the text renderer.
-# NeoMutt's default mailcap_sanitize must stay enabled for MIME parameters.
-text/html; /usr/local/lib/mutt-wizard/openfile %s ; nametemplate=%s.html
+# Explicit view retains a private attachment copy; auto_view renders local text.
+# Keep NeoMutt's default mailcap_sanitize enabled for MIME parameters.
+text/html; vertrice-mail-openfile %s ; nametemplate=%s.html
 text/html; html-to-text %s 1024 %{charset}; nametemplate=%s.html; copiousoutput;
+application/pdf; vertrice-mail-openfile %s ; nametemplate=%s.pdf
+image/png; vertrice-mail-openfile %s ; nametemplate=%s.png
+image/jpeg; vertrice-mail-openfile %s ; nametemplate=%s.jpg
+image/svg+xml; vertrice-mail-openfile %s ; nametemplate=%s.svg
+video/*; vertrice-mail-openfile %s

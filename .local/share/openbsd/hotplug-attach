@@ -1,7 +1,8 @@
 #!/bin/sh
 
-# /etc/hotplug/attach: hotplugd(8) runs it as root when a device attaches, with
-# the device class in $1 and its name in $2. Class 2 is a disk: write its name
-# (sd1) to the file that hotplug-watch reads.
+# /etc/hotplug/attach: hotplugd(8) runs it as root when a device attaches,
+# with the device class in $1 and its name in $2. Class 2 is a disk: write
+# its name to the file hotplug-watch watches. usb-handler reconciles the whole
+# disk state, so this file is a trigger, not a record.
 
 [ "$1" = 2 ] && echo "$2" >/var/db/hotplug-disk

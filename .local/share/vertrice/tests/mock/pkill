@@ -11,7 +11,7 @@ sig=TERM
 case $1 in -HUP|-INT|-KILL|-TERM|-USR1|-USR2|-[0-9]*) sig=${1#-}; shift ;; esac
 st=1
 for pid in $("$VT_REAL_PGREP" "$@"); do
-	case $("$VT_REAL_PS" -o command= -p "$pid" 2>/dev/null) in
+	case $("$VT_REAL_PS" -ww -o command= -p "$pid" 2>/dev/null) in
 	*"$T/"*) kill -s "$sig" "$pid" && st=0 ;;
 	esac
 done

@@ -1,33 +1,43 @@
 #!/bin/sh
 
-# One renderer selection for LF and HTML mail. The login profile owns the
-# default; the unset-variable fallback preserves older callers' Lynx behavior.
+# One renderer selection for LF and HTML mail. Preserve an explicit choice;
+# without one, select an installed supported renderer, not a missing default.
 # Usage: html-to-text FILE [WIDTH [MIME-CHARSET]]
 [ "$#" -ge 1 ] && [ "$#" -le 3 ] || { echo 'usage: html-to-text FILE [WIDTH [MIME-CHARSET]]' >&2; exit 2; }
 file=$1
 width=${2:-80}
 charset=${3:-}
-browser=${TERMINAL_BROWSER:-lynx}
+browser=${TERMINAL_BROWSER:-}
+if [ -z "$browser" ]; then
+	for candidate in w3m lynx elinks; do
+		if command -v "$candidate" >/dev/null 2>&1; then browser=$candidate; break; fi
+	done
+fi
+[ -n "$browser" ] && command -v "$browser" >/dev/null 2>&1 || {
+	echo 'html-to-text: selected renderer unavailable (supported: w3m, lynx, elinks)' >&2; exit 127;
+}
 
 case $width in ''|*[!0-9]*|0) echo 'html-to-text: width must be a positive integer' >&2; exit 2 ;; esac
 # Charset names are data, never shell code or ELinks configuration syntax.
 case $charset in *[!A-Za-z0-9_.:+-]*) echo 'html-to-text: invalid charset name' >&2; exit 2 ;; esac
 case $charset in [Uu][Ss]-[Aa][Ss][Cc][Ii][Ii]) charset= ;; esac
-case $file in -?*) file=./$file ;; esac
+case $file in -*) file=./$file ;; esac
+[ -f "$file" ] && [ -r "$file" ] || { echo 'html-to-text: readable local file required' >&2; exit 2; }
 
 if [ -z "$charset" ]; then
 	charset=ISO-8859-1
-	if [ "${browser##*/}" = w3m ]; then
-		# W3m's Latin-1 default can mask valid UTF-8 in short HTML. Validate
-		# bytes rather than guessing from the page's words or punctuation.
-		command -v iconv >/dev/null 2>&1 || { echo 'html-to-text: iconv is required for w3m charset detection' >&2; exit 127; }
-		if iconv -f UTF-8 -t UTF-8 "$file" >/dev/null 2>&1; then charset=UTF-8; fi
-	fi
+	# Validate bytes rather than guessing from words. An explicit MIME charset
+	# always wins; the legacy fallback applies only to unlabeled non-UTF-8.
+	command -v iconv >/dev/null 2>&1 || { echo 'html-to-text: iconv required for charset detection' >&2; exit 127; }
+	if iconv -f UTF-8 -t UTF-8 "$file" >/dev/null 2>&1; then charset=UTF-8; fi
 fi
 
 case ${browser##*/} in
-	w3m) exec "$browser" -dump -cols "$width" -o "document_charset=$charset" -O UTF-8 "$file" ;;
-	lynx) exec "$browser" -width="$width" -assume_charset="$charset" -display_charset=utf-8 -dump "$file" ;;
+	w3m) exec "$browser" -config /dev/null -dump -T text/html -cols "$width" \
+		-I "$charset" -O UTF-8 -no-cookie -o frame=0 -o meta_refresh=0 \
+		-o display_image=0 < "$file" ;;
+	lynx) exec "$browser" -localhost -restrictions=all -width="$width" \
+		-assume_charset="$charset" -display_charset=utf-8 -dump "$file" ;;
 	elinks)
 		# ELinks -eval sets native options, not shell code. Plain previews must
 		# not execute page scripts or fetch remote CSS from HTML mail.

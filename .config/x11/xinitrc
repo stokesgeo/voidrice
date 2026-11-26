@@ -26,6 +26,8 @@ fi
 # sbar as its bar. Under cwm the bar is a one-line terminal on the bottom edge,
 # named vbar for cwmrc's gap, ignore and autogroup lines; it is wider than
 # the screen, and the rest is cut off. st and xterm spell the options apart.
+# The dwm and st arms are optional (pkg_add dwm st); the literal flags belong to
+# that tool, not to $WM or $TERMINAL.
 [ -n "$SSH_AUTH_SOCK" ] || set -- ssh-agent
 # Keep ownership of session jobs: xenodm does not stop them for us.
 trap 'kill "$themepid" "$hotplugpid" "$barpid" 2>/dev/null' EXIT

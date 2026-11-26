@@ -16,7 +16,7 @@ takes() {
 # list takes.
 sel() {
 	command -v git >/dev/null 2>&1 || skip "no git"
-	git -C "$REPO" ls-files 2>/dev/null | sort >"$T/all"
+	git -C "$REPO" ls-files -co --exclude-standard 2>/dev/null | sort -u >"$T/all"
 	[ -s "$T/all" ] || skip "not run in a clone of the repository"
 	git init -q "$T/r" 2>/dev/null && cd "$T/r" || fail "git init"
 	e=$(git hash-object -w --stdin </dev/null)
@@ -118,4 +118,10 @@ t_select_every_file() {
 		.local/share/vertrice/tests/run .local/share/vertrice/tests/check \
 		.local/share/openbsd/pi/mcp.example.json
 	takes_all "repo-only wallpaper sources" "$T/repo" .local/share/vertrice/KEYS.svg .local/share/bg
+}
+
+t_select_candidate_resources() {
+	command -v python3 >/dev/null 2>&1 || skip "no python3"
+	python3 "$REPO/.local/share/vertrice/tests/candidate-selection.py" ||
+		fail "candidate selection"
 }

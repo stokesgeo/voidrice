@@ -1,0 +1,18 @@
+#!/bin/sh
+# Whole-machine entrypoint; root's --nightly phase drops privilege for --user.
+set -eu
+case $#:$* in
+0:) exec doas /usr/local/sbin/vertrice-upgrade --nightly "$(id -un)" ;;
+1:--user) set -- ;;
+*:--pi|*:--pi\ *) ;; # Exact remaining options are checked before updater work.
+*) echo 'usage: vertrice-update [--user | --pi [--prepare] [--version X.Y.Z] [--package @earendil-works/pi-coding-agent]]' >&2; exit 2 ;;
+esac
+[ "$(id -u)" != 0 ] || { echo 'vertrice-update: user updates refuse root.' >&2; exit 1; }
+umask 077
+npm=$(command -v npm || :)
+# No inherited Node preload options, npm credentials/config, or provider keys reach
+# registry/install/smoke processes. PATH still selects the locally installed tools.
+exec env -i HOME="$HOME" PATH="$PATH" \
+  VERTRICE_SCAN_DB_DAYS="${VERTRICE_SCAN_DB_DAYS-}" \
+  VERTRICE_SCAN_SECONDS="${VERTRICE_SCAN_SECONDS-}" \
+  node "$HOME/.local/share/openbsd/user-updates.cjs" "$npm" "$@"

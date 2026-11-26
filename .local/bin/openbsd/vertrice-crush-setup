@@ -1,0 +1,102 @@
+#!/usr/bin/env python3
+import ast
+import json
+import os
+from pathlib import Path
+import runpy
+import shutil
+import stat
+import subprocess
+import sys
+import tempfile
+
+
+def main():
+    if os.getuid() == 0 or os.geteuid() != os.getuid():
+        raise ValueError("run as the ordinary laptop user, not root")
+    home = Path(os.environ["HOME"])
+    current = home / ".local/share/vertrice-crush/current"
+    if os.path.lexists(current):
+        print("vertrice-crush-setup: existing selector retained; no overwrite or migration")
+        return
+    helpers = runpy.run_path(str(Path(__file__).with_name("crush")))
+    directory, regular, digest = (helpers[key] for key in ("directory", "regular", "digest"))
+    app = helpers["app_root"](True)
+    assets = home / ".local/share/openbsd/crush"
+    for path in (assets.parent, assets):
+        directory(path)
+    acquire = assets / "acquire.py"
+    regular(acquire)
+    constants = {}
+    for node in ast.parse(regular(assets / "build.py")).body:
+        if isinstance(node, ast.Assign) and len(node.targets) == 1 and isinstance(node.targets[0], ast.Name):
+            if node.targets[0].id in ("ORIGIN", "COMMIT", "PATCH_SHA256", "MANIFEST_SHA256"):
+                constants[node.targets[0].id] = ast.literal_eval(node.value)
+    manifest_data = regular(assets / "source-manifest.json")
+    if digest(manifest_data) != constants["MANIFEST_SHA256"]:
+        raise ValueError("installed source manifest checksum mismatch")
+    if digest(regular(assets / "crush.patch")) != constants["PATCH_SHA256"]:
+        raise ValueError("installed patch checksum mismatch")
+    manifest = json.loads(manifest_data)
+    parent = Path(tempfile.mkdtemp(prefix="setup-", dir=app))
+    try:
+        directory(parent, True)
+        work = parent / "work"
+        env = {"PATH": "/bin:/usr/bin:/usr/local/bin", "LANG": "C", "HOME": str(parent)}
+        with (parent / "build.log").open("xb") as log:
+            subprocess.run([sys.executable, str(acquire), "--work", str(work)], check=True, env=env, stdin=subprocess.DEVNULL, stdout=log, stderr=subprocess.STDOUT, timeout=10800)
+        directory(work, True)
+        acquisition = regular(work / "acquisition.json")
+        identity = json.loads(acquisition)
+        expected = {"upstream": constants["ORIGIN"], "commit": constants["COMMIT"], "patch_sha256": constants["PATCH_SHA256"], "source_manifest_sha256": constants["MANIFEST_SHA256"]}
+        if any(identity.get(key) != value for key, value in expected.items()) or identity.get("source_unchanged_after_acquisition") is not True:
+            raise ValueError("acquisition source identity mismatch")
+        directory(work / "build", True)
+        source = work / "build/source"
+        directory(source)
+        actual = {}
+        for path in source.rglob("*"):
+            info = path.lstat()
+            if stat.S_ISDIR(info.st_mode):
+                directory(path)
+                continue
+            data = regular(path)
+            actual[path.relative_to(source).as_posix()] = {"mode": "100755" if info.st_mode & 0o111 else "100644", "sha256": digest(data)}
+        if actual != manifest:
+            raise ValueError("built source differs from pinned manifest")
+        binary = regular(work / "build/crush", True)
+        notices = {"LICENSE.md": regular(source / "LICENSE.md"), "vimbubble-LICENSE": regular(source / "third_party/vimbubble/LICENSE")}
+        if any(not data.strip() for data in notices.values()):
+            raise ValueError("missing license notice")
+        generation = Path(tempfile.mkdtemp(prefix="gen-", dir=app / "generations"))
+        (generation / "notices").mkdir(mode=0o700)
+        files = {"crush": binary, "acquisition.json": acquisition}
+        files.update({"notices/" + name: data for name, data in notices.items()})
+        receipt = {"schema": 1, "acquisition_sha256": digest(acquisition), "source": expected, "binary_sha256": digest(binary), "notices": {name: digest(data) for name, data in notices.items()}}
+        files["installation.json"] = (json.dumps(receipt, indent=2) + "\n").encode()
+        for name, data in files.items():
+            with (generation / name).open("xb") as output:
+                output.write(data)
+            (generation / name).chmod(0o500 if name == "crush" else 0o400)
+        helpers["validate"](generation)
+        os.symlink("generations/" + generation.name, app / "current")
+    except BaseException:
+        print("vertrice-crush-setup: retained diagnostic workspace: " + str(parent), file=sys.stderr)
+        raise
+    try:
+        for root, dirs, files in os.walk(parent, followlinks=False):
+            path = Path(root)
+            directory(path)
+            path.chmod(0o700)
+        shutil.rmtree(parent)
+    except (OSError, ValueError) as error:
+        print("vertrice-crush-setup: installed successfully; retained workspace after cleanup failure: " + str(parent) + ": " + str(error), file=sys.stderr)
+    print("vertrice-crush-setup: installed private Crush generation")
+
+
+if __name__ == "__main__":
+    os.umask(0o077)
+    try:
+        main()
+    except (OSError, ValueError, KeyError, TypeError, SyntaxError, subprocess.SubprocessError) as error:
+        sys.exit("vertrice-crush-setup: " + str(error))

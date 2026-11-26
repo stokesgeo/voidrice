@@ -1,0 +1,8 @@
+{
+  "name": "vertrice-portable-build-tools",
+  "version": "1.0.0",
+  "private": true,
+  "devDependencies": {
+    "esbuild": "0.25.5"
+  }
+}

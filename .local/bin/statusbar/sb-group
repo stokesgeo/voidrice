@@ -1,0 +1,8 @@
+#!/bin/sh
+
+# sb-group: the current cwm group number, from _NET_CURRENT_DESKTOP.
+# cwm's groups 1-9 are the same numbers; 0 is the scratchpad group.
+
+n=$(xprop -root _NET_CURRENT_DESKTOP 2>/dev/null | sed -n 's/.*= //p')
+[ -n "$n" ] || exit 0
+printf ' %s\n' "$n"

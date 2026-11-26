@@ -4,7 +4,8 @@
 #	Run by itself, set the wallpaper (at X start).
 #	If given a file, set that as the new wallpaper.
 #	If given a directory, choose random file in it.
-#	If wal is installed and PALETTE=wal, also generates a colorscheme.
+#	If PALETTE=wal, also generates a colorscheme; if that fails, uses
+#	the clock's scheme.
 
 # Location of link to wallpaper link.
 data="${XDG_DATA_HOME:-$HOME/.local/share}"
@@ -17,14 +18,21 @@ esac done
 
 shift $((OPTIND - 1))
 
-[ "$#" -gt 0 ] && trueloc="$(readlink -f "$1")" &&
-if [ -d "$trueloc" ]; then	# No file(1) inode/directory type or shuf(1) here: test -d, sort -R.
-	ln -sf "$(find "$trueloc" -type f \( -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.png' -o -iname '*.gif' \) | sort -R | head -n 1)" "$bgloc" && [ -z "$silent" ] && notify-send -i "$bgloc" "Random Wallpaper chosen."
-else
-	case "$(file -b --mime-type "$trueloc")" in	# the Mac's file -i means something else
-		image/* ) ln -sf "$trueloc" "$bgloc" && [ -z "$silent" ] && notify-send -i "$bgloc" "Changing wallpaper..." ;;
-		*) [ -z "$silent" ] && notify-send "🖼️ Error" "Not a valid image or directory." ; exit 1;;
-	esac
+if [ "$#" -gt 0 ]; then
+	# An argument that does not resolve must not fall back to the saved choice.
+	trueloc=$(readlink -f "$1" 2>/dev/null)
+	if [ -z "$trueloc" ]; then
+		[ -z "$silent" ] && notify-send "🖼️ Error" "Not a valid image or directory."
+		exit 1
+	fi
+	if [ -d "$trueloc" ]; then	# No file(1) inode/directory type or shuf(1) here: test -d, sort -R.
+		ln -sf "$(find "$trueloc" -type f \( -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.png' -o -iname '*.gif' \) | sort -R | head -n 1)" "$bgloc" && [ -z "$silent" ] && notify-send -i "$bgloc" "Random Wallpaper chosen."
+	else
+		case "$(file -b --mime-type "$trueloc")" in	# the Mac's file -i means something else
+			image/* ) ln -sf "$trueloc" "$bgloc" && [ -z "$silent" ] && notify-send -i "$bgloc" "Changing wallpaper..." ;;
+			*) [ -z "$silent" ] && notify-send "🖼️ Error" "Not a valid image or directory." ; exit 1;;
+		esac
+	fi
 fi
 
 # With no saved choice, use this system's default without creating a user link.
@@ -36,9 +44,15 @@ if [ ! -e "$wallpaper" ]; then
 	esac
 fi
 
-# pywal is opt-in (PALETTE=wal in the profile); otherwise `theme` sets the colours.
-if [ "$PALETTE" = wal ] && command -v wal >/dev/null 2>&1 ; then
-	wal -n -i "$(readlink -f "$wallpaper")" -o "${XDG_CONFIG_HOME:-$HOME/.config}/wal/postrun" >/dev/null 2>&1
+# PALETTE=wal is opt-in: the native wal shim (~/.local/bin/wal, ImageMagick)
+# derives the palette from the wallpaper. The theme day/night schemes are the
+# default, and take over when the palette cannot be generated or applied.
+if [ "$PALETTE" = wal ]; then
+	if ! wal -n -i "$(readlink -f "$wallpaper")" -o "${XDG_CONFIG_HOME:-$HOME/.config}/wal/postrun" >/dev/null 2>&1; then
+		[ -z "$silent" ] && notify-send "🖼️ Error" "Wallpaper palette failed; using the clock scheme."
+		# theme auto is a no-op under PALETTE=wal: clear the opt-in here.
+		command -v theme >/dev/null 2>&1 && PALETTE= theme auto
+	fi
 fi
 
 # Fit the key guide in full; photographs keep the normal cropped fill.

@@ -1,10 +1,32 @@
 #!/bin/sh
-# Native general-user Pi. Not the experimental work-folder box.
+# Resolve the selector once: a later update must not move a running session.
 set -eu
 app=$HOME/.local/share/vertrice-pi
-if [ ! -x "$app/node_modules/.bin/pi" ]; then
+if [ -e "$app/current" ] || [ -L "$app/current" ]; then
+	app=$(CDPATH= cd -P "$app/current" && pwd -P)
+fi
+# Complete B generations own their resource/profile route. Only older native
+# generations lack this entrypoint; keep that route for selector backout.
+entry=$app/node_modules/.bin/pi
+if [ -e "$app/pi" ] || [ -L "$app/pi" ]; then
+	entry=$app/pi
+fi
+# A present but broken generation entrypoint must not silently bypass its route.
+if [ ! -x "$entry" ]; then
 	echo 'pi: user installation missing; vertrice-pi-setup must finish first.' >&2
 	exit 1
 fi
 umask 077
-exec "$app/node_modules/.bin/pi" "$@"
+# Route native self-update through the same generation lock, never npm in-place.
+PI_SELF_UPDATE_COMMAND="$HOME/.local/bin/openbsd/vertrice-update --pi"
+export PI_SELF_UPDATE_COMMAND
+# Reset inherited terminal modes once, here rather than in a byte patch of the
+# runtime that would need re-qualifying on every upstream bump. A program that
+# crashed after enabling mouse reporting or the alternate screen leaves wheel
+# and Shift+PageUp dead in regular mode, because Pi's inline renderer never
+# clears modes it did not set. Fullscreen re-establishes its own modes. Only a
+# terminal can hold such state, so RPC/print/JSON and piped runs emit nothing.
+if [ -t 1 ]; then
+	printf '\033[?1000l\033[?1002l\033[?1003l\033[?1004l\033[?1006l\033[?1049l'
+fi
+exec "$entry" "$@"

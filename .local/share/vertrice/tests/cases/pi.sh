@@ -3,8 +3,10 @@ pi_setup() {
 	for m in id node npm; do ln -s "$VT_MOCKS/_log" "$T/bin/$m"; done
 	echo 1000 >"$VT_STATE/out.id"
 	app=$HOME/.local/share/vertrice-pi
-	mkdir -p "$HOME/.local/share/openbsd/pi"
-	cp "$REPO/.local/share/openbsd/pi/package.json" "$REPO/.local/share/openbsd/pi/package-lock.json" "$HOME/.local/share/openbsd/pi/"
+	mkdir -p "$HOME/.local/share/openbsd/pi/acquire"
+	: >"$HOME/.local/share/openbsd/pi/acquire/prepare.mjs"
+	mkdir -p "$HOME/.local/bin/openbsd"
+	ln -s "$VT_MOCKS/_log" "$HOME/.local/bin/openbsd/vertrice-update"
 }
 
 t_pi_setup_refuses_root() {
@@ -17,33 +19,41 @@ t_pi_setup_refuses_root() {
 
 t_pi_setup_repeat_skips_npm() {
 	pi_setup
-	mkdir -p "$app/node_modules/.bin"
-	ln -s "$VT_MOCKS/_log" "$app/node_modules/.bin/pi"
-	echo 1.5.0 >"$VT_STATE/out.pi"
-	cp "$REPO/.local/share/openbsd/pi/package-lock.json" "$app/package-lock.json"
+	mkdir -p "$app/node_modules"
+	echo retained >"$app/node_modules/sentinel"
 	"$VT_SH" "$REPO/.local/bin/openbsd/vertrice-pi-setup" >"$T/out" 2>&1 || fail 'setup repeat'
-	notlogged '^npm '
-	[ -d "$HOME/.pi/agent" ] || fail 'private agent directory absent'
-	logged '^node .*seed-settings.mjs$'
+	notlogged '^npm |^vertrice-update '
+	[ ! -e "$HOME/.pi" ] || fail 'existing profile unexpectedly initialized'
+	eq 'existing installation preserved' retained "$(cat "$app/node_modules/sentinel")"
 }
 
 t_pi_setup_package_failure_stops() {
 	pi_setup
-	echo 17 >"$VT_STATE/rc.npm"
+	echo 17 >"$VT_STATE/rc.vertrice-update"
 	"$VT_SH" "$REPO/.local/bin/openbsd/vertrice-pi-setup" >"$T/out" 2>&1
-	eq 'npm failure preserved' 17 "$?"
-	logged '^npm ci --ignore-scripts --no-audit --no-fund '
-	hasnt 'no false success' 'installed. Account' "$(cat "$T/out")"
+	eq 'updater failure preserved' 17 "$?"
+	logged '^vertrice-update --pi --install-first --version 1.6.0$'
+	notlogged '^npm ci '
+	hasnt 'no false success' 'installed' "$(cat "$T/out")"
 }
 
-t_pi_setup_checks_installed_version() {
+t_pi_setup_acquisition_failure_stops() {
 	pi_setup
-	mkdir -p "$app/node_modules/.bin"
-	ln -s "$VT_MOCKS/_log" "$app/node_modules/.bin/pi"
-	echo 0.0.0 >"$VT_STATE/out.pi"
+	echo 19 >"$VT_STATE/rc.node"
 	"$VT_SH" "$REPO/.local/bin/openbsd/vertrice-pi-setup" >"$T/out" 2>&1
-	eq 'wrong installed version fails' 1 "$?"
-	logged '^npm ci '
+	eq 'acquisition failure preserved' 19 "$?"
+	logged '^node .*pi/acquire/prepare.mjs .*vertrice-pi/build-inputs$'
+	notlogged '^vertrice-update '
+	[ ! -e "$app/profile" ] && [ ! -e "$app/current" ] || fail 'acquisition failure published runtime'
+}
+
+t_pi_setup_first_install_uses_shared_updater() {
+	pi_setup
+	"$VT_SH" "$REPO/.local/bin/openbsd/vertrice-pi-setup" >"$T/out" 2>&1 || fail 'first-install delegation'
+	logged '^node .*pi/acquire/prepare.mjs .*vertrice-pi/build-inputs$'
+	logged '^vertrice-update --pi --install-first --version 1.6.0$'
+	notlogged '^npm ci '
+	[ ! -e "$app/current" ] || fail 'setup published an unverified selector'
 }
 
 t_pi_launch_missing_does_not_install() {
@@ -53,15 +63,18 @@ t_pi_launch_missing_does_not_install() {
 	notlogged '^npm '
 }
 
-t_pi_setup_changed_lock_reinstalls() {
+t_pi_setup_broken_selector_preserved() {
 	pi_setup
-	mkdir -p "$app/node_modules/.bin"
-	ln -s "$VT_MOCKS/_log" "$app/node_modules/.bin/pi"
-	echo 1.5.0 >"$VT_STATE/out.pi"
-	echo '{}' >"$app/package-lock.json"
-	"$VT_SH" "$REPO/.local/bin/openbsd/vertrice-pi-setup" >"$T/out" 2>&1 || fail 'locked reinstall'
-	logged '^npm ci '
-	cmp "$REPO/.local/share/openbsd/pi/package-lock.json" "$app/package-lock.json" || fail 'source lock not installed'
+	mkdir -p "$app"
+	ln -s missing "$app/current"
+	"$VT_SH" "$REPO/.local/bin/openbsd/vertrice-pi-setup" >"$T/out" 2>&1 || fail 'broken selector preservation'
+	eq 'broken selector retained' missing "$(readlink "$app/current")"
+	notlogged '^vertrice-update |^npm ci '
+}
+
+t_pi_portable_updates() {
+	command -v node >/dev/null 2>&1 || skip 'Node unavailable for portable updater checks'
+	node "$REPO/.local/share/vertrice/tests/portable-user-updates.cjs" || fail 'portable updater lifecycle'
 }
 
 t_pi_native_seed_preserves_owner_state() {

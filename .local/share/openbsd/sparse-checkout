@@ -8,7 +8,56 @@
 /.xprofile
 /.xsession
 /.calendar/
-/.pi/agent/
+/.pi/agent/resources.json
+/.pi/agent/.gitignore
+/.pi/agent/AGENTS.md
+/.pi/agent/native-context.md
+/.pi/agent/action-summary.mjs
+/.pi/agent/ipe-client.mjs
+/.pi/agent/work-store.mjs
+/.pi/agent/desktop-theme-controller.mjs
+/.pi/agent/extensions/agent-board.ts
+/.pi/agent/extensions/campaign-context.ts
+/.pi/agent/extensions/conversation-ui.ts
+/.pi/agent/extensions/general-tools.ts
+/.pi/agent/extensions/ipe.ts
+/.pi/agent/extensions/work.ts
+/.pi/agent/extensions/self-maintain.ts
+/.pi/agent/extensions/session-focus.ts
+/.pi/agent/extensions/dsml-guard.ts
+/.pi/agent/extensions/desktop-theme.mjs
+/.pi/agent/extensions/subagent/LICENSE
+/.pi/agent/extensions/subagent/index.ts
+/.pi/agent/extensions/subagent/agents.ts
+/.pi/agent/extensions/subagent/child-policy.ts
+/.pi/agent/extensions/subagent/compact-ui.ts
+/.pi/agent/extensions/terminal-scroll-modes/index.ts
+/.pi/agent/extensions/terminal-scroll-modes/probe.mjs
+/.pi/agent/agents/worker.md
+/.pi/agent/agents/scout.md
+/.pi/agent/agents/reviewer.md
+/.pi/agent/agents/reader.md
+/.pi/agent/skills/coding-workflow/SKILL.md
+/.pi/agent/skills/maintain/SKILL.md
+/.pi/agent/skills/research/SKILL.md
+/.pi/agent/skills/web-video/SKILL.md
+/.pi/agent/skills/writing-companion/SKILL.md
+/.pi/agent/skills/self-maintain/SKILL.md
+/.pi/agent/prompts/review.md
+/.pi/agent/prompts/handoff.md
+/.pi/agent/themes/vertrice.json
+/.pi/agent/themes/vertrice-day.json
+/.pi/agent/themes/vertrice-night.json
+/.pi/agent/context/manifest.json
+/.pi/agent/context/README.md
+/.pi/agent/context/usage.md
+/.pi/agent/context/tasks.md
+/.pi/agent/context/storage-sync.md
+/.pi/agent/context/git-flow.md
+/.pi/agent/context/admin.md
+/.pi/agent/context/editor.md
+/.pi/agent/context/verification.md
+/.pi/agent/context/capability-boundaries.md
 
 # All but the Mac's desktop and its sound output for mpd.
 /.config/
@@ -17,6 +66,10 @@
 !/.config/karabiner/
 !/.config/mpd/osx.conf
 !/.config/sketchybar/
+!/.config/crush/
+/.config/crush/CRUSH.md
+/.config/crush/crushrc
+/.config/crush/skills/coding-workflow/SKILL.md
 
 /.local/bin/
 !/.local/bin/darwin/
@@ -27,9 +80,15 @@
 /.local/share/vertrice/OPENBSD.md
 /.local/share/vertrice/PI_CAPABILITIES.md
 /.local/share/vertrice/POST-INSTALL.md
+/.local/share/vertrice/SOURCE-UPDATES.md
 /.local/share/vertrice/KEYS.png
 /.local/share/vertrice/reading
 !/.local/share/openbsd/pi/mcp.example.json
+!/.local/share/openbsd/pi/portable/test.mjs
+!/.local/share/openbsd/pi/portable/admission-test.mjs
+!/.local/share/openbsd/pi/acquire/test.mjs
+!/.local/share/openbsd/pi/portable/messenger/tests/
+!/.local/share/openbsd/pi/portable/tests/
 !/.local/share/bg
 
 # The C helpers: the Codex box and sd's proc-cwd.

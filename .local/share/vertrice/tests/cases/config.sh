@@ -73,6 +73,31 @@ t_cwmrc_accepted() {
 	eq "cwm -n is silent" "" "$out"
 }
 
+t_terminal_clipboard_x() {
+	PATH=/usr/X11R6/bin:/usr/local/bin:/usr/bin:/bin
+	export PATH
+	for tool in python3 Xvfb xauth xrdb xterm xdotool xclip; do
+		command -v "$tool" >/dev/null 2>&1 || skip "no $tool"
+	done
+	python3 "$REPO/.local/share/vertrice/tests/terminal-clipboard.py" "$REPO" ||
+		fail "terminal clipboard interaction failed"
+}
+
+t_cwmrc_terminal_home() {
+	command=$(sed -n 's/^bind-key[[:space:]]*4-Return[[:space:]]*"\(.*\)"$/\1/p' "$REPO/.config/cwm/cwmrc" | sed 's/\\"/"/g')
+	[ -n "$command" ] || fail "no quoted default terminal command"
+	mkdir -p "$T/home space" "$T/other"
+	printf '#!/bin/sh\npwd\n' >"$T/terminal space"
+	chmod +x "$T/terminal space"
+	out=$(cd "$T/other" && HOME="$T/home space" TERMINAL="$T/terminal space" "$VT_SH" -c "$command") ||
+		fail "terminal launch failed"
+	eq "terminal starts in HOME" "$T/home space" "$out"
+	if HOME="$T/missing" TERMINAL="$T/terminal space" "$VT_SH" -c "$command" >"$T/out" 2>"$T/err"; then
+		fail "terminal launched with missing HOME"
+	fi
+	eq "no terminal after failed cd" "" "$(cat "$T/out")"
+}
+
 t_cwmrc_function_names() {
 	c=$CWM_SRC/conf.c
 	[ -r "$c" ] || skip "no cwm source (set CWM_SRC to the directory with conf.c)"
@@ -153,6 +178,28 @@ t_profile_loads() {
 	logged '^detach vertrice-shortcuts$'
 }
 
+t_profile_path_repeat() {
+	home_setup
+	mkdir -p "$HOME/.local/bin/space dir" "$HOME/.local/bin/glob[*]"
+	for system in OpenBSD Darwin; do
+		printf '#!/bin/sh\necho %s\n' "$system" >"$T/bin/uname"
+		out=$("$VT_SH" -c '
+			. "$HOME/.profile"
+			PATH=":$PATH::/custom dir:/custom dir:$HOME/.local/bin:"
+			first=$PATH
+			. "$HOME/.profile"
+			[ "$PATH" = "$first" ] || exit 1
+			mkdir -p "$HOME/.local/bin/new-helper"
+			. "$HOME/.profile"
+			case ":$PATH:" in *":$HOME/.local/bin/new-helper:"*) ;; *) exit 1 ;; esac
+			printf "%s\n" "$PATH"
+		' 2>&1) || fail "$system repeated profile: $out"
+		has "$system spaces" ":$HOME/.local/bin/space dir" "$out"
+		has "$system literal glob" ":$HOME/.local/bin/glob[*]" "$out"
+		rmdir "$HOME/.local/bin/new-helper"
+	done
+}
+
 t_kshrc_loads() {
 	home_setup
 	. "$HOME/.profile" >/dev/null 2>&1
@@ -167,6 +214,39 @@ t_kshrc_loads() {
 
 # The doas aliases only where there is a doas: the X220, not the Mac,
 # where "mount" through them was "doas: not found".
+t_aliasrc_source() {
+	mkdir -p "$HOME/.local/bin"
+	cp "$REPO/.local/bin/source" "$HOME/.local/bin/source"
+	printf 'export SOURCE_RELOADED=fixture\n' >"$HOME/.profile"
+	out=$("$VT_KSH" -c '
+		. "$REPO/.config/shell/aliasrc"
+		eval source
+		printf "%s\n" "$SOURCE_RELOADED"
+	') || fail "source alias failed"
+	eq "current shell updated" fixture "$out"
+	"$VT_SH" "$HOME/.local/bin/source" >"$T/out" 2>"$T/err" &&
+		fail "child-shell execution accepted"
+	has "direct execution guidance" 'current shell' "$(cat "$T/err")"
+	# Dotting the helper preserves the caller's positional parameters and
+	# profile status. An absent profile must not terminate that caller.
+	out=$("$VT_KSH" -c '
+		set -- first "two words"
+		. "$HOME/.local/bin/source"
+		printf "%s|%s|%s\n" "$SOURCE_RELOADED" "$1" "$2"
+	') || fail "sourced helper failed"
+	eq "caller arguments preserved" 'fixture|first|two words' "$out"
+	printf 'false\n' >"$HOME/.profile"
+	"$VT_KSH" -c '. "$HOME/.local/bin/source"' && fail "profile failure hidden"
+	rm "$HOME/.profile"
+	out=$("$VT_KSH" -c '
+		. "$HOME/.local/bin/source"
+		status=$?
+		printf "survived:%s\n" "$status"
+	' 2>"$T/err") || fail "missing profile killed calling shell"
+	eq "missing profile returns failure" 'survived:1' "$out"
+	has "missing profile guidance" 'cannot read' "$(cat "$T/err")"
+}
+
 t_aliasrc_doas() {
 	mkdir -p "$T/withdoas" "$T/nodoas"
 	ln -s "$VT_MOCKS/doas" "$T/withdoas/doas"
@@ -211,6 +291,16 @@ t_xprofile_autostart() {
 	done
 	logged '^mpd'; logged '^dunst'
 	notlogged '^(xcompmgr|picom)'
+}
+
+t_xprofile_idle_lock() {
+	sed -n '/^pgrep -x xidle /p' "$REPO/.config/x11/xprofile" >"$T/block"
+	printf '#!/bin/sh\nexit 1\n' >"$T/bin/pgrep"
+	printf '#!/bin/sh\nprintf "%%s\\n" "$*" >"$T/lock-args"\n' >"$T/bin/xidle"
+	chmod +x "$T/bin/pgrep" "$T/bin/xidle"
+	"$VT_SH" "$T/block"
+	waitfor 2 grep -qx -- '-no -timeout 1800 -program /usr/X11R6/bin/xlock -lockdelay 0' "$T/lock-args" ||
+		fail "xidle must disable hot corners and lock without grace after 30 minutes"
 }
 
 # xinitrc's session-env block, run alone (the rest starts X programs):

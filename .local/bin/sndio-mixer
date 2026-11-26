@@ -1,0 +1,14 @@
+#!/bin/ksh
+
+# sndio-mixer: pick an sndio control in dmenu and set its value.
+# sndioctl prints its controls as commands; keep the left side and ask for
+# the value. A signed value or ! (switch toggle) works as sndioctl(1) says.
+
+line=$(sndioctl | dmenu -i -l 10 -p 'Audio:') || exit 0
+[ -n "$line" ] || exit 0
+var=${line%%=*}
+cur=${line#*=}
+val=$(print -r -- "$cur" | dmenu -i -p "$var=") || exit 0
+[ -n "$val" ] || exit 0
+sndioctl -q "$var=$val"
+sb-refresh

@@ -4,7 +4,7 @@
 
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { getAgentDir, parseFrontmatter } from "@earendil-works/pi-coding-agent";
+import { parseFrontmatter } from "@earendil-works/pi-coding-agent";
 
 export type AgentScope = "user" | "project" | "both";
 
@@ -111,6 +111,6 @@ function loadAgentsFromDir(dir: string): AgentConfig[] {
 }
 
 export function discoverAgents(): AgentConfig[] {
-	const agents = loadAgentsFromDir(path.join(getAgentDir(), "agents"));
+	const agents = loadAgentsFromDir(path.resolve(__dirname, "../../agents"));
 	return Array.from(new Map(agents.map(agent => [agent.name, agent])).values());
 }

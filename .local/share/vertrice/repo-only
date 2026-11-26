@@ -5,6 +5,7 @@
 # the three lists.
 
 /README.md
+/.gitignore
 /LICENSE
 /FUNDING.yml
 /.local/share/vertrice/KEYS.svg
@@ -12,3 +13,14 @@
 /.local/share/openbsd/pi/mcp.example.json
 /.local/share/vertrice/repo-only
 /.local/share/vertrice/tests/
+/.pi/agent/context-index.mjs
+/.pi/agent/extensions/subagent/README.md
+/.pi/agent/extensions/subagent/activity-updates.test.mjs
+/.pi/agent/extensions/terminal-scroll-modes/test.mjs
+/.local/share/openbsd/pi/portable/test.mjs
+/.local/share/openbsd/pi/portable/admission-test.mjs
+/.pi/agent/desktop-theme.test.mjs
+/.local/share/openbsd/pi/acquire/test.mjs
+/AGENTS.md
+/.local/share/openbsd/pi/portable/messenger/tests/
+/.local/share/openbsd/pi/portable/tests/

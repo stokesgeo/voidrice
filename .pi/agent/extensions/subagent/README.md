@@ -1,9 +1,9 @@
 # Pi subagents
 
-Adapted from the example shipped inside the locked Pi 1.5.0 npm package; no
+Adapted from the example shipped inside the upstream Pi npm package; no
 additional runtime dependencies. MIT upstream license retained in LICENSE.
 
-Roles in `~/.pi/agent/agents`: scout, worker, reviewer and reader. No model pins:
+Roles in the selected agent root’s `agents` directory: scout, worker, reviewer and reader. No model pins:
 children inherit the dispatching model and thinking level. Parent history is
 not forwarded. Only the exact task, reviewed role and shared OpenBSD
 instructions are provided. Keep a cold review's task free of build reasoning.

@@ -1,0 +1,2 @@
+option ui compact true
+permissions allow view ls glob grep

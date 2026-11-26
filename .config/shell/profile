@@ -12,18 +12,40 @@
 # /opt/homebrew; libarchive's (bsdtar, bsdcat) are kept out of its bin,
 # so named apart.
 os=$(uname | tr A-Z a-z)
-[ "$os" = darwin ] && PATH="/opt/homebrew/bin:/opt/homebrew/opt/libarchive/bin:$PATH"
-export PATH="$HOME/.local/bin/$os:$PATH:$(find ~/.local/bin \( -name openbsd -o -name darwin \) -prune -o -type d -print | paste -sd ':' -)"
+if [ "$os" = darwin ]; then
+	for dir in /opt/homebrew/opt/libarchive/bin /opt/homebrew/bin; do
+		case ":$PATH:" in
+			*":$dir:"*) ;;
+			*) PATH="$dir${PATH:+:$PATH}" ;;
+		esac
+	done
+fi
+dir=$HOME/.local/bin/$os
+case ":$PATH:" in
+	*":$dir:"*) ;;
+	*) PATH="$dir${PATH:+:$PATH}" ;;
+esac
+while IFS= read -r dir; do
+	[ -n "$dir" ] || continue
+	case ":$PATH:" in
+		*":$dir:"*) ;;
+		*) PATH="${PATH:+$PATH:}$dir" ;;
+	esac
+done <<EOF
+$(find "$HOME/.local/bin" \( -name openbsd -o -name darwin \) -prune -o -type d -print)
+EOF
+unset dir
+export PATH
 
 # Default programs. The key bindings and scripts read these names: change a
 # program here, not in each script. WM="dwm" makes xinitrc start dwm, not cwm.
+# WM and TERMINAL are optional alternatives: pkg_add dwm st; the stock is cwm/xterm.
 export WM="cwm"
 export EDITOR="nvim"
 export TERMINAL="xterm"
-export TERMINAL_PROG="xterm"
 export BROWSER="qutebrowser"
 export TERMINAL_BROWSER="w3m"
-[ "$os" = darwin ] && TERMINAL="ghostty" TERMINAL_PROG="ghostty" BROWSER="safari" TERMINAL_BROWSER="lynx"
+[ "$os" = darwin ] && TERMINAL="ghostty" BROWSER="safari" TERMINAL_BROWSER="lynx"
 unset os
 
 # Change the default crypto/weather monitor sites.
@@ -69,8 +91,6 @@ export LESS_TERMCAP_us="$(printf '%b' '[1;32m')"
 export LESS_TERMCAP_ue="$(printf '%b' '[0m')"
 export QT_QPA_PLATFORMTHEME="gtk3"        # Have QT use gtk theme.
 export MOZ_USE_XINPUT2=1                  # Mozilla smooth scrolling/touchpads.
-export AWT_TOOLKIT="MToolkit wmname LG3D" # May have to install wmname
-export _JAVA_AWT_WM_NONREPARENTING=1      # Fix for Java applications in dwm
 
 # First login: build the bookmark shortcuts from bm-dirs and bm-files.
 [ ! -f "$XDG_CONFIG_HOME/shell/shortcutrc" ] && detach vertrice-shortcuts >/dev/null 2>&1

@@ -16,18 +16,19 @@ t_sb_battery() {
 # The scroll wheel sets the backlight, and the help says so.
 t_sb_battery_clicks() {
 	BLOCK_BUTTON=4 sb-battery >/dev/null
-	logged '^wsconsctl display.brightness\+=10$'
+	logged '^xbacklight -set 80 -time 0$'
 	BLOCK_BUTTON=5 sb-battery >/dev/null
-	logged '^wsconsctl display.brightness-=10$'
+	logged '^xbacklight -set 70 -time 0$'
 	BLOCK_BUTTON=3 sb-battery >/dev/null
-	logged '^- Scroll to change the backlight\.$'
+	logged '^- Scroll changes it only in a click-capable bar, not terminal sbar\.$'
 }
 
 t_sb_brightness() {
 	eq "level" "💡70%" "$(sb-brightness)"
-	eq "fraction dropped" "💡5%" "$(WSCONS_BRIGHTNESS=5.49% sb-brightness)"
-	WSCONS_FAIL=1 sb-brightness >/dev/null 2>&1
-	eq "no console access: exit 1" 1 "$?"
+	eq "fraction dropped" "💡5%" "$(VT_BACKLIGHT_LEVEL=5.49 sb-brightness)"
+	VT_BACKLIGHT_FAIL=1 sb-brightness >/dev/null 2>&1
+	eq "backend failure: exit 1" 1 "$?"
+	"$VT_SH" "$REPO/.local/share/vertrice/tests/brightness.sh" || fail 'standalone brightness boundaries'
 }
 
 t_sb_cpu() {
@@ -89,10 +90,33 @@ EOF
 	eq "no wifi card" "❎" "$(sb-internet)"
 }
 
+# Exact vmstat -s counters, deliberately unlike active/managed pages.
+# Case-local links reuse the generic mock without reading host RAM or swap.
+memory_fixture() {
+	ln -s "$VT_MOCKS/_log" "$T/bin/vmstat"
+	ln -s "$VT_MOCKS/_log" "$T/bin/swapctl"
+	setsysctl hw.physmem 8589934592
+	fx out.vmstat <<'EOF'
+       4096 bytes per page
+    2000000 pages managed
+     524288 pages free
+     100000 pages active
+     200000 pages inactive
+      12345 pages wired
+EOF
+	printf '%s\n' 'total: 12582912 512-blocks allocated, 4194304 used, 8388608 available' | fx out.swapctl
+}
+
 t_sb_memory() {
-	eq "megabytes" "🧠0.44GiB/7.77GiB" "$(sb-memory)"
-	eq "kilobytes" "🧠0.50GiB/7.77GiB" "$(MEM_ACT=524288K sb-memory)"
-	eq "gigabytes" "🧠2.00GiB/7.77GiB" "$(MEM_ACT=2G sb-memory)"
+	memory_fixture
+	eq "physical minus free, not active or managed" "🧠6.00GiB/8.00GiB 🐌 2.00/6.00GiB" "$(sb-memory)"
+	logged '^vmstat -s$'
+	logged '^swapctl -s$'
+	printf '8192 bytes per page\n262144 pages free\n' | fx out.vmstat
+	eq "native page size" "🧠6.00GiB/8.00GiB 🐌 2.00/6.00GiB" "$(sb-memory)"
+	printf '4096 bytes per page\n0 pages free\n' | fx out.vmstat
+	eq "zero free" "🧠8.00GiB/8.00GiB 🐌 2.00/6.00GiB" "$(sb-memory)"
+	"$VT_SH" "$REPO/.local/share/vertrice/tests/sb-memory.sh" || fail "standalone memory accounting regression"
 }
 
 # The hogs on a click: ps's %mem and comm, summed per program, the
@@ -110,6 +134,7 @@ EOF
 	chmod +x "$T/bin/ps"
 }
 t_sb_memory_hogs() {
+	memory_fixture
 	hogs_ps
 	printf '1.5\tfirefox\n2\tfirefox\n0.5\txterm\n' | fx procs.mem
 	BLOCK_BUTTON=1 sb-memory >/dev/null

@@ -1,10 +1,10 @@
 {
   "schema": 1,
-  "selection": "Public OpenBSD tools and operating instructions",
+  "selection": "Portable OpenBSD coding and operating workflows; explicit text only",
   "files": [
     {
       "path": "AGENTS.md",
-      "sha256": "c2dd33e5b1806c8aba4c104016f217461d725e202e6e79a352b1c04ec42d1a8f"
+      "sha256": "9055f2c1a5ffff956c0151369084ea31027bf27361b9a2da655c6eecc2400dce"
     },
     {
       "path": "agents/worker.md",
@@ -23,20 +23,28 @@
       "sha256": "c1476eacea389a9548d49dadca8671176cfc9e98c63238c31530036a943bc1b8"
     },
     {
+      "path": "skills/coding-workflow/SKILL.md",
+      "sha256": "eb81fb009e92c2f34414fcb2c4778eecf2a43cf3ef63c6e31e89dac822357915"
+    },
+    {
       "path": "skills/maintain/SKILL.md",
       "sha256": "3d5535dbbdda0d6ff8b3747a3b65956abb8c8a95d50eb9a66bc8effaaf9a3eaf"
     },
     {
       "path": "skills/research/SKILL.md",
-      "sha256": "c41b9b5a4e7ab4be7333712cc291c807c08fa0f0c254f131c25f74d4eea07c8c"
+      "sha256": "43bd1d59422dd764addf0b1a7f10f0f099c61baa7201ca936ae8827418b93a0d"
     },
     {
       "path": "skills/web-video/SKILL.md",
-      "sha256": "2ddadd43d3100dbc8dcf41e17d28a28ef8c0b1ded42980572fd81d5814d4540d"
+      "sha256": "bbd10b4d164139dc77f0dbbcdd26ee42e9b43e9092057894b903c1de5459bf02"
     },
     {
       "path": "skills/writing-companion/SKILL.md",
       "sha256": "d02d60f977fe01c7aee976a7d96a81e401c33c1b910132f7116f029653c68f43"
+    },
+    {
+      "path": "skills/self-maintain/SKILL.md",
+      "sha256": "fe2e9866313ac7e7c79e6bd2ef2bdec9260b1c0f5f8770bcd8277a13f2b9c23d"
     },
     {
       "path": "prompts/review.md",
@@ -48,43 +56,39 @@
     },
     {
       "path": "context/README.md",
-      "sha256": "85b498a00d8ee698d639f8206f1a5f9cf0a7272f92313c477441b9b4f06225c3"
+      "sha256": "8c442219df0d65bcdaf184e61a56d7fe50f20c531aa198ae6d926766af153638"
     },
     {
       "path": "context/usage.md",
-      "sha256": "8b8c78c9e9cb38964daa670893e241976e085eff18cd1a23ea33af2400aa872a"
+      "sha256": "094ff8a5c9ebedcec015a040328edcab9577d6a771b30c92091572dd9072f7dc"
     },
     {
       "path": "context/tasks.md",
-      "sha256": "759a919637fcf718d7bea3e82471eddc7af7001c7a047d5fdfce8076cac27360"
+      "sha256": "b8cbccb7b99ce84e7911febb2a4c2cffbfe1b39748377c4bad7b0aaf55b30f80"
     },
     {
       "path": "context/storage-sync.md",
-      "sha256": "97ed2c1deaf022f15511ce012f91cafa37e1966d2a6aab463ff8c8799d5163e1"
+      "sha256": "da38f95f29b8e72a733469006eaa2b9366f81b6ce562c8962548dda667369db7"
     },
     {
       "path": "context/git-flow.md",
-      "sha256": "1a4901ec089cd5849381c05ed07d93b63604057d3f33dd760f58779fc2e5e7c4"
+      "sha256": "d49cf6be381296861ef2b98dc24581b4220d11b382af9490d23c1aa1716d354e"
     },
     {
       "path": "context/admin.md",
-      "sha256": "b71c20bcf8101b043edbe0288353a921347dae07c3d87f388a13fb9855d2138b"
+      "sha256": "b9b91a817b43442b49794dafb62438d8578d3bb3c29efbc1c3dff41e18b1c50f"
     },
     {
       "path": "context/editor.md",
-      "sha256": "59e4bb7117cc76725ba70ac66b7970171695cdca37fe87536059b5134f3fb5f8"
+      "sha256": "de240c2ebafc46ed1d0be54aff44a4e8627419db7cf4f387e88cbe81faa575c7"
     },
     {
       "path": "context/verification.md",
-      "sha256": "8a3792ec802a88f8c790ad95ed113e40da053ec8d240379a3d7a1f2bec918add"
+      "sha256": "651b70f710a3009e6762cd1d5284577ea5c195933bd26fba813a0439e7fa5720"
     },
     {
       "path": "context/capability-boundaries.md",
-      "sha256": "b062fd100b48dfee606a61fcfe5f6f8e44a82ad872e7a7447abdd574a01e7aa9"
-    },
-    {
-      "path": "skills/self-maintain/SKILL.md",
-      "sha256": "a05c5a60908b04546ba4869505e931b136f9c53bb1bf9687694ab05d85fc0d46"
+      "sha256": "cbf0223c134bf2f3029e2e3002cdf108fc5ace7fed0575308ce55786fced9a44"
     }
   ]
 }

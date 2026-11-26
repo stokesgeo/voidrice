@@ -1,0 +1,10 @@
+#!/bin/sh
+# Deterministic fixture only; never delegates to the X server.
+printf 'xbacklight %s\n' "$*" >>"$VT_STATE/log"
+case $1 in
+-get) [ "${VT_BACKLIGHT_FAIL:-0}" = 0 ] || exit 1
+	if [ -f "$VT_STATE/backlight" ]; then cat "$VT_STATE/backlight"; else printf '%s\n' "${VT_BACKLIGHT_LEVEL:-70}"; fi ;;
+-set) [ "$#" -eq 4 ] && [ "$3" = -time ] && [ "$4" = 0 ] || exit 2
+	printf '%s\n' "$2" >"$VT_STATE/backlight" ;;
+*) exit 2 ;;
+esac

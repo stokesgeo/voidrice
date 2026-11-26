@@ -1,0 +1,2 @@
+# vertrice-overnight-upgrade (root per-user table)
+30	3	*	*	*	-s /usr/local/sbin/vertrice-upgrade --nightly @USER@ # vertrice-overnight-upgrade

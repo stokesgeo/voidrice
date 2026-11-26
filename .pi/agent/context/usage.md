@@ -1,40 +1,18 @@
-# Local assistant setup
+# Native resources
 
-This public package contains operational instructions, not a user profile.
-Choose a provider and model through Pi's local sign-in and settings interface.
-Keep personal preferences, project context, credentials and session history
-outside published dotfiles. Check the requested scope before accessing data.
+Choose providers/models and sign in locally; public resources contain no account
+or model preferences. Native subagents inherit the dispatching model and thinking
+level, with explicit tools, no nested delegation and supervised cancellation.
+Their results and reported usage are evidence to inspect, not proof of delivery.
 
-The supplied tools operate on local files. Remote accounts, corpus search and
-other machines need their own explicit configuration and authorization.
+Routine tool rows are collapsed; expand for arguments, results and diagnostics.
+Optional --luna-labels is off by default: direct configured OpenAI side calls may
+cost extra, use only lossy operation metadata and are outside main session totals.
+Session-focus labeling also uses additional native-routed model calls; /focus
+status reports their separate returned usage, /focus JSON pins owner labels.
+No provider or free quota is assumed. UI labels never prove task success.
 
-## Conversation display
-
-Routine tool rows start collapsed with deterministic tool/operation labels;
-expand them for exact arguments and output. Errors remain visible. Labels are
-presentation, not evidence of success. `/work` shows or folds local task details;
-the footer keeps the open/active count. The subagent overview shows active and
-unresolved workers, not detached jobs or verified task completion. Expanded
-subagent rows retain captured output, diagnostics and usage.
-
-Optional `pi --luna-labels` adds asynchronous action labels through the locally
-configured direct OpenAI `gpt-6-luna` model. It is off by default: a main-chat
-subscription or another provider does not imply access to this model. Configure
-provider access locally through Pi, never in published settings. This opt-in
-can incur additional provider charges. These display-only side requests are
-not attached to tool results and are not included in Pi's session usage/cost
-totals; consult provider accounting. Only allowlisted tool names and lossy
-operation metadata are sent, never shell arguments, paths or tool output.
-Two requests at most run concurrently, with a six-second abort deadline and a
-bounded session-local cache. Missing models, failed requests, or saturation
-retain deterministic labels; failures warn once. Shutdown cancels pending work.
-
-## Public-web research (optional)
-
-No hosted service or account is enabled by these sources. An owner may configure
-a hosted public-web MCP service locally (for example Exa search/page tools),
-then use the research skill. Check current service terms, availability and
-costs; do not assume a free quota. Keep MCP endpoints/auth and model/session
-settings local. This is separate from video: an unavailable video ingestion
-backend does not block ordinary approved public-web reading, and a public-web
-connection does not establish transcript or visual capabilities.
+Desktop theme follows the local cache's day/night marker only with the automatic
+vertrice-day/vertrice-night selection; fixed choices remain fixed. Terminal scroll
+mode queries are read-only and require the attached interactive raw-input TUI.
+No reply means unknown, not reset. Native integration must be tested on its host.

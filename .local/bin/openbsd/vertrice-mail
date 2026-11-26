@@ -1,0 +1,2 @@
+#!/bin/sh
+exec /bin/ksh "${XDG_DATA_HOME:-$HOME/.local/share}/openbsd/mail/mutt-wizard/runtime/mw" "$@"

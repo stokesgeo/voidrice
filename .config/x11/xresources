@@ -7,11 +7,22 @@
 !! xterm, the base terminal: the same font, and Alt as Meta for vi-mode ksh and nvim.
 XTerm*faceName: IBM Plex Mono
 XTerm*faceSize: 10
+XTerm*termName: xterm-direct
 XTerm*metaSendsEscape: true
-XTerm*selectToClipboard: true
+XTerm*selectToClipboard: false
 /* OpenBSD builds xterm without OSC 52 clipboard access (OPT_PASTE64=0).
    Keep the other window queries and property changes blocked. */
 XTerm*disallowedWindowOps: GetChecksum,GetIconTitle,GetWinTitle,SetXprop
+/* The Athena scrollbar's 3D bevel is hardcoded black/white; run without one.
+   The wheel scrolls the buffer and the alternate screen; Shift+PageUp pages. */
+XTerm*scrollBar: false
+XTerm*alternateScroll: true
+XTerm*allowMouseOps: true
+XTerm*VT100.translations: #override \n\
+	Ctrl Shift <Key>C: copy-selection(CLIPBOARD) \n\
+	Ctrl Shift <Key>V: insert-selection(CLIPBOARD) \n\
+	<Btn4Down>: scroll-back(3,lines,mouse) \n\
+	<Btn5Down>: scroll-forw(3,lines,mouse)
 !! xlock: blank the screen.
 XLock.mode: blank
 

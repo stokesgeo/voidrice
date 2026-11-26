@@ -1,0 +1,1646 @@
+#!/bin/ksh
+# Never trace or export credentials inherited from a caller's shell options.
+set +a +x +v
+ulimit -c 0
+umask 077
+unset MW_SECRET mw_escaped info mw_ref mw_policy mw_policyhash mw_sighash
+unset mw_status mw_replacement
+live_muttrc=; live_accdir=; live_mbsyncrc=; mw_pending=; mw_lock=; mw_armed=no; mw_existing=-; mw_init=; mw_initid=; mw_initcred=
+mw_operation=add; mw_force=no; mw_syncaccount=; mw_syncselected=
+
+prefix="/usr/local"
+maildir="${XDG_DATA_HOME:-$HOME/.local/share}/mail"
+muttshare=$(CDPATH= cd -- "$(dirname "$0")/.." && pwd -P)
+cachedir="${XDG_CACHE_HOME:-$HOME/.cache}/mutt-wizard"
+muttrc="${XDG_CONFIG_HOME:-$HOME/.config}/mutt/muttrc"
+accdir="${XDG_CONFIG_HOME:-$HOME/.config}/mutt/accounts"
+msmtprc="${XDG_CONFIG_HOME:-$HOME/.config}/msmtp/config"
+msmtplog="${XDG_CONFIG_HOME:-$HOME/.config}/msmtp/msmtp.log"
+mbsyncrc="${MBSYNCRC:-$HOME/.mbsyncrc}"
+mpoprc="${XDG_CONFIG_HOME:-$HOME/.config}/mpop/config"
+
+# OpenBSD port: no Debian compatibility symlink or startup mutation.
+
+for x in "/etc/ssl/certs/ca-certificates.crt" \
+	"/etc/pki/tls/certs/ca-bundle.crt" "/etc/ssl/cert.pem" \
+	"/etc/ssl/ca-bundle.pem" "/etc/pki/tls/cacert.pem" \
+	"/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem" \
+	"/usr/local/share/ca-certificates/"; do
+	[ -f "$x" ] && sslcert="$x" && break
+done || { echo "CA Certificate not found." && exit 1 ;}
+if [ -n "${SSL_CERT_FILE:-}" ]; then
+	mw_ca=$SSL_CERT_FILE
+	case "$mw_ca" in /*) ;; *) echo 'SSL_CERT_FILE must be absolute' >&2; exit 1;; esac
+	[ -f "$mw_ca" ] && [ -r "$mw_ca" ] || { echo 'SSL_CERT_FILE unreadable' >&2; exit 1; }
+	sslcert=$mw_ca
+fi
+
+checkbasics() { command -V gpg >/dev/null 2>&1 && GPG="gpg" || GPG="gpg2"
+	[ -x /usr/local/bin/python3 ] || { mw_fail 'python3 is required for protected terminal password entry; nothing configured'; return 1; }
+	PASSWORD_STORE_DIR="${PASSWORD_STORE_DIR:-$HOME/.password-store}"
+	mw_path "$PASSWORD_STORE_DIR" && [ -d "$PASSWORD_STORE_DIR" ] || {
+		mw_fail 'active pass store must already exist; use pass init with your existing encryption key (gpg --list-secret-keys); no key/store was created'; return 1;
+	}
+	PASSWORD_STORE_DIR=$(cd "$PASSWORD_STORE_DIR" && pwd -P) || return 1
+	export PASSWORD_STORE_DIR
+	[ -r "$PASSWORD_STORE_DIR/.gpg-id" ] || {
+	echo "First run \`pass init <yourgpgemail>\` to set up a password archive."
+	echo "(If you don't already have a GPG key pair, first run \`$GPG --full-generate-key\`.)"
+       	exit 1 ;} ;}
+
+getaccounts() {
+	accounts=$(for account in "$accdir"/*.muttrc; do
+		[ -f "$account" ] && [ ! -L "$account" ] || continue
+		account=${account##*/}; printf '%s\n' "${account%.muttrc}"
+	done | sort | nl)
+}
+
+list() { getaccounts && [ -n "$accounts" ] && echo "$accounts" || exit 1 ;}
+
+prepmsmtp() {
+	# Preserve the generator's place in getprofiles, but write no active transport.
+	# No passwordeval or WKS bypass. This deliberately inert draft is not sourced.
+	printf '%s\n' '# SMTP DISABLED: review-only draft, not an active msmtp config.' \
+	    "account $fulladdr" 'host smtp.invalid' 'port 465' 'tls on' \
+	    'tls_starttls off' 'auth off' "from $fulladdr" >> "$msmtprc"
+}
+
+prepmbsync() { mkdir -p "${mbsyncrc%/*}"
+	mw_command=$(mw_passcmd bound) || return 1
+	print -r -- "
+IMAPStore $fulladdr-remote
+Host $imap
+Port ${iport:-993}
+User $login
+$mw_command
+AuthMechs LOGIN
+SSLType IMAPS
+CertificateFile \"$sslcert\"
+
+MaildirStore $fulladdr-local
+Subfolders Verbatim
+Path \"$maildir/$fulladdr/\"
+Inbox \"$maildir/$fulladdr/INBOX\"
+
+Channel $fulladdr
+Expunge None
+Far :$fulladdr-remote:
+Near :$fulladdr-local:
+Patterns INBOX
+Sync Pull New
+Create Near
+Remove None
+SyncState *
+MaxMessages 0
+ExpireUnread no
+# End profile
+" >> "$mbsyncrc" ;}
+
+prepmpop() { mw_fail 'POP deferred in review-only delta'; }
+
+prepmutt() {
+	mw_qname=$(mw_neoq "$realname") || return 1
+	print -r -- "# vim: filetype=neomuttrc
+# muttrc file for account $fulladdr
+set realname = $mw_qname
+set from = \"$fulladdr\"
+unset smtp_url smtp_pass smtp_oauth_refresh_command
+set sendmail = \"/usr/bin/false\"
+alias me $mw_qname <$fulladdr>
+set folder = \"$folder\"
+set header_cache = \"$cachedir/$fulladdr/headers\"
+set message_cachedir = \"$cachedir/$fulladdr/bodies\"
+set mbox_type = Maildir
+set hostname = \"$hostname\"
+set spoolfile = \"+INBOX\"
+set postponed = "+Drafts"
+set trash = "+Trash"
+set record = "+Sent"
+# No WKS/direct-msmtp or automatic sync macros in this review delta.
+" > "$accdir/$fulladdr.muttrc" || return 1
+
+	# Shared static settings travel with every account source, so removing the
+	# first account cannot drop keys/mailcap. No package mailcap fallback.
+	printf '%s\n' 'set mailcap_sanitize = yes' \
+	    "set mailcap_path = $(mw_neoq "${live_muttrc%/*}/mailcap")" \
+	    'bind index j next-entry' \
+	    'bind index k previous-entry' 'bind index,pager S sync-mailbox' \
+	    'bind attach <Enter> view-mailcap' \
+	    'auto_view text/html' 'alternative_order text/plain text/html' \
+	    'macro index,pager O "<shell-escape>vertrice-mail -Y<enter>" "Download new mail; S saves locally"' \
+	    'set status_format = "LOCAL ONLY - S saves locally; O downloads; SENDING DISABLED | %f %m msgs"' \
+	    'set compose_format = "SENDING DISABLED - P postpones | %a attachments"' >> "$accdir/$fulladdr.muttrc" || return 1
+	mw_macro="<enter-command>echo 'Sending disabled; body/attachments retained. P postpones draft.'<enter>"
+	printf 'macro compose y %s "sending disabled; keep draft"\n' "$(mw_neoq "$mw_macro")" >> "$accdir/$fulladdr.muttrc" || return 1
+	# The first account stays default. Later accounts append only their selector.
+	if [ "$mw_first" = yes ]; then
+		printf 'source "%s/%s.muttrc"\n' "$live_accdir" "$fulladdr" >> "$muttrc" || return 1
+	fi
+	printf 'mailboxes "%s/INBOX"\n' "$folder" >> "$accdir/$fulladdr.muttrc" || return 1
+	# Native Enter (^J) and terminal Return (^M) are distinct. Keep the
+	# existing selector spelling and add its physical-Return counterpart.
+	for mw_key in "$binding" "${binding%<Enter>}<Return>"; do
+		mw_macro="<sync-mailbox><enter-command>source \"$live_accdir/$fulladdr.muttrc\"<enter><change-folder>!<enter>;<check-stats>"
+		printf 'macro index,pager %s %s "switch to %s"\n' "$mw_key" "$(mw_neoq "$mw_macro")" "$fulladdr" >> "$muttrc" || return 1
+	done
+}
+
+getprofiles() {
+	if [ "$mw_operation" != add ]; then mw_lifecycle_profiles; return $?; fi
+	mw_originals || return 1
+	# Same generators and order as the port; only their output paths are staged.
+	mw_first=yes
+	for mw_f in "$accdir"/*.muttrc; do [ ! -f "$mw_f" ] || mw_first=no; done
+	live_muttrc=$muttrc; live_accdir=$accdir; live_mbsyncrc=$mbsyncrc
+	live_draft=${muttrc%/*}/smtp-draft.txt
+	accdir=$mw_pending/accounts; muttrc=$mw_pending/muttrc
+	mbsyncrc=$mw_pending/mbsyncrc; msmtprc=$mw_pending/smtp-draft.txt
+	mkdir -p "$accdir" || return 1
+	for mw_key in muttrc mbsyncrc smtp-draft.txt; do
+		cp "$mw_pending/original-$mw_key" "$mw_pending/$mw_key" || return 1
+		if [ "$mw_key" = muttrc ] && [ "$mw_first" = yes ] &&
+		    ! grep -Fqx '# mw shared selector prefix' "$muttrc"; then
+			printf '%s\n' '# mw shared selector prefix' 'bind index,pager i noop' >> "$muttrc" || return 1
+		fi
+		printf '\n# mw account begin %s\n' "$fulladdr" >> "$mw_pending/$mw_key" || return 1
+	done
+	folder="$maildir/$fulladdr"
+	prepmbsync && prepmsmtp && prepmutt || return 1
+	for mw_key in muttrc mbsyncrc smtp-draft.txt; do
+		printf '# mw account end %s\n' "$fulladdr" >> "$mw_pending/$mw_key" || return 1
+	done
+}
+
+parsedomains() {
+	serverinfo=$(awk -F, -v d="${fulladdr#*@}" '$1==d {print $2 ":" $3; n++} END {if(n!=1) exit 1}' "$muttshare/domains.csv") || serverinfo=
+	[ -n "$serverinfo" ] || return 0
+	imap=${imap:-${serverinfo%:*}}; iport=${iport:-${serverinfo##*:}}
+}
+
+delete() { mw_operation=remove; mw_lifecycle; }
+
+askinfo() {
+	if [ "$mw_stdin" = yes ]; then exec 3<&0; else exec 3<>/dev/tty || return 1; fi
+	[ -n "$fulladdr" ] || mw_prompt 'Full email address:' fulladdr || return 1
+	mw_atom "$fulladdr" && case "$fulladdr" in -*|.*|*..*|*@*@*) false;; ?*@?*.?*) true;; *) false;; esac ||
+	    { mw_fail 'unsupported email syntax'; return 1; }
+	if [ "$mw_operation" = edit ]; then mw_edit_answers || return 1; fi
+	[ -n "$imap" ] || parsedomains
+	[ -n "$imap" ] || mw_prompt 'IMAP hostname:' imap || return 1
+	iport=${iport:-993}; login=${login:-$fulladdr}
+	realname=${realname:-${fulladdr%%@*}}; hostname=${fulladdr#*@}
+	mw_atom "$login" || return 1
+	mw_text "$realname" || { mw_fail 'real name contains control characters'; return 1; }
+	mw_endpoint_valid && mw_path "$sslcert" || return 1
+	mw_select_policy || { mw_fail 'unsafe or conflicting native pass policy/reference'; return 1; }
+	mw_begin || return 1
+	if [ "${mw_recovered:-no}" = yes ]; then
+		live_muttrc=$muttrc; live_accdir=$accdir; live_mbsyncrc=$mbsyncrc
+		mw_first_inbox
+		exit 0
+	fi
+	hostname=${fulladdr#*@}
+	case "$mw_operation" in remove|default) return 0;; edit) mw_edit_answers || return 1;; esac
+	# Confirm before either creating or releasing a credential.
+	mw_endpoint || return 1
+	mw_credential
+}
+
+createpass() {
+	mw_stage_safe || return 1
+	# Never retain an inherited export attribute on a scratch credential.
+	unset MW_SECRET
+	# No plaintext file, argv or exported variable. Native pass standard format.
+	printf '\nSTEP 2 OF 4: Mail sign-in for %s\n' "$fulladdr" >&2
+	mw_provider=$(print -rn -- "$imap" | tr 'A-Z' 'a-z')
+	case "$mw_provider" in imap.gmail.com|imap.googlemail.com)
+		printf '%s\n' 'Use the Google APP PASSWORD created for this mail app (16 letters).' 'Do NOT enter your usual Google sign-in password or a verification code.' 'Copy just the app password; spaces between its groups are accepted.' >&2;;
+	*) printf '%s\n' 'Use the mail-app password supplied by your email provider.' 'If your provider requires an app password, do not use its website sign-in password.' >&2;; esac
+	printf '%s\n' 'Paste one line with Shift+Insert or the middle mouse button in xterm.' 'Stars confirm input. Backspace edits; Ctrl-U clears; Enter submits; Ctrl-C stops.' 'After pasting, press Enter separately. Never paste a page or multiple lines.' 'A later GPG/pinentry unlock asks for your LOCAL KEY passphrase, not this app password.' >&2
+	if [ "$mw_stdin" = yes ]; then
+		mw_prompt 'Password (fixture stdin):' MW_SECRET || return 1
+	else
+		MW_SECRET=$(/usr/local/bin/python3 -c '
+import os, select, signal, sys, termios
+fd = os.open("/dev/tty", os.O_RDWR | os.O_NOCTTY)
+saved = termios.tcgetattr(fd)
+mode = termios.tcgetattr(fd)
+mode[0] &= ~(termios.ICRNL | termios.INLCR | termios.IGNCR)
+mode[3] &= ~(termios.ECHO | termios.ECHONL | termios.ICANON)
+mode[6][termios.VMIN] = 1
+mode[6][termios.VTIME] = 0
+secret = bytearray()
+escape = bytearray()
+paste = False
+rejected = False
+def interrupted(signum, frame):
+    raise KeyboardInterrupt
+signals = (signal.SIGINT, signal.SIGHUP, signal.SIGTERM, signal.SIGTSTP, signal.SIGQUIT)
+for signum in signals:
+    signal.signal(signum, interrupted)
+try:
+    termios.tcsetattr(fd, termios.TCSAFLUSH, mode)
+    os.write(fd, b"\x1b[?2004hApp password: ")
+    while True:
+        char = os.read(fd, 1)
+        if not char or char == b"\x04":
+            raise KeyboardInterrupt
+        if escape or char == b"\x1b":
+            escape.extend(char)
+            if bytes(escape) == b"\x1b[200~":
+                paste = True
+                escape.clear()
+            elif bytes(escape) == b"\x1b[201~":
+                paste = False
+                escape.clear()
+            elif len(escape) >= 6:
+                rejected = True
+                escape.clear()
+            continue
+        if char in (b"\r", b"\n"):
+            if paste:
+                rejected = True
+                continue
+            if select.select([fd], [], [], 0.15)[0]:
+                rejected = True
+                while select.select([fd], [], [], 0.15)[0]:
+                    os.read(fd, 4096)
+            break
+        if not paste and char in (b"\x7f", b"\x08"):
+            if secret:
+                while secret and secret[-1] & 0xc0 == 0x80:
+                    secret.pop()
+                if secret:
+                    secret.pop()
+                os.write(fd, b"\b \b")
+        elif not paste and char == b"\x15":
+            os.write(fd, b"\b \b" * len(secret.decode("utf-8", errors="replace")))
+            secret.clear()
+        elif char[0] < 32 or char[0] == 127:
+            rejected = True
+        elif len(secret) < 4096:
+            secret.extend(char)
+            if char[0] & 0xc0 != 0x80:
+                os.write(fd, b"*")
+        else:
+            rejected = True
+    if rejected:
+        os.write(fd, b"\nNothing submitted: the paste contained extra lines or unsupported keys.\nCopy only the app password, choose reenter below, and paste again.\n")
+        sys.exit(1)
+    sys.stdout.buffer.write(secret)
+except KeyboardInterrupt:
+    sys.exit(130)
+finally:
+    for signum in signals:
+        signal.signal(signum, signal.SIG_IGN)
+    try:
+        termios.tcflush(fd, termios.TCIFLUSH)
+    finally:
+        termios.tcsetattr(fd, termios.TCSANOW, saved)
+        os.write(fd, b"\x1b[?2004l\n")
+')
+		mw_read=$?
+		[ "$mw_read" != 130 ] || exit 130
+		[ "$mw_read" = 0 ] || return 1
+	fi
+	[ -n "$MW_SECRET" ] || { mw_fail 'No app password entered. Choose reenter to try again, or cancel to stop.'; return 1; }
+	mw_normalize_password || return 1
+	print -r -- "$MW_SECRET" | PASSWORD_STORE_DIR="$mw_credstage" pass insert -m -f "$fulladdr" >/dev/null 2>/dev/null || {
+		unset MW_SECRET; mw_fail 'Local password storage could not be unlocked or was cancelled. This is a GPG/key issue, not a Google rejection. Retry and unlock your local key in pinentry.'; return 1;
+	}
+	unset MW_SECRET
+	mw_stagehash=$(sha256 -q "$mw_credstage/$fulladdr.gpg") || return 1
+	mw_record collecting || return 1
+	unset MW_SECRET
+	MW_SECRET=$(PASSWORD_STORE_DIR="$mw_credstage" pass show "$fulladdr" 2>/dev/null) || {
+		unset MW_SECRET; mw_fail 'staged pass decryption failed/cancelled; check pinentry and existing key'; return 1;
+	}
+	mw_secret_valid
+}
+
+getpass() {
+	# Persist the exact reuse fingerprint BEFORE potentially blocking pinentry.
+	# Reuse never overwrites the ordinary entry.
+	unset MW_SECRET
+	mw_stage_safe || return 1
+	mw_current=$(mw_fingerprint "$PASSWORD_STORE_DIR/$mw_ref.gpg") || return 1
+	[ "$mw_existing" = - ] || [ "$mw_existing" = "$mw_current" ] || return 1
+	mw_existing=$mw_current
+	mw_record "$mw_phase" || return 1
+	MW_SECRET=$(pass show "$mw_ref" 2>/dev/null) || {
+		unset MW_SECRET; mw_fail 'pass decryption failed/cancelled; check pinentry and existing key'; return 1;
+	}
+	mw_secret_valid
+}
+mw_secret_valid() {
+	# pass standard format: first line is the credential, remaining lines metadata.
+	MW_SECRET=${MW_SECRET%%'
+'*}
+	case "$MW_SECRET" in
+	'') unset MW_SECRET; mw_fail 'decrypted pass entry has an empty first line; reenter or cancel'; return 1;;
+	*"$(printf '\r')"*) unset MW_SECRET; mw_fail 'decrypted pass entry contains an unsupported CR; reenter or cancel'; return 1;;
+	esac
+}
+
+getboxes() {
+	case "$mw_operation" in remove|default) return 0;; esac
+	while :; do
+		if :; then
+			# askinfo confirmed the endpoint and read back native pass ciphertext.
+			unset mw_escaped info
+			mw_escaped=$(print -rn -- "$MW_SECRET" | sed 's/\\/\\\\/g; s/"/\\"/g') || return 1
+			printf '%s\n' 'STEP 3 OF 4: Checking the mail-app password over verified TLS...' >&2
+			info=$({ mw_curl_config; print -r -- "user = \"$login:$mw_escaped\""; } |
+			    curl --disable --config - 2>/dev/null)
+			mw_status=$?
+			unset MW_SECRET mw_escaped
+			if [ "$mw_status" = 0 ] && print -r -- "$info" | awk '
+			    {sub(/\r$/, "")} /^$/ {next}
+			    /^\* LIST \([^()]*\) (NIL|"[^"\\]*") ("([^"\\]|\\["\\])*"|[^(){}"\\[:space:]]+)$/ {next}
+			    {bad=1} END {exit bad}'; then
+				unset info
+				toappend='# Local INBOX selected by spoolfile; no folder creation from LIST.'
+				mw_savecredential
+				return $?
+			fi
+		fi
+		unset MW_SECRET mw_escaped info
+		case "$mw_status" in
+			0) mw_fail 'Malformed IMAP LIST response; check endpoint/server compatibility.';;
+			2) mw_fail 'curl configuration error (local wizard/client incompatibility); not a password failure.';;
+			6) mw_fail 'DNS lookup failed; check hostname/resolver.';;
+			7) mw_fail 'TCP connection refused/unreachable; check hostname and port.';;
+			28) mw_fail 'Connection timed out; retry or check endpoint/network.';;
+			35|60) mw_fail 'TLS verification/handshake failed; check certificate trust and hostname; TLS remains required.';;
+			67) mw_fail 'Authentication rejected; retry or reenter the app password.';;
+			*) mw_fail 'IMAP connection failed; retry or check endpoint.';;
+		esac
+		while :; do
+			printf '%s\n' 'retry = try the SAME saved app password again (network/unlock problem)' 'reenter = replace the app password; edit = correct server/login' 'quit = stop setup; existing credentials and mail stay untouched' >&2
+			mw_prompt 'Choose [retry/reenter/edit/quit]:' mw_choice || { mw_abandon_clean; return 1; }
+			case "$mw_choice" in
+				retry) break;;
+				reenter) mw_stagehash=-; mw_replacement=yes; break;;
+				edit) mw_prompt 'IMAP hostname:' imap && mw_prompt 'Login:' login || return 1; break;;
+				quit) mw_abandon_clean; return 1;;
+				*) mw_fail 'Choose retry, reenter, edit or quit.';;
+			esac
+		done
+		mw_endpoint || return 1
+		mw_credential || return 1
+	done
+}
+
+finalize() {
+	while :; do
+		mw_finalize_attempt && return 0
+		# Cleanup reports the committed checkpoint; never enter retry/rollback.
+		[ ! -f "$mw_pending/committed" ] || return 1
+		muttrc=$live_muttrc; accdir=$live_accdir; mbsyncrc=$live_mbsyncrc
+		mw_rollback && mw_originals || return 1
+		while :; do
+			mw_prompt 'Config validation/publication failed; pass and Maildirs retained. [retry/quit]' mw_choice || return 1
+			case "$mw_choice" in
+				retry) break;;
+				quit) return 1;;
+				*) mw_fail 'Choose retry or quit.';;
+			esac
+		done
+		getprofiles || return 1
+	done
+}
+mw_finalize_attempt() {
+	if [ "$mw_operation" = add ]; then
+		printf '%s\n' "$toappend" >> "$accdir/$fulladdr.muttrc" || return 1
+	fi
+	# Exercise installed parsers before any live publication. No IMAP store is
+	# selected and no real Maildir is created; validation uses a synthetic local.
+	mw_validate || { mw_fail 'runtime parser validation failed'; return 1; }
+	case "$mw_operation" in add|edit)
+		mw_stage_safe || return 1
+		if [ "$mw_stagehash" = - ]; then
+			[ "$(mw_fingerprint "$PASSWORD_STORE_DIR/$mw_ref.gpg")" = "$mw_existing" ] || return 1
+		else
+			[ "$(mw_fingerprint "$PASSWORD_STORE_DIR/$mw_ref.gpg")" = "$(mw_fingerprint "$mw_credstage/$fulladdr.gpg")" ] || return 1
+		fi;;
+	esac
+	# Prebuild marker before publication. Never delete/recreate the journal.
+	mw_record config-pending || return 1
+	printf '%s\n' 'committed; reader last; validated credential retained' > "$mw_pending/commit-ready" || return 1
+	mw_publish_account &&
+	mw_publish "$mbsyncrc" "$live_mbsyncrc" &&
+	mw_publish "$msmtprc" "$live_draft" &&
+	mw_intact && mw_reader_safe "$muttrc" && mw_transport "$muttrc" &&
+	mw_publish "$muttrc" "$live_muttrc" && mw_intact &&
+	mv "$mw_pending/commit-ready" "$mw_pending/committed" || return 1
+	# Only canonical INBOX, after the configuration commit. Never LIST names.
+	# Failure here leaves the committed journal for evidence; never roll back.
+	if [ "$mw_operation" = add ]; then
+		mw_inbox || { mw_fail 'setup committed; INBOX initialization failed; not inbox-ready'; return 1; }
+	fi
+	mw_record complete || return 1
+	mv "$mw_pending" "${mw_pending}.complete.$fulladdr.$$" || return 1
+	case "$mw_operation" in add|edit) mw_discard_stage || mw_fail 'Account committed; credential stage retained because cleanup could not be verified';; esac
+	mw_pending=
+	case "$mw_operation" in
+	add) mw_fail 'account added; local INBOX initialized; sending disabled'
+		mw_first_inbox;;
+	edit) mw_fail 'account updated; messages retained; sending disabled';;
+	default) mw_fail 'default account selected; messages retained; sending disabled';;
+	remove) mw_fail 'account configuration removed; pass, Maildirs and caches retained; sending disabled';;
+	esac
+	return 0
+}
+
+prepnotmuch() { mw_fail 'notmuch activation deferred'; }
+
+# Manual only: never resolve a packaged wrapper through PATH. A coherent
+# bundle has this exact reviewed runtime beside mw (also at ~/.local/bin).
+# The hash is provenance/drift checking, not a same-user security boundary.
+mw_sync() {
+	if [ -f "$mbsyncrc" ]; then
+		awk '
+		tolower($1)=="passcmd" && /[;{[:space:]](\/usr\/bin\/)?printf[[:space:]]/ {bad=1}
+		END {exit bad}' "$mbsyncrc" || {
+			mw_fail 'Selected managed account has an old or unsupported PassCmd; run mw -e ADDRESS before downloading. No credential command executed.'
+			return 1
+		}
+	fi
+	case "$0" in
+	*/*) mw_syncpath=${0%/*}/mailsync ;;
+	*) mw_syncpath=$(command -v "$0") || return 1
+	   mw_syncpath=${mw_syncpath%/*}/mailsync ;;
+	esac
+	[ -f "$mw_syncpath" ] && [ ! -L "$mw_syncpath" ] && [ -x "$mw_syncpath" ] &&
+	    [ "$(/bin/sha256 -q "$mw_syncpath")" = 98ab9700e3875cbf6b1a17adfe47f156b48b1836fa57a64a8057f25cef62d508 ] || {
+		mw_fail 'reviewed sibling mailsync missing or mismatched; build/install coherent owned bundle; refusing PATH fallback'
+		return 1
+	}
+	if [ -n "$mw_syncaccount" ]; then
+		MBSYNCRC="$mbsyncrc" "$mw_syncpath" "$mw_syncaccount"
+	else
+		MBSYNCRC="$mbsyncrc" "$mw_syncpath"
+	fi
+}
+mw_first_inbox() {
+	muttrc=$live_muttrc; accdir=$live_accdir; mbsyncrc=$live_mbsyncrc
+	mw_syncaccount=$fulladdr
+	printf '\nSTEP 4 OF 4: Download and open %s\n' "$fulladdr" >&2
+	printf '%s\n' 'Your account is configured. Downloading INBOX now; sending remains disabled.' >&2
+	while :; do
+		if mw_sync <&3; then
+			printf '%s\n' 'Download finished. Opening the selected inbox in NeoMutt.' 'In NeoMutt: Enter reads a message; q goes back or exits; O downloads new mail.' >&2
+			neomutt -F "$live_muttrc" -e "source $(mw_neoq "$live_accdir/$fulladdr.muttrc")" -f "$maildir/$fulladdr/INBOX" <&3 && return 0
+			mw_fail 'Account remains configured; NeoMutt could not open the selected inbox.'
+		else
+			mw_fail 'Account remains configured; download did not complete.'
+		fi
+		while :; do
+			printf '%s\n' 'retry = download again; open = read already downloaded mail; later = finish without opening' >&2
+			mw_prompt 'Choose [retry/open/later] (open reads local mail; later keeps setup):'  mw_choice || return 0
+			case "$mw_choice" in
+				retry) break;;
+				open) neomutt -F "$live_muttrc" -e "source $(mw_neoq "$live_accdir/$fulladdr.muttrc")" -f "$maildir/$fulladdr/INBOX" <&3 && return 0;;
+				later) return 0;;
+				*) mw_fail 'Choose retry, open or later.';;
+			esac
+		done
+	done
+}
+togglecron() { mw_fail 'automatic sync activation deferred'; }
+
+setact() { if [ -n "${action+x}" ] && [ "$action" != "$1" ]; then
+		echo "Running $1 with $action..."
+		echo "Incompatible options given. Only one action may be specified per run."
+		return 1
+	else
+		action="$1"
+	fi; }
+
+mwinfo() { cat << EOF
+mw: mutt-wizard for OpenBSD; manage local IMAP account configuration
+  -a email [-i IMAP-host] [-I TLS-port] [-u login] [-n name]  Add an account.
+  -e email [-i IMAP-host] [-I TLS-port] [-u login] [-n name]  Edit, retaining pass.
+  -R email  Select the default account; selectors stay unchanged.
+  -d  Pick an email for confirmed configuration removal.
+  -D email  Remove account configuration without confirmation.
+  -l  List configured account email addresses.
+  -y email  Manually download new INBOX mail for one account.
+  -Y  Manually download new INBOX mail for all accounts.
+  -h  Show this help (exits 1, as in the original command).
+Removal preserves all pass entries, messages, Maildirs and caches; -X purge unsupported.
+Native pass entries use mail/email when mail/.gpg-id exists, else email.
+PassCmd binds the active store and full reference. Validated credentials are retained,
+but are NOT automatically Git staged/committed (unlike usual pass insert).
+Password replacement is offered in-flow after authentication failure; incomplete
+recovery is retained, completed temporary stages are cleaned. No identity rename.
+Sending disabled. Add downloads the selected account and opens its NeoMutt INBOX.
+Sync uses PullNew only: no flag updates, deletion propagation or expunge.
+POP, automatic sync/cron (-t/-T), numeric reorder (-r) and -x are unsupported.
+--password-stdin as FIRST option is for synthetic fixtures only; normal passwords
+use the terminal.
+EOF
+}
+
+reorder() { mw_fail 'numeric reorder unsupported; use -R email for explicit default; selectors preserved'; }
+
+# Lifecycle stays in the original action/getprofiles/finalize transaction flow.
+# No shell evaluation of account files: read only canonical generated fields.
+mw_edit_answers() {
+	mw_path "$accdir/$fulladdr.muttrc" && mw_path "$mbsyncrc" || return 1
+	[ -f "$accdir/$fulladdr.muttrc" ] && [ -f "$mbsyncrc" ] || return 1
+	mw_editaccountstate=$(mw_fingerprint "$accdir/$fulladdr.muttrc") &&
+	    mw_editsyncstate=$(mw_fingerprint "$mbsyncrc") || return 1
+	mw_oldimap=$(mw_sync_field Host) && mw_oldlogin=$(mw_sync_field User) || return 1
+	mw_oldport=$(mw_sync_field Port) || return 1
+	iport=${iport:-$mw_oldport}
+	mw_oldname=$(awk '
+	/^set realname = "/ {n++; s=$0; sub(/^set realname = "/,"",s); sub(/"$/,"",s)}
+	END {if(n!=1) exit 1; out=""; for(i=1;i<=length(s);i++) {c=substr(s,i,1); if(c=="\\") c=substr(s,++i,1); out=out c}; print out}' "$accdir/$fulladdr.muttrc") || return 1
+	# Only the exact generated self-alias is owned by a name edit. Compare
+	# literal strings: names and email addresses are never regex fragments.
+	mw_oldquoted=$(mw_neoq "$mw_oldname")
+	MW_ALIAS_OLD=$mw_oldname MW_ALIAS_QUOTED=$mw_oldquoted awk -v e="$fulladdr" '
+	BEGIN {old=ENVIRON["MW_ALIAS_OLD"]; quoted=ENVIRON["MW_ALIAS_QUOTED"]}
+	/^[[:space:]]*alias[[:space:]]/ {
+		k=$2; gsub(/\042|\047/,"",k)
+		if(k=="me") {n++; if($0!="alias me " old " <" e ">" && $0!="alias me " quoted " <" e ">") bad=1}
+	}
+	END {exit bad || n!=1}' "$accdir/$fulladdr.muttrc" || {
+		mw_fail 'account name edit requires one exact generated self-alias'; return 1;
+	}
+	imap=${imap:-$mw_oldimap}; login=${login:-$mw_oldlogin}; realname=${realname:-$mw_oldname}
+}
+mw_sync_field() {
+	awk -v e="$fulladdr" -v k="$1" '
+	$0=="# mw account begin " e {inside=1; next}
+	$0=="# mw account end " e {inside=0}
+	inside && $1==k {n++; v=$2; if(NF!=2) bad=1}
+	END {if(n!=1 || bad) exit 1; print v}' "$mbsyncrc"
+}
+mw_lifecycle() {
+	if [ "$mw_stdin" = yes ]; then exec 3<&0; else exec 3<>/dev/tty || return 1; fi
+	if [ -z "$fulladdr" ]; then
+		list || return 1
+		mw_prompt 'Email identity to remove (copy the email, not a number):' fulladdr || return 1
+	fi
+	mw_atom "$fulladdr" || return 1
+	# Non-credential actions need no GPG/pass access or network. Record grammar
+	# retains inert placeholders, not account credentials or a second registry.
+	imap=unused.invalid; iport=993; login=$fulladdr; realname=unused
+	PASSWORD_STORE_DIR=${PASSWORD_STORE_DIR:-$HOME/.password-store}
+	mw_begin || return 1
+	case "$mw_operation" in add|edit)
+		hostname=${fulladdr#*@}
+		[ "$mw_operation" != edit ] || mw_edit_answers || return 1
+		mw_endpoint && mw_credential && getboxes && getprofiles && finalize
+		return $?;;
+	esac
+	if [ "$mw_force" != yes ]; then
+		if ! mw_prompt "$mw_operation configuration for $fulladdr? Pass and Maildirs stay untouched. [yes/no]" mw_confirm ||
+		    [ "$mw_confirm" != yes ]; then
+			# A declined non-credential action has no durable credential progress.
+			# Archive the ready evidence, so cancellation does not block account B.
+			mw_originals && mv "$mw_pending" "${mw_pending}.cancelled.$fulladdr.$$" || return 1
+			mw_pending=; mw_armed=no
+			return 1
+		fi
+	fi
+	getprofiles && finalize
+}
+mw_managed() {
+	# Every block must name an existing account, and every account exactly one
+	# block per shared file. Do not adopt orphan/foreign managed-looking bytes.
+	set -- "$muttrc" "$mbsyncrc" "${muttrc%/*}/smtp-draft.txt"
+	for mw_file in "$accdir"/*.muttrc; do
+		[ -f "$mw_file" ] || continue
+		mw_email=${mw_file##*/}; mw_email=${mw_email%.muttrc}
+		mw_atom "$mw_email" || return 1
+		set -- "$@" "$mw_file"
+	done
+	# Absent shared files are legitimate only for a first enrollment.
+	if [ "$#" = 3 ]; then
+		for mw_file do
+			[ ! -f "$mw_file" ] || ! grep -q '^# mw account ' "$mw_file" || return 1
+		done
+		return 0
+	fi
+	awk -v a="$accdir" '
+	BEGIN {for(i=4;i<ARGC;i++) {e=ARGV[i]; sub(/^.*\//,"",e); sub(/\.muttrc$/,"",e); allowed[e]=1; delete ARGV[i]}}
+	FNR==1 {inside=""}
+	FILENAME==ARGV[1] && /^[[:space:]]*source[[:space:]]/ {
+		sources++; if($0!="source \"" a "/" inside ".muttrc\"") bad=1
+	}
+	/^# mw account begin / {e=substr($0,20); if(!allowed[e] || inside!="" || b[FILENAME,e]++) bad=1; inside=e; next}
+	/^# mw account end / {e=substr($0,18); if(e!=inside || z[FILENAME,e]++) bad=1; inside=""; next}
+	END {for(i=1;i<=3;i++) for(e in allowed) if(b[ARGV[i],e]!=1 || z[ARGV[i],e]!=1) bad=1; exit bad || inside!="" || sources!=1}' "$@"
+}
+mw_lifecycle_profiles() {
+	mw_originals || return 1
+	mw_reader_safe "$muttrc" && mw_transport "$muttrc" || return 1
+	live_muttrc=$muttrc; live_accdir=$accdir; live_mbsyncrc=$mbsyncrc
+	live_draft=${muttrc%/*}/smtp-draft.txt
+	accdir=$mw_pending/accounts; muttrc=$mw_pending/muttrc
+	mbsyncrc=$mw_pending/mbsyncrc; msmtprc=$mw_pending/smtp-draft.txt
+	mkdir -p "$accdir" || return 1
+	mw_next=
+	for mw_file in "$live_accdir"/*.muttrc; do
+		[ -f "$mw_file" ] || continue
+		mw_email=${mw_file##*/}; mw_email=${mw_email%.muttrc}
+		[ "$mw_email" = "$fulladdr" ] || { mw_next=$mw_email; break; }
+	done
+	# Shell glob ordering under LC_ALL=C gives a deterministic surviving default.
+	mw_newdefault=
+	case "$mw_operation" in
+		default) mw_newdefault=$fulladdr;;
+		remove) if grep -Fqx "source \"$live_accdir/$fulladdr.muttrc\"" "$mw_pending/original-muttrc"; then mw_newdefault=$mw_next; fi;;
+	esac
+	if [ "$mw_operation" = edit ]; then mw_passcmd bound > "$mw_pending/passcmd" || return 1; fi
+	for mw_key in muttrc mbsyncrc smtp-draft.txt; do
+		awk -v cmdfile="$mw_pending/passcmd" -v e="$fulladdr" -v op="$mw_operation" -v key="$mw_key" \
+		    -v d="$mw_newdefault" -v a="$live_accdir" -v h="$imap" -v u="$login" -v port="$iport" '
+		$0=="# mw account begin " e {target=1}
+		/^# mw account begin / {inside=substr($0,20)}
+		{
+			if(op=="remove" && target) {if($0=="# mw account end " e) {target=0; inside=""}; next}
+			if(key=="muttrc" && op=="default" && $0=="source \"" a "/" inside ".muttrc\"") next
+			if(key=="muttrc" && op=="remove" && index($0,a "/" e ".muttrc")) {bad=1; next}
+			if(op=="edit" && key=="mbsyncrc" && target && $1=="Host") {print "Host " h; next}
+			if(op=="edit" && key=="mbsyncrc" && target && $1=="Port") {print "Port " port; next}
+			if(op=="edit" && key=="mbsyncrc" && target && $1=="User") {print "User " u; next}
+			if(op=="edit" && key=="mbsyncrc" && target && $1=="PassCmd") {if((getline cmd < cmdfile)!=1) exit 1; close(cmdfile); print cmd; next}
+			print
+			if(key=="muttrc" && d!="" && $0=="# mw account begin " d) print "source \"" a "/" d ".muttrc\""
+		}
+		/^# mw account end / {inside=""; target=0}
+		END {exit bad}' "$mw_pending/original-$mw_key" > "$mw_pending/$mw_key" || return 1
+	done
+	if [ "$mw_operation" = edit ]; then
+		MW_NAME_QUOTED=$(mw_neoq "$realname") MW_OLD_QUOTED=$(mw_neoq "$mw_oldname") MW_OLD_NAME=$mw_oldname awk -v e="$fulladdr" '
+		BEGIN {n=ENVIRON["MW_NAME_QUOTED"]; old=ENVIRON["MW_OLD_NAME"]; oq=ENVIRON["MW_OLD_QUOTED"]}
+		/^set realname = "/ {print "set realname = " n; next}
+		$0=="alias me " old " <" e ">" || $0=="alias me " oq " <" e ">" {print "alias me " n " <" e ">"; next}
+		{print}' \
+		    "$mw_pending/original-account" > "$accdir/$fulladdr.muttrc" || return 1
+	elif [ "$mw_operation" = default ]; then
+		cp -p "$mw_pending/original-account" "$accdir/$fulladdr.muttrc" || return 1
+	elif [ -z "$mw_next" ]; then
+		printf '%s\n' '# mw empty account state: transport disabled, no default source.' \
+		    'unset smtp_url smtp_pass smtp_oauth_refresh_command' 'set sendmail = "/usr/bin/false"' >> "$muttrc" || return 1
+	fi
+}
+mw_publish_account() {
+	if [ "$mw_operation" != remove ]; then
+		mw_publish "$accdir/$fulladdr.muttrc" "$live_accdir/$fulladdr.muttrc"
+		return $?
+	fi
+	mw_target=$live_accdir/$fulladdr.muttrc
+	mw_now=$(mw_fingerprint "$mw_target") &&
+	    [ "$mw_now" = "$(awk '{print}' "$mw_pending/state-account")" ] || return 1
+	# Journal deletion intent BEFORE same-directory rename. Retain exact inode
+	# as rollback evidence; no credential/cache/Maildir paths ever enter here.
+	mw_trash=$(mktemp -d "$live_accdir/.mw-remove.XXXXXXXX") || return 1
+	printf '%s\n' "$mw_trash/original" > "$mw_pending/removed-account" || return 1
+	printf '%s\n' absent > "$mw_pending/published-account-ready" &&
+	    mv "$mw_pending/published-account-ready" "$mw_pending/published-account" || return 1
+	[ "$(mw_fingerprint "$mw_target")" = "$mw_now" ] &&
+	    mw_path "$mw_trash/original" && [ ! -e "$mw_trash/original" ] &&
+	    mv "$mw_target" "$mw_trash/original" &&
+	    [ "$(mw_fingerprint "$mw_trash/original")" = "$mw_now" ]
+}
+
+# Focused transaction helpers: no alternative account generator or database.
+mw_fail() { printf '%s\n' "mw: $*" >&2; return 1; }
+mw_identity() {
+	[ -z "$fulladdr" ] || [ "$fulladdr" = "$1" ] || { mw_fail 'identity change is a different account, not an edit'; return 1; }
+	fulladdr=$1
+}
+mw_atom() { case "$1" in ''|-*|*[!a-zA-Z0-9_@.+-]*) return 1;; esac; }
+mw_inbox() {
+	# Bind postcommit initialization to the published canonical account path,
+	# including recovery under a possibly changed XDG_DATA_HOME.
+	mw_inbox_acc=${live_accdir:-$accdir}/$fulladdr.muttrc
+	mw_path "$mw_inbox_acc" &&
+	    grep -Fqx "set folder = \"$maildir/$fulladdr\"" "$mw_inbox_acc" || return 1
+	# Use the existing restricted path/ancestry guard at every creation boundary.
+	for mw_d in "$maildir" "$maildir/$fulladdr" "$maildir/$fulladdr/INBOX" \
+	    "$maildir/$fulladdr/INBOX/cur" "$maildir/$fulladdr/INBOX/new" "$maildir/$fulladdr/INBOX/tmp"; do
+		mw_path "$mw_d" || return 1
+		if [ -e "$mw_d" ]; then
+			[ -d "$mw_d" ] && [ "$(stat -f %u "$mw_d")" = "$(id -u)" ] || return 1
+		else
+			mkdir -p "$mw_d" || return 1
+		fi
+		mw_path "$mw_d" || return 1
+		mw_perm=$(stat -f %Op "$mw_d") || return 1
+		[ "$((0$mw_perm & 0022))" = 0 ] || return 1
+	done
+}
+
+mw_path() {
+	case "$1" in /*) ;; *) return 1;; esac
+	# Literal private paths permit spaces and UTF-8. Config metacharacters are
+	# not silently reinterpreted; all ancestry is still symlink checked.
+	mw_text "$1" || return 1
+	case "$1" in *\\*|*\"*|*\`*|*\$*|*/../*|*/..|*/./*|*//*) return 1;; esac
+	mw_p=$1
+	while [ "$mw_p" != / ]; do
+		[ ! -L "$mw_p" ] || return 1
+		mw_p=${mw_p%/*}; [ -n "$mw_p" ] || mw_p=/
+	done
+}
+mw_prompt() { printf '%s\n' "$1"; IFS= read -r "$2" <&3; }
+mw_neoq() { printf '"%s"' "$(print -rn -- "$1" | sed 's/[\\"$`]/\\&/g')"; }
+mw_text() {
+	case "$1" in ''|*[[:cntrl:]]*) return 1;; esac
+	return 0
+}
+mw_port_valid() {
+	case "$1" in ''|*[!0-9]*|??????*) return 1;; esac
+	[ "$1" -ge 1 ] && [ "$1" -le 65535 ]
+}
+mw_endpoint_valid() {
+	case "$imap" in ''|-*|.*|*..*|*.|*[!a-zA-Z0-9.-]*) mw_fail 'invalid DNS hostname'; return 1;; esac
+	case "$imap" in *[!0-9.]*) ;; *) mw_fail 'use a DNS hostname (e.g. localhost), not an IP: native isync requires a DNS SNI name'; return 1;; esac
+	mw_port_valid "$iport" || { mw_fail 'implicit TLS port must be 1..65535'; return 1; }
+}
+mw_normalize_password() {
+	mw_provider=$(print -rn -- "$imap" | tr 'A-Z' 'a-z')
+	case "$mw_provider" in imap.gmail.com|imap.googlemail.com)
+		mw_fail 'Google app-password mode: 16 ASCII letters; pasted grouping spaces/NBSP/CR are removed.'
+		MW_SECRET=$(print -rn -- "$MW_SECRET" | sed "s/$(printf '\302\240')//g; s/ //g; s/$(printf '\r')//g")
+		case "$MW_SECRET" in *[!a-zA-Z]*|'') unset MW_SECRET; mw_fail 'Google app password must contain 16 letters'; return 1;; esac
+		[ "${#MW_SECRET}" = 16 ] || { unset MW_SECRET; mw_fail 'Google app password must contain 16 letters'; return 1; };;
+	esac
+}
+mw_discard_stage() {
+	[ -n "${mw_credstage:-}" ] || return 0
+	mw_stage_safe || return 1
+	for mw_item in "$mw_credstage"/* "$mw_credstage"/.[!.]* "$mw_credstage"/..?*; do
+		[ -e "$mw_item" ] || [ -L "$mw_item" ] || continue
+		case "${mw_item##*/}" in .gpg-id|.gpg-id.sig|"$fulladdr.gpg"|previous.gpg) ;;
+			*) mw_fail 'Unexpected credential-stage contents; retained for review'; return 1;; esac
+		[ -f "$mw_item" ] && [ ! -L "$mw_item" ] && mw_owned "$mw_item" || return 1
+	done
+	rm -f "$mw_credstage/$fulladdr.gpg" "$mw_credstage/previous.gpg" "$mw_credstage/.gpg-id.sig" "$mw_credstage/.gpg-id" && rmdir "$mw_credstage"
+}
+mw_abandon_clean() {
+	[ "${mw_phase:-}" = collecting ] && [ -n "$mw_pending" ] || return 0
+	# Archive unverified evidence and retain its identity-bound ciphertext stage.
+	mw_originals && mw_stage_safe &&
+	    mv "$mw_pending" "${mw_pending}.cancelled.$fulladdr.$$" || return 1
+	mw_discard_stage || mw_fail 'Cancelled; credential stage retained because cleanup could not be verified'
+	mw_pending=; mw_armed=no
+}
+mw_credential() {
+	while :; do
+		if [ "$mw_stagehash" != - ]; then
+			unset MW_SECRET
+			MW_SECRET=$(PASSWORD_STORE_DIR="$mw_credstage" pass show "$fulladdr" 2>/dev/null) && mw_secret_valid && return 0
+			unset MW_SECRET
+			mw_fail 'staged credential decrypt failed; check pinentry/key'
+		elif [ "${mw_replacement:-no}" = yes ]; then
+			if [ -f "$PASSWORD_STORE_DIR/$mw_ref.gpg" ] && [ "$mw_existing" = - ]; then
+				mw_existing=$(mw_fingerprint "$PASSWORD_STORE_DIR/$mw_ref.gpg") || return 1
+			fi
+			createpass && return 0
+		elif [ -f "$PASSWORD_STORE_DIR/$mw_ref.gpg" ]; then
+			getpass && return 0
+		else createpass && return 0; fi
+		unset MW_SECRET
+		printf '%s\n' 'The local credential step did not finish; no successful mail sign-in yet.' 'retry = unlock/read the saved value again; reenter = type or paste a new app password' 'cancel = stop safely; existing mail and working credentials stay untouched' >&2
+		mw_prompt 'Credential step failed/cancelled. [retry/reenter/cancel]' mw_choice || { mw_abandon_clean; return 1; }
+		case "$mw_choice" in
+			retry) ;;
+			reenter) mw_replacement=yes; mw_stagehash=-;;
+			cancel) mw_abandon_clean; return 1;;
+			*) mw_fail 'Choose retry, reenter or cancel';;
+		esac
+	done
+}
+mw_curl_config() {
+	printf 'url = "imaps://%s:%s/"\nconnect-timeout = 10\nmax-time = 30\n' "$imap" "$iport"
+	printf 'proto = "=imaps"\nsilent\ncacert = "%s"\n' "$sslcert"
+}
+mw_endpoint() {
+	while :; do
+		case "$imap" in ''|-*|.*|*..*|*.|*[!a-zA-Z0-9.-]*) mw_fail 'invalid hostname';;
+		*) if mw_atom "$login"; then
+			mw_endpoint_valid || return 1
+			printf '\nSTEP 1 OF 4: Confirm your mail account\nServer: imaps://%s:%s; login: %s\nTLS is checked at sign-in, before authentication.\n'  "$imap" "$iport" "$login"
+			mw_prompt 'Use this server? [Y/n/edit] (Enter continues; n stops; edit changes details)'  mw_confirm || { mw_abandon_clean; return 1; }
+			case "$mw_confirm" in
+				''|[yY]|[yY][eE][sS]) return 0;;
+				[nN]|[nN][oO]) mw_fail 'Setup cancelled at server confirmation.'; mw_abandon_clean; return 1;;
+				[eE][dD][iI][tT]) ;;
+				*) mw_fail 'Choose Enter, yes, no or edit.'; continue;;
+			esac
+		else mw_fail 'invalid login'; fi;;
+		esac
+		mw_prompt 'IMAP hostname:' imap && mw_prompt 'Login:' login || return 1
+	done
+}
+# Git variables are not passed through to pass (which itself clears only some).
+unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR GIT_OBJECT_DIRECTORY
+unset GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_PREFIX GIT_NAMESPACE
+# Safe grammar serializer: mw_path/mw_atom admit no shell metacharacters.
+# These return data only. Never evaluate a PassCmd to discover its reference.
+mw_passcmd() {
+	if [ "$1" = bound ]; then
+		# No newline in isync syntax: ksh can extract the first line by read.
+		mw_cmd='/bin/ksh -c '\''set +axv; unset value first; value=$(PASSWORD_STORE_DIR="$1" pass show "$2") || { unset value; exit 1; }; first=$(print -r -- "$value" | { IFS= read -r first; print -rn -- "$first"; }); unset value; [ -n "$first" ] || { unset first; exit 1; }; print -rn -- "$first"; unset first'\'' mw '
+		mw_cmd="$mw_cmd$(mw_shquote "$PASSWORD_STORE_DIR") $(mw_shquote "$mw_ref")"
+		printf 'PassCmd "%s"\n' "$(print -rn -- "$mw_cmd" | sed 's/\\/\\\\/g; s/"/\\"/g')"
+		return
+	fi
+	# Historical byte-string recognition ONLY. These strings are compared as
+	# data in mw_select_policy, never published or evaluated. Old installed
+	# profiles are upgraded to the builtin-only bound command on an edit.
+	if [ "$1" = legacy ]; then
+		echo "PassCmd \"/bin/ksh -c 'set +ax; unset value first; value=\$(pass show $mw_ref) || { unset value; exit 1; }; first=\$({ printf \\\"%s\\\" \\\"\$value\\\"; echo; } | { IFS= read -r first; printf \\\"%s\\\" \\\"\$first\\\"; unset first; }); unset value; [ -n \\\"\$first\\\" ] || { unset first; exit 1; }; printf \\\"%s\\\" \\\"\$first\\\"; unset first'\""
+	else
+		echo "PassCmd \"/bin/ksh -c 'set +axv; unset value first; value=\$(PASSWORD_STORE_DIR=$PASSWORD_STORE_DIR pass show $mw_ref) || { unset value; exit 1; }; first=\$({ printf \\\"%s\\\" \\\"\$value\\\"; echo; } | { IFS= read -r first; printf \\\"%s\\\" \\\"\$first\\\"; unset first; }); unset value; [ -n \\\"\$first\\\" ] || { unset first; exit 1; }; printf \\\"%s\\\" \\\"\$first\\\"; unset first'\""
+	fi
+}
+mw_shquote() { printf "'%s'" "$(print -rn -- "$1" | sed "s/'/'\\\\''/g")"; }
+# Native pass subtree policy, not a credential registry. Only metadata is copied.
+mw_owned() {
+	mw_path "$1" && [ -e "$1" ] && [ "$(stat -f '%u' "$1")" = "$(id -u)" ] || return 1
+	mw_mode=$(stat -f '%Lp' "$1") || return 1
+	[ "$((0$mw_mode & 022))" -eq 0 ]
+}
+mw_select_policy() {
+	mw_owned "$PASSWORD_STORE_DIR" && mw_path "$PASSWORD_STORE_DIR/mail/.gpg-id" || return 1
+	mw_ref=$fulladdr
+	if [ "$mw_operation" = edit ]; then
+		mw_actual=$(awk -v e="$fulladdr" '
+		$0=="# mw account begin " e {inside=1; next}
+		$0=="# mw account end " e {inside=0}
+		inside && /^[[:space:]]*PassCmd[[:space:]]/ {n++; s=$0}
+		END {if(n!=1) exit 1; print s}' "$mbsyncrc") || return 1
+		mw_expected=$(mw_passcmd bound)
+		mw_legacy=$(mw_passcmd legacy)
+		mw_oldbound=$(mw_passcmd oldbound)
+		if [ "$mw_actual" != "$mw_expected" ] && [ "$mw_actual" != "$mw_legacy" ] && [ "$mw_actual" != "$mw_oldbound" ]; then
+			mw_ref=mail/$fulladdr
+			{ [ "$mw_actual" = "$(mw_passcmd bound)" ] || [ "$mw_actual" = "$(mw_passcmd oldbound)" ]; } || {
+				mw_fail 'unrecognized managed PassCmd; reference not evaluated or reinterpreted'; return 1;
+			}
+		fi
+	elif [ -e "$PASSWORD_STORE_DIR/mail/.gpg-id" ] || [ -L "$PASSWORD_STORE_DIR/mail/.gpg-id" ]; then
+		mw_ref=mail/$fulladdr
+	fi
+	mw_policy=$PASSWORD_STORE_DIR
+	case "$mw_ref" in mail/*) mw_policy=$PASSWORD_STORE_DIR/mail;; esac
+	mw_policy_check || return 1
+	mw_policyhash=$(sha256 -q "$mw_policy/.gpg-id") || return 1
+	mw_sighash=absent
+	[ ! -f "$mw_policy/.gpg-id.sig" ] || mw_sighash=$(sha256 -q "$mw_policy/.gpg-id.sig") || return 1
+}
+mw_policy_check() {
+	mw_owned "$PASSWORD_STORE_DIR" && mw_owned "$mw_policy" &&
+	    mw_owned "$mw_policy/.gpg-id" && [ -f "$mw_policy/.gpg-id" ] &&
+	    mw_path "$PASSWORD_STORE_DIR/$mw_ref.gpg" || return 1
+	if [ -e "$PASSWORD_STORE_DIR/$mw_ref.gpg" ]; then
+		mw_owned "$PASSWORD_STORE_DIR/$mw_ref.gpg" && [ -f "$PASSWORD_STORE_DIR/$mw_ref.gpg" ] || return 1
+	fi
+	# Opaque GPG option strings can override recipients/verification. Refuse,
+	# rather than silently stripping or executing a policy bypass.
+	[ -z "${PASSWORD_STORE_GPG_OPTS:-}" ] || { mw_fail 'PASSWORD_STORE_GPG_OPTS conflicts with checked policy'; return 1; }
+	mw_recipients=$(awk '{sub(/#.*/, ""); if(length) print}' "$mw_policy/.gpg-id")
+	[ -n "$mw_recipients" ] || return 1
+	if [ -n "${PASSWORD_STORE_KEY:-}" ]; then
+		[ "$PASSWORD_STORE_KEY" = "$mw_recipients" ] || { mw_fail 'PASSWORD_STORE_KEY conflicts with selected policy'; return 1; }
+	fi
+	mw_path "$mw_policy/.gpg-id.sig" || return 1
+	if [ -e "$mw_policy/.gpg-id.sig" ]; then
+		mw_owned "$mw_policy/.gpg-id.sig" && [ -f "$mw_policy/.gpg-id.sig" ] || return 1
+		mw_status=$(gpg --batch --status-fd=1 --verify "$mw_policy/.gpg-id.sig" "$mw_policy/.gpg-id" 2>/dev/null) || return 1
+		printf '%s\n' "$mw_status" | grep -q '^\[GNUPG:\] VALIDSIG ' || return 1
+		if [ -n "${PASSWORD_STORE_SIGNING_KEY:-}" ]; then
+			mw_signed=no
+			for mw_signer in $PASSWORD_STORE_SIGNING_KEY; do
+				case "$mw_signer" in *[!A-F0-9]*|'') return 1;; esac
+				[ "${#mw_signer}" = 40 ] || return 1
+				if printf '%s\n' "$mw_status" | awk -v k="$mw_signer" '
+				$1=="[GNUPG:]" && $2=="VALIDSIG" && ($3==k || $NF==k) {ok=1} END {exit !ok}'; then mw_signed=yes; fi
+			done
+			[ "$mw_signed" = yes ] || return 1
+		fi
+	else [ -z "${PASSWORD_STORE_SIGNING_KEY:-}" ] || return 1; fi
+}
+mw_policy_unchanged() {
+	mw_policy_check && [ "$(sha256 -q "$mw_policy/.gpg-id")" = "$mw_policyhash" ] || return 1
+	if [ "$mw_sighash" = absent ]; then [ ! -e "$mw_policy/.gpg-id.sig" ];
+	else [ "$(sha256 -q "$mw_policy/.gpg-id.sig")" = "$mw_sighash" ]; fi
+}
+mw_fingerprint() {
+	mw_path "$1" || return 1
+	if [ -f "$1" ]; then
+		printf '%s %s\n' "$(stat -f '%d:%i' "$1")" "$(sha256 -q "$1")"
+	elif [ ! -e "$1" ]; then printf 'absent\n'; else return 1; fi
+}
+mw_target_for() {
+	case "$1" in
+		muttrc) mw_dest=$muttrc;; mbsyncrc) mw_dest=$mbsyncrc;;
+		smtp-draft.txt) mw_dest=${muttrc%/*}/smtp-draft.txt;;
+		account) mw_dest=$accdir/$fulladdr.muttrc;; *) return 1;;
+	esac
+}
+mw_record() {
+	mw_phase=$1
+	# Fixed-order data, never sourced. Values have no newline; all paths checked.
+	printf '%s\n' 'mw-pending-v4' "$fulladdr" "$imap" "$iport" "$login" "$realname" \
+	    "$PASSWORD_STORE_DIR" "$mw_credstage" "$mw_stageid" "$mw_stagehash" "$mw_phase" "$binding" "$mw_existing" "$mw_operation" \
+	    "${mw_ref:--}" "${mw_policy:--}" "${mw_policyhash:--}" "${mw_sighash:--}" \
+	    > "$mw_pending/record-ready" && mv "$mw_pending/record-ready" "$mw_pending/record"
+}
+mw_load() {
+	[ -f "$mw_pending/record" ] && [ ! -L "$mw_pending/record" ] || return 1
+	{
+		IFS= read -r mw_version && IFS= read -r mw_email && IFS= read -r mw_imap &&
+		IFS= read -r mw_port && IFS= read -r mw_login && IFS= read -r mw_name &&
+		IFS= read -r mw_store && IFS= read -r mw_credstage && IFS= read -r mw_stageid &&
+		IFS= read -r mw_stagehash && IFS= read -r mw_phase && IFS= read -r binding &&
+		IFS= read -r mw_existing && {
+			if [ "$mw_version" = mw-pending-v2 ]; then mw_savedop=add;
+			else IFS= read -r mw_savedop; fi
+		} && {
+			if [ "$mw_version" = mw-pending-v4 ]; then
+				IFS= read -r mw_savedref && IFS= read -r mw_savedpolicy &&
+				    IFS= read -r mw_savedhash && IFS= read -r mw_savedsig &&
+				    { [ "${1:-}" = archive-policy ] || {
+				        [ "$mw_savedref" = "${mw_ref:--}" ] && [ "$mw_savedpolicy" = "${mw_policy:--}" ] &&
+				        [ "$mw_savedhash" = "${mw_policyhash:--}" ] && [ "$mw_savedsig" = "${mw_sighash:--}" ];
+				    }; };
+			else
+				[ "${mw_ref:-$fulladdr}" = "$fulladdr" ];
+			fi
+		} && ! IFS= read -r mw_extra
+	} < "$mw_pending/record" || return 1
+	case "$mw_version" in mw-pending-v2|mw-pending-v3|mw-pending-v4) ;; *) return 1;; esac
+	[ "$mw_savedop" = "$mw_operation" ] && [ "$mw_email" = "$fulladdr" ] &&
+	    [ "$mw_store" = "$PASSWORD_STORE_DIR" ] || return 1
+	mw_atom "$mw_login" && mw_atom "$mw_imap" && mw_port_valid "$mw_port" || return 1
+	mw_text "$mw_name" || return 1
+	case "$binding" in i*'<Enter>') mw_digits=${binding#i}; mw_digits=${mw_digits%'<Enter>'};; *) return 1;; esac
+	case "$mw_digits" in ''|0*|*[!0-9]*) return 1;; esac
+	case "$mw_phase" in collecting|verified-staged|credential-saved|config-pending|complete) ;; *) return 1;; esac
+	imap=$mw_imap; iport=$mw_port; login=$mw_login; realname=$mw_name
+	if [ "${1:-}" = archive-policy ]; then
+		# Archive-only validation: the archived policy metadata must still match
+		# its recorded hashes, not the newly selected live recipient policy.
+		case "$mw_savedref" in "$fulladdr") mw_archivepolicy=$PASSWORD_STORE_DIR;;
+		    "mail/$fulladdr") mw_archivepolicy=$PASSWORD_STORE_DIR/mail;; *) return 1;; esac
+		[ "$mw_savedpolicy" = "$mw_archivepolicy" ] && mw_owned "$mw_credstage" &&
+		    [ "$(stat -f '%d:%i' "$mw_credstage")" = "$mw_stageid" ] &&
+		    [ "$(stat -f '%d' "$mw_credstage")" = "$(stat -f '%d' "$PASSWORD_STORE_DIR")" ] &&
+		    mw_owned "$mw_credstage/.gpg-id" &&
+		    [ "$(sha256 -q "$mw_credstage/.gpg-id")" = "$mw_savedhash" ] || return 1
+		if [ "$mw_savedsig" = absent ]; then [ ! -e "$mw_credstage/.gpg-id.sig" ] || return 1;
+		else mw_owned "$mw_credstage/.gpg-id.sig" &&
+		    [ "$(sha256 -q "$mw_credstage/.gpg-id.sig")" = "$mw_savedsig" ] || return 1; fi
+		mw_originals
+	else
+		case "$mw_operation" in add|edit) mw_stage_safe;; remove|default) :;; *) return 1;; esac
+	fi
+}
+mw_stage_safe() {
+	mw_path "$mw_credstage" && [ -d "$mw_credstage" ] &&
+	    [ "$(stat -f '%d:%i' "$mw_credstage")" = "$mw_stageid" ] &&
+	    [ "$(stat -f '%d' "$mw_credstage")" = "$(stat -f '%d' "$PASSWORD_STORE_DIR")" ] &&
+	    ! git -C "$mw_credstage" rev-parse --git-dir >/dev/null 2>&1 || {
+		mw_fail 'credential staging must be unchanged, same-filesystem, outside Git'; return 1;
+	}
+	mw_policy_unchanged || return 1
+	for mw_meta in .gpg-id .gpg-id.sig; do
+		mw_path "$mw_policy/$mw_meta" && mw_path "$mw_credstage/$mw_meta" || return 1
+		if [ -f "$mw_policy/$mw_meta" ]; then
+			cmp -s "$mw_policy/$mw_meta" "$mw_credstage/$mw_meta" || return 1
+		else [ ! -e "$mw_credstage/$mw_meta" ] || return 1; fi
+	done
+}
+mw_savecredential() {
+	mw_stage_safe || return 1
+	if [ -f "$PASSWORD_STORE_DIR/$mw_ref.gpg" ] && [ "$mw_stagehash" != - ] &&
+	    [ "$(mw_fingerprint "$PASSWORD_STORE_DIR/$mw_ref.gpg")" = "$mw_existing" ]; then
+		# New ciphertext has already passed verified TLS authentication. Keep the
+		# exact old encrypted inode before guarded same-filesystem replacement.
+		mw_record verified-staged || return 1
+		mw_oldcopy=$mw_credstage/previous.gpg
+		if [ ! -e "$mw_oldcopy" ]; then
+			ln -h "$PASSWORD_STORE_DIR/$mw_ref.gpg" "$mw_oldcopy" || return 1
+		fi
+		[ "$(mw_fingerprint "$mw_oldcopy")" = "$mw_existing" ] &&
+		    [ "$(mw_fingerprint "$PASSWORD_STORE_DIR/$mw_ref.gpg")" = "$mw_existing" ] || return 1
+		mw_newdir=$(mktemp -d "$mw_policy/.mw-replace.XXXXXXXX") || return 1
+		ln -h "$mw_credstage/$fulladdr.gpg" "$mw_newdir/new.gpg" || return 1
+		[ "$(mw_fingerprint "$PASSWORD_STORE_DIR/$mw_ref.gpg")" = "$mw_existing" ] &&
+		    mv "$mw_newdir/new.gpg" "$PASSWORD_STORE_DIR/$mw_ref.gpg" || return 1
+		rmdir "$mw_newdir" || return 1
+		mw_record credential-saved || return 1
+	fi
+	if [ -f "$PASSWORD_STORE_DIR/$mw_ref.gpg" ]; then
+		if [ "$mw_stagehash" = - ]; then
+			[ "$(mw_fingerprint "$PASSWORD_STORE_DIR/$mw_ref.gpg")" = "$mw_existing" ] || return 1
+		else
+			[ "$(sha256 -q "$PASSWORD_STORE_DIR/$mw_ref.gpg")" = "$mw_stagehash" ] &&
+			    [ "$(stat -f '%d:%i' "$PASSWORD_STORE_DIR/$mw_ref.gpg")" = "$(stat -f '%d:%i' "$mw_credstage/$fulladdr.gpg")" ] || return 1
+		fi
+		mw_record credential-saved
+		return $?
+	fi
+	mw_stage_safe && [ "$(sha256 -q "$mw_credstage/$fulladdr.gpg")" = "$mw_stagehash" ] &&
+	    mw_record verified-staged || return 1
+	# Absent-only publication: unchanged native ciphertext, no Git operations.
+	ln -h "$mw_credstage/$fulladdr.gpg" "$PASSWORD_STORE_DIR/$mw_ref.gpg" || return 1
+	mw_record credential-saved || return 1
+	# Readback through ordinary native pass, even though insert's exit status alone
+	# does not reliably establish its own success.
+	unset MW_SECRET
+	MW_SECRET=$(pass show "$mw_ref" 2>/dev/null) && mw_secret_valid &&
+	    [ "$(sha256 -q "$PASSWORD_STORE_DIR/$mw_ref.gpg")" = "$mw_stagehash" ] &&
+	    [ "$(stat -f '%d:%i' "$PASSWORD_STORE_DIR/$mw_ref.gpg")" = "$(stat -f '%d:%i' "$mw_credstage/$fulladdr.gpg")" ] || { unset MW_SECRET; return 1; }
+	unset MW_SECRET
+	printf '%s\n' 'mw: credential-saved; unlike usual pass insert, NOT Git staged/committed.' >&2
+}
+mw_writer() { ps -p "$1" -o uid=,pid=,lstart= | sed 's/^ *//; s/  */ /g; s/ *$//'; }
+mw_acquire() {
+	mw_path "$mw_lock" || return 1
+	# Prepare a complete identity before the single atomic link. SIGKILL before
+	# link leaves only an unclaimed private tempfile, never an empty public lock.
+	mw_locktmp=$(mktemp "${muttrc%/*}/.mw-writer.XXXXXXXX") || return 1
+	mw_writer "$$" > "$mw_locktmp" || return 1
+	while ! ln -h "$mw_locktmp" "$mw_lock" 2>/dev/null; do
+		mw_owned "$mw_lock" && [ -f "$mw_lock" ] || {
+			mw_fail 'active writer record is foreign or legacy; no lock removed'; rm "$mw_locktmp"; return 1;
+		}
+		mw_stalefp=$(mw_fingerprint "$mw_lock") || return 1
+		mw_owner=$(awk 'NR==1 && NF==7 {print $1}' "$mw_lock")
+		mw_pid=$(awk 'NR==1 && NF==7 {print $2}' "$mw_lock")
+		case "$mw_pid" in ''|*[!0-9]*) rm "$mw_locktmp"; return 1;; esac
+		[ "$mw_owner" = "$(id -u)" ] || { rm "$mw_locktmp"; return 1; }
+		if [ "$(mw_writer "$mw_pid")" = "$(awk '{print}' "$mw_lock")" ]; then
+			mw_fail 'another setup writer is active; retry after it exits'; rm "$mw_locktmp"; return 1
+		fi
+		[ "$(mw_fingerprint "$mw_lock")" = "$mw_stalefp" ] || continue
+		mv "$mw_lock" "${mw_lock}.recovered.$$" || return 1
+		mw_fail 'recovered stale writer (UID/PID/start identity checked); journal retained'
+	done
+	mw_lockid=$(mw_fingerprint "$mw_lock") || return 1
+	rm "$mw_locktmp"
+}
+mw_begin() {
+	for mw_f in "$muttrc" "$mbsyncrc" "$accdir" "$msmtprc" "$mpoprc" \
+	    "${muttrc%/*}/smtp-draft.txt" "$cachedir" "$maildir" \
+	    "$PASSWORD_STORE_DIR/$mw_ref.gpg" "$PASSWORD_STORE_DIR/.gpg-id"; do
+		mw_path "$mw_f" || { mw_fail "unsafe path: $mw_f"; return 1; }
+	done
+	# These small line-oriented merges support complete lines only. Refuse
+	# before any journal/credential work instead of normalizing foreign EOF.
+	for mw_f in "$muttrc" "$mbsyncrc" "${muttrc%/*}/smtp-draft.txt" "$accdir"/*.muttrc; do
+		[ -e "$mw_f" ] || [ -L "$mw_f" ] || continue
+		mw_path "$mw_f" && [ -f "$mw_f" ] || return 1
+		if [ -s "$mw_f" ] && [ "$(tail -c 1 "$mw_f" | od -An -tu1 | tr -d '[:space:]')" -ne 10 ]; then
+			mw_fail "unsupported missing final newline; nothing edited: $mw_f"; return 1
+		fi
+	done
+	mkdir -p "${muttrc%/*}" "$accdir" "${mbsyncrc%/*}" || return 1
+	mw_pending=${muttrc%/*}/.mw-pending
+	mw_path "$mw_pending" || return 1
+	mw_lock=${muttrc%/*}/.mw-active
+	mw_acquire || { mw_lock=; return 1; }
+	trap 'mw_cleanup $?' EXIT
+	trap 'exit 130' INT
+	trap 'exit 129' HUP
+	trap 'exit 143' TERM
+	if [ -f "$mw_pending/committed" ]; then
+		# Commit-marker/archive interruption: verify all four published identities,
+		# then archive atomically, even when the next requested account is B.
+		mw_requested=$fulladdr
+		fulladdr=$(awk 'NR==2 {print}' "$mw_pending/record")
+		mw_atom "$fulladdr" && [ "$(awk 'NR==7 {print}' "$mw_pending/record")" = "$PASSWORD_STORE_DIR" ] || return 1
+		for mw_key in muttrc mbsyncrc smtp-draft.txt account; do
+			mw_target_for "$mw_key" && [ -f "$mw_pending/published-$mw_key" ] &&
+			    [ "$(mw_fingerprint "$mw_dest")" = "$(awk '{print}' "$mw_pending/published-$mw_key")" ] || return 1
+		done
+		mw_committedop=$(awk 'NR==14 {print}' "$mw_pending/record")
+		if [ "$mw_committedop" = add ] || [ "$(head -n 1 "$mw_pending/record")" = mw-pending-v2 ]; then
+			mw_inbox || { mw_fail 'setup committed; INBOX initialization failed; not inbox-ready'; return 1; }
+		fi
+		mv "$mw_pending" "${mw_pending}.complete.$fulladdr.$$" || return 1
+		if [ "$fulladdr" = "$mw_requested" ] && [ "$mw_operation" = add ] && [ "$mw_committedop" = add ]; then
+			mw_pending=; mw_recovered=yes
+			mw_fail 'Recovered completed account setup; continuing with download and inbox.'
+			return 0
+		fi
+		fulladdr=$mw_requested
+	fi
+	if [ -d "$mw_pending" ]; then
+		mw_savedemail=$(awk 'NR==2 {print}' "$mw_pending/record")
+		mw_savedoperation=$(awk 'NR==1 && $0=="mw-pending-v2" {print "add"; exit} NR==14 {print}' "$mw_pending/record")
+		if [ "$mw_savedemail" != "$fulladdr" ] || [ "$mw_savedoperation" != "$mw_operation" ]; then
+			mw_atom "$mw_savedemail" || { mw_fail 'damaged pending identity'; return 1; }
+			printf 'Incomplete setup for %s (%s).\n' "$mw_savedemail" "$mw_savedoperation"
+			mw_prompt 'Choose [resume/leaveaside/cancel]:' mw_choice || return 1
+			case "$mw_choice" in resume|leaveaside) ;; *) return 1;; esac
+			mw_requestedemail=$fulladdr; mw_requestedop=$mw_operation
+			mw_requestedimap=$imap; mw_requestedport=$iport; mw_requestedlogin=$login; mw_requestedname=$realname
+			fulladdr=$mw_savedemail; mw_operation=$mw_savedoperation
+			case "$mw_operation" in add|edit) mw_select_policy || return 1;; remove|default) unset mw_ref mw_policy mw_policyhash mw_sighash;; *) return 1;; esac
+			if ! mw_load; then
+				[ "$mw_choice" = leaveaside ] && mw_load archive-policy || {
+					mw_fail 'pending policy/recovery conflict; choose leaveaside to retain old policy evidence, or cancel'; return 1;
+				}
+			fi
+			mw_rollback && mw_originals || { mw_fail 'pending snapshot conflict; evidence retained'; return 1; }
+			if [ "$mw_choice" = leaveaside ]; then
+				mv "$mw_pending" "${mw_pending}.aside.$fulladdr.$$" || return 1
+				fulladdr=$mw_requestedemail; mw_operation=$mw_requestedop
+				imap=$mw_requestedimap; iport=$mw_requestedport; login=$mw_requestedlogin; realname=$mw_requestedname
+				mw_existing=-; mw_stagehash=-; binding=
+				case "$mw_operation" in add|edit) mw_select_policy || return 1;; esac
+				# Reenter the ordinary initializer while retaining our active lock.
+				mw_pending=
+				[ "$(mw_fingerprint "$mw_lock")" = "$mw_lockid" ] && rm "$mw_lock" || return 1
+				mw_lock=
+				mw_begin; return $?
+			fi
+		fi
+		if ! mw_load; then
+			# Never resume under changed recipients. Archive only after the full
+			# record, staged policy and live configuration snapshots validate.
+			mw_load archive-policy || { mw_fail 'pending recovery conflict; evidence retained'; return 1; }
+			mw_prompt 'Recipient policy changed. Credential/data retained. [restart/leaveaside/cancel]' mw_choice || return 1
+			case "$mw_choice" in restart|leaveaside)
+				mw_originals && mv "$mw_pending" "${mw_pending}.policy.$fulladdr.$$" || return 1
+				mw_pending=; mw_armed=no
+				[ "$mw_choice" = restart ] || return 1
+				mw_select_policy || return 1
+				mw_existing=-; mw_stagehash=-
+				[ "$(mw_fingerprint "$mw_lock")" = "$mw_lockid" ] && rm "$mw_lock" || return 1
+				mw_lock=; mw_begin; return $?;;
+			*) return 1;; esac
+		fi
+		if [ -f "$mw_pending/committed" ]; then
+			mw_fail 'committed recovery evidence requires review; no rollback'; return 1
+		fi
+		mw_armed=yes
+		mw_rollback && mw_originals || { mw_fail 'snapshot conflict; evidence retained'; return 1; }
+		# Reconcile the hardlink/phase-update gap, never delete the credential.
+		if [ -f "$PASSWORD_STORE_DIR/$mw_ref.gpg" ] && [ "$mw_stagehash" != - ] &&
+		    [ "$(mw_fingerprint "$PASSWORD_STORE_DIR/$mw_ref.gpg")" != "$mw_existing" ]; then
+			[ "$(sha256 -q "$PASSWORD_STORE_DIR/$mw_ref.gpg")" = "$mw_stagehash" ] &&
+			    [ "$(stat -f '%d:%i' "$PASSWORD_STORE_DIR/$mw_ref.gpg")" = "$(stat -f '%d:%i' "$mw_credstage/$fulladdr.gpg")" ] || return 1
+			mw_record credential-saved || return 1
+		fi
+		printf 'Resuming unfinished setup for %s after recovery checks.\n' "$fulladdr"
+		printf '%s\n' 'An earlier setup stopped before finishing. Existing mail is safe.' 'resume (or Enter) = continue from saved progress; abandon = stop this attempt and keep existing mail/credentials.' >&2
+		mw_prompt 'Recovery checkpoint. [resume/abandon]' mw_choice || return 1
+		case "$mw_choice" in
+			''|resume) ;;
+			abandon) mw_originals && mv "$mw_pending" "${mw_pending}.abandoned.$fulladdr.$$" || return 1
+				mw_pending=; mw_armed=no; return 1;;
+			*) return 1;;
+		esac
+	else
+		if [ "$mw_operation" = add ]; then
+			[ ! -e "$accdir/$fulladdr.muttrc" ] || {
+				printf 'Account already configured: %s\nRead mail: neomutt\nDownload this inbox: mw -y %s\nChange its app password or settings: mw -e %s\n' "$fulladdr" "$fulladdr" "$fulladdr" >&2
+				return 1
+			}
+		else
+			[ -f "$accdir/$fulladdr.muttrc" ] || { mw_fail 'unknown managed account'; return 1; }
+		fi
+		if [ "$mw_operation" = edit ]; then
+			[ "$(mw_fingerprint "$accdir/$fulladdr.muttrc")" = "$mw_editaccountstate" ] &&
+			    [ "$(mw_fingerprint "$mbsyncrc")" = "$mw_editsyncstate" ] || return 1
+		fi
+		# Every existing account must have exactly one matching managed block in
+		# each shared config; never infer ownership from an address regex.
+		for mw_account in "$accdir"/*.muttrc; do
+			[ -e "$mw_account" ] || [ -L "$mw_account" ] || continue
+			mw_path "$mw_account" && [ -f "$mw_account" ] || return 1
+			mw_email=${mw_account##*/}; mw_email=${mw_email%.muttrc}
+			for mw_f in "$muttrc" "$mbsyncrc" "${muttrc%/*}/smtp-draft.txt"; do
+				[ -f "$mw_f" ] && awk -v e="$mw_email" '
+				$0=="# mw account begin " e {b++} $0=="# mw account end " e {n++}
+				END {exit b!=1 || n!=1}' "$mw_f" || { mw_fail 'legacy/ambiguous account requires review'; return 1; }
+			done
+		done
+		# Exact markers only. Legacy account definitions require manual review.
+		for mw_f in "$muttrc" "$mbsyncrc" "${muttrc%/*}/smtp-draft.txt"; do
+			if [ -f "$mw_f" ]; then
+				awk -v e="$fulladdr" -v op="$mw_operation" '
+				op=="add" && ($0=="# mw account begin " e || $0=="# mw account end " e) {bad=1}
+				/^# mw account begin / {if (inside) bad=1; inside=$0; sub(/begin /,"end ",inside); next}
+				/^# mw account end / {if ($0!=inside) bad=1; inside=""; next}
+				!inside && /^[[:space:]]*((IMAPStore|MaildirStore|Channel|source)[[:space:]]|macro[[:space:]].*switch to[[:space:]])/ {bad=1}
+				# Indirect/dynamic reader definitions cannot establish unclaimed keys
+				# by lexical inspection. Refuse rather than executing/adopting them.
+				!inside && !/^[[:space:]]*#/ && (/^[[:space:]]*(ifdef|ifndef|eval|push|exec|[a-z-]+-hook)[[:space:]]/ || index($0,";") || index($0,"`")) {bad=1}
+				END {exit bad || inside!=""}' "$mw_f" || { mw_fail 'ambiguous legacy/managed blocks'; return 1; }
+			fi
+		done
+		mw_reader_safe "$muttrc" || { mw_fail 'unsupported reader syntax; static whitelist only; nothing evaluated'; return 1; }
+		mw_managed || return 1
+		binding=; mw_n=1
+		if [ "$mw_operation" != add ]; then binding='i1<Enter>'; fi
+		while [ -z "$binding" ] && [ "$mw_n" -le 999 ]; do
+			# Reuse the static tokenizer; reserve numeric prefixes regardless of
+			# suffix, not just one spelling of Enter. No foreign bytes change.
+			if mw_reader_safe "$muttrc" "$mw_n"; then binding="i$mw_n<Enter>"; break; fi
+			mw_n=$((mw_n + 1))
+		done
+		[ -n "$binding" ] || { mw_fail 'no unclaimed selector; use explicit source account path'; return 1; }
+		# Initialize privately. The public pending name always denotes a ready
+		# record plus all snapshots, never a partially initialized transaction.
+		mw_ready=$mw_pending
+		mw_init=$(mktemp -d "${muttrc%/*}/.mw-init.XXXXXXXX") || return 1
+		mw_initid=$(stat -f '%d:%i' "$mw_init") || return 1
+		mw_pending=$mw_init
+		mw_credstage=-; mw_stageid=-; mw_stagehash=-
+		case "$mw_operation" in add|edit)
+			mw_credstage=$(mktemp -d "${PASSWORD_STORE_DIR%/*}/.mw-credential.XXXXXXXX") || return 1
+			mw_initcred=$mw_credstage
+			mw_stageid=$(stat -f '%d:%i' "$mw_credstage")
+			for mw_meta in .gpg-id .gpg-id.sig; do
+				mw_path "$mw_policy/$mw_meta" || return 1
+				[ ! -f "$mw_policy/$mw_meta" ] || cp "$mw_policy/$mw_meta" "$mw_credstage/$mw_meta" || return 1
+			done
+			mw_stage_safe || return 1;;
+		esac
+		printf '%s\n' mw-peers-v2 > "$mw_pending/peers" || return 1
+		for mw_file in "$accdir"/*.muttrc; do
+			[ -f "$mw_file" ] || continue
+			[ "$mw_file" != "$accdir/$fulladdr.muttrc" ] || continue
+			mw_peerstate=$(mw_fingerprint "$mw_file") || return 1
+			printf '%s\n%s\n' "$mw_file" "$mw_peerstate" >> "$mw_pending/peers" || return 1
+		done
+		mw_record collecting || return 1
+		for mw_key in muttrc mbsyncrc smtp-draft.txt account; do
+			mw_target_for "$mw_key" || return 1
+			mw_fingerprint "$mw_dest" > "$mw_pending/state-$mw_key" || return 1
+			if [ -f "$mw_dest" ]; then cp -p "$mw_dest" "$mw_pending/original-$mw_key";
+			else : > "$mw_pending/original-$mw_key"; fi || return 1
+		done
+		mw_originals && [ ! -e "$mw_ready" ] && [ ! -L "$mw_ready" ] || return 1
+		# The active lock serializes cooperating writers. Recheck the absent
+		# destination; never remove somebody else's pending directory.
+		mv "$mw_init" "$mw_ready" || return 1
+		mw_pending=$mw_ready
+		mw_init=; mw_initcred=
+	fi
+	mw_armed=yes
+	mw_originals
+}
+mw_peers_intact() {
+	# Older enrollment journals have no peer inventory. New journals guard every
+	# account source that native validation can read, not only the edited one.
+	[ -f "$mw_pending/peers" ] || return 0
+	if [ "$(head -n 1 "$mw_pending/peers")" = mw-peers-v2 ]; then
+		{
+			IFS= read -r mw_inventory
+			while IFS= read -r mw_peer; do
+				IFS= read -r mw_peerstate || return 1
+				mw_currentpeer=$(mw_fingerprint "$mw_peer") && [ "$mw_currentpeer" = "$mw_peerstate" ] || return 1
+			done
+		} < "$mw_pending/peers"
+	else
+		while IFS=' ' read -r mw_peer mw_peerstate; do
+			mw_currentpeer=$(mw_fingerprint "$mw_peer") && [ "$mw_currentpeer" = "$mw_peerstate" ] || return 1
+		done < "$mw_pending/peers"
+	fi
+}
+mw_originals() {
+	for mw_key in muttrc mbsyncrc smtp-draft.txt account; do
+		mw_target_for "$mw_key" || return 1
+		mw_now=$(mw_fingerprint "$mw_dest") || return 1
+		[ "$mw_now" = "$(awk '{print}' "$mw_pending/state-$mw_key")" ] || return 1
+	done
+	mw_peers_intact
+}
+mw_publish() {
+	mw_stage=$1; mw_target=$2
+	case "$mw_target" in
+		"$live_muttrc") mw_key=muttrc;; "$live_mbsyncrc") mw_key=mbsyncrc;;
+		"$live_draft") mw_key=smtp-draft.txt;; "$live_accdir/$fulladdr.muttrc") mw_key=account;; *) return 1;;
+	esac
+	mw_now=$(mw_fingerprint "$mw_target") &&
+	    [ "$mw_now" = "$(awk '{print}' "$mw_pending/state-$mw_key")" ] || return 1
+	mw_replace=$(mktemp "${mw_target%/*}/.mw-publish.XXXXXXXX") || return 1
+	cp "$mw_stage" "$mw_replace" && chmod 600 "$mw_replace" || return 1
+	mw_fingerprint "$mw_replace" > "$mw_pending/published-$mw_key-ready" &&
+	    mv "$mw_pending/published-$mw_key-ready" "$mw_pending/published-$mw_key" || return 1
+	# Recheck immediately before rename; POSIX rename has no compare-and-swap.
+	[ "$(mw_fingerprint "$mw_target")" = "$mw_now" ] && mv "$mw_replace" "$mw_target"
+}
+mw_intact() {
+	for mw_key in account mbsyncrc smtp-draft.txt muttrc; do
+		case "$mw_key" in account) mw_f=$live_accdir/$fulladdr.muttrc;; mbsyncrc) mw_f=$live_mbsyncrc;;
+		    smtp-draft.txt) mw_f=$live_draft;; muttrc) mw_f=$live_muttrc;; esac
+		if [ -f "$mw_pending/published-$mw_key" ]; then mw_state=$mw_pending/published-$mw_key;
+		else mw_state=$mw_pending/state-$mw_key; fi
+		[ "$(mw_fingerprint "$mw_f")" = "$(awk '{print}' "$mw_state")" ] || return 1
+	done
+	mw_peers_intact
+}
+mw_rollback() {
+	[ ! -f "$mw_pending/committed" ] || { mw_fail 'committed; rollback forbidden'; return 1; }
+	mw_conflict=no
+	for mw_key in muttrc smtp-draft.txt mbsyncrc account; do
+		[ -f "$mw_pending/published-$mw_key" ] || continue
+		mw_target_for "$mw_key" || return 1
+		mw_now=$(mw_fingerprint "$mw_dest") || { mw_conflict=yes; continue; }
+		if [ "$mw_now" = "$(awk '{print}' "$mw_pending/published-$mw_key")" ]; then
+			if [ "$mw_key" = account ] && [ -f "$mw_pending/removed-account" ]; then
+				mw_tomb=$(awk '{print}' "$mw_pending/removed-account")
+				mw_path "$mw_tomb" &&
+				    [ "$(mw_fingerprint "$mw_tomb")" = "$(awk '{print}' "$mw_pending/state-account")" ] &&
+				    ln "$mw_tomb" "$mw_dest" && rm "$mw_tomb" || return 1
+			elif [ "$(awk '{print}' "$mw_pending/state-$mw_key")" = absent ]; then
+				rm "$mw_dest" || return 1
+			else
+				mw_restore=$(mktemp "${mw_dest%/*}/.mw-restore.XXXXXXXX") || return 1
+				cp -p "$mw_pending/original-$mw_key" "$mw_restore" && mv "$mw_restore" "$mw_dest" || return 1
+			fi
+			mw_fingerprint "$mw_dest" > "$mw_pending/state-$mw_key-ready" &&
+			    mv "$mw_pending/state-$mw_key-ready" "$mw_pending/state-$mw_key" || return 1
+		elif [ "$mw_now" != "$(awk '{print}' "$mw_pending/state-$mw_key")" ]; then
+			mw_conflict=yes; continue
+		fi
+		mv "$mw_pending/published-$mw_key" "$mw_pending/restored-$mw_key" || return 1
+	done
+	[ "$mw_conflict" = no ]
+}
+mw_cleanup() {
+	mw_rc=$1
+	[ "${mw_echo_off:-no}" != yes ] || stty "$mw_tty_state" <&3
+	unset MW_SECRET mw_escaped info
+	if [ -n "$mw_pending" ] && [ -f "$mw_pending/committed" ]; then
+		mw_fail 'committed; housekeeping/INBOX initialization may be pending; next invocation rechecks; no rollback'
+	fi
+	if [ "$mw_armed" = yes ] && [ -n "$mw_pending" ] && [ ! -f "$mw_pending/committed" ]; then
+		# Generator variables may still name staging paths.
+		[ -z "$live_muttrc" ] || { muttrc=$live_muttrc; accdir=$live_accdir; mbsyncrc=$live_mbsyncrc; }
+		mw_rollback || mw_fail 'configuration conflict; evidence retained'
+		mw_checkpoint=no
+		case "$mw_phase" in verified-staged|credential-saved|config-pending|complete)
+			if [ "$mw_stagehash" = - ]; then
+				[ "$(mw_fingerprint "$PASSWORD_STORE_DIR/$mw_ref.gpg")" != "$mw_existing" ] || mw_checkpoint=yes
+			elif [ -f "$PASSWORD_STORE_DIR/$mw_ref.gpg" ] &&
+			    [ "$(mw_fingerprint "$PASSWORD_STORE_DIR/$mw_ref.gpg")" = "$(mw_fingerprint "$mw_credstage/$fulladdr.gpg")" ]; then mw_checkpoint=yes; fi;;
+		esac
+		if [ "$mw_checkpoint" = yes ]; then mw_fail "credential-saved; setup unfinished: $mw_pending";
+		else mw_fail "setup unfinished; staged/recovery evidence retained: $mw_pending"; fi
+	fi
+	# Delete only our unpublished allocation, qualified by its identity. A
+	# signal after rename leaves the ready public journal for ordinary resume.
+	if [ -n "$mw_init" ] && [ -d "$mw_init" ] && [ ! -L "$mw_init" ] &&
+	    [ "$(stat -f '%d:%i' "$mw_init")" = "$mw_initid" ]; then
+		rm -rf "$mw_init"
+		if [ -n "$mw_initcred" ] && [ -d "$mw_initcred" ] && [ ! -L "$mw_initcred" ] &&
+		    [ "$(stat -f '%d:%i' "$mw_initcred")" = "$mw_stageid" ]; then rm -rf "$mw_initcred"; fi
+	fi
+	if [ -n "$mw_lock" ] && [ "$(mw_fingerprint "$mw_lock")" = "$mw_lockid" ]; then rm -f "$mw_lock"; fi
+	trap - EXIT
+	exit "$mw_rc"
+}
+# Supported reader boundary, intentionally not a general NeoMutt parser:
+# static set/unset/alias/macro/bind only; source only for the exact managed
+# account default. No expansion, continuation, command separator, hooks or
+# conditionals. Unknown grammar is refused BEFORE any native parser probe.
+# Foreign static bytes are never rewritten. Quotes contain literal bytes only.
+mw_reader_safe() {
+	mw_scan=$1; mw_selector=${2:-}
+	[ -f "$mw_scan" ] || return 0
+	set -- "$mw_scan"
+	# Check account sources too, not merely the top-level source statement.
+	for mw_dir in "$accdir" "${live_accdir:-$accdir}"; do
+		for mw_file in "$mw_dir"/*.muttrc; do
+			[ -e "$mw_file" ] || [ -L "$mw_file" ] || continue
+			mw_path "$mw_file" && [ -f "$mw_file" ] || return 1
+			set -- "$@" "$mw_file"
+		done
+	done
+	awk -v reader="$mw_scan" -v selector="$mw_selector" -v a="$accdir" -v l="${live_accdir:-$accdir}" '
+	BEGIN {for(arg=1;arg<ARGC;arg++) if(ARGV[arg]!=reader) allowed[ARGV[arg]]=1}
+	function fail() {bad=1}
+	function tokens(s,    i,c,q,v,started) {
+		n=0; q=""; v=""; started=0
+		for(i=1;i<=length(s);i++) {
+			c=substr(s,i,1)
+			if(q!="") {
+				if(c=="\\" && q=="\042") {
+					c=substr(s,++i,1); if(c !~ /[\\\\\042$`]/) return 0; v=v c
+				} else if(c==q) q="";
+				else {if(q=="\042" && (c=="$" || c=="`")) return 0; v=v c}
+				continue
+			}
+			if(c=="\042" || c=="\047") {if(started) return 0; q=c; started=1; continue}
+			if(c ~ /[[:space:]]/ || c=="=") {
+				if(started) {t[++n]=v; v=""; started=0}
+				if(c=="=") t[++n]="="
+				continue
+			}
+			if(c=="#" && !started) break
+			if(c !~ /[a-zA-Z0-9_@.,\/+!<>:-]/) return 0
+			v=v c; started=1
+		}
+		if(q!="") return 0
+		if(started) t[++n]=v
+		return 1
+	}
+	FNR==1 {inside=""; prefix=0}
+	/^# mw shared selector prefix$/ {prefix=FNR; next}
+	/^bind index,pager i noop$/ {if(FILENAME==reader && prefix>0 && FNR==prefix+1) next}
+	/^# mw account begin / {inside=$5; next}
+	/^# mw account end / {inside=""; next}
+	/^[[:space:]]*(#|$)/ {next}
+	{
+		# Expansion is forbidden even inside quotes; never probe executable input.
+		if(!tokens($0)) {fail(); next}
+		if(!n) next
+		if(t[1]=="set") {
+			if(t[2] !~ /^[a-zA-Z_][a-zA-Z0-9_]*$/ || !(n==2 || (n==4 && t[3]=="="))) fail()
+		} else if(t[1]=="unset") {
+			if(n<2) fail()
+			for(j=2;j<=n;j++) if(t[j] !~ /^[a-zA-Z_][a-zA-Z0-9_]*$/) fail()
+		} else if(t[1]=="auto_view") {
+			if(n!=2 || t[2]!="text/html") fail()
+		} else if(t[1]=="alternative_order") {
+			if(n!=3 || t[2]!="text/plain" || t[3]!="text/html") fail()
+		} else if(t[1]=="macro" || t[1]=="bind") {
+			if(t[2] !~ /^[a-z-]+(,[a-z-]+)*$/ || t[3]=="") fail()
+			# Narrow key grammar: printable ASCII plus Enter/Return/CR tokens
+			# (ASCII case insensitive), and quoted ^J/^M. No native escapes,
+			# unknown angle tokens, key lists or other caret decoding.
+			k=t[3]; gsub(/\^J|\^M/,"<enter>",k)
+			while(match(k,/<[^<>]*>/)) {
+				key=tolower(substr(k,RSTART,RLENGTH))
+				if(key!="<enter>" && key!="<return>" && key!="<cr>") fail()
+				k=substr(k,1,RSTART-1) "!" substr(k,RSTART+RLENGTH)
+			}
+			if(k !~ /^[!-~]+$/ || k ~ /[<>^,\047\042]/) fail()
+			# Generic falls back into index/pager too. Match whole menu names,
+			# using tokenized fields regardless of outer quotes/whitespace.
+			if(selector!="" && ("," t[2] ",") ~ /,(index|pager|generic),/) {
+				k=t[3]
+				if(k=="i") claimed=1
+				if(match(k,/^i[0-9]+/)) {
+					key=substr(k,2,RLENGTH-1)
+					if("x" key=="x" selector ||
+					    (RLENGTH==length(k) && index(selector,key)==1)) claimed=1
+				}
+			}
+			if(t[1]=="macro" && n!=4 && n!=5) fail()
+			if(t[1]=="bind" && n!=4) fail()
+		} else if(t[1]=="mailboxes") {
+			# Literal absolute Maildir paths only, not commands or expansions.
+			if(n<2) fail()
+			for(j=2;j<=n;j++) if(t[j] !~ /^\// || t[j] ~ /(^|\/)\.\.?($|\/)/) fail()
+		} else if(t[1]=="alias") {if(n<3) fail()
+		} else if(t[1]=="source") {
+			if(FILENAME!=reader || inside=="" || n!=2 ||
+			    (!allowed[t[2]] && !(t[2]==l "/" inside ".muttrc" && allowed[a "/" inside ".muttrc"])) ||
+			    (t[2]!=a "/" inside ".muttrc" && t[2]!=l "/" inside ".muttrc")) fail()
+		} else fail()
+	}
+	END {exit bad || claimed}' "$@"
+}
+mw_transport() {
+	# Seed inherited state, then evaluate the ACTUAL merged reader in order.
+	# Check all disabling values, not merely parser success or false sendmail.
+	# Canonical mailboxes cannot parse before postcommit Maildir creation.
+	# Project only those exact registrations to a synthetic parser Maildir;
+	# keep all settings (especially transport) and source order unchanged.
+	mkdir -p "$mw_pending/parser-mail/INBOX/cur" "$mw_pending/parser-mail/INBOX/new" \
+	    "$mw_pending/parser-mail/INBOX/tmp" "$mw_pending/parser-accounts/stage" \
+	    "$mw_pending/parser-accounts/live" || return 1
+	: > "$mw_pending/parser-sources"
+	for mw_dir in "$accdir" "${live_accdir:-$accdir}"; do
+		mw_side=live; [ "$mw_dir" != "$accdir" ] || mw_side=stage
+		for mw_file in "$mw_dir"/*.muttrc; do
+			[ -f "$mw_file" ] || continue
+			mw_email=${mw_file##*/}; mw_email=${mw_email%.muttrc}
+			mw_copy="$mw_pending/parser-accounts/$mw_side/$mw_email.muttrc"
+			awk -v old="mailboxes \"$maildir/$mw_email/INBOX\"" \
+			    -v new="mailboxes \"$mw_pending/parser-mail/INBOX\"" \
+			    '{if($0==old) print new; else print}' "$mw_file" > "$mw_copy" || return 1
+			printf '%s\n%s\n' "$mw_file" "$mw_copy" >> "$mw_pending/parser-sources"
+		done
+	done
+	mw_probe_source=$1
+	if [ "${2:-}" = account ]; then
+		mw_side=live; [ "${1%/*}" != "$accdir" ] || mw_side=stage
+		mw_probe_source="$mw_pending/parser-accounts/$mw_side/${1##*/}"
+	else
+		awk 'FILENAME==ARGV[1] {old=$0; getline new; m["source \"" old "\""]="source \"" new "\""; next}
+		    {if($0 in m) print m[$0]; else print}' "$mw_pending/parser-sources" "$1" \
+		    > "$mw_pending/parser-reader" || return 1
+		mw_probe_source=$mw_pending/parser-reader
+	fi
+	printf '%s\n' 'set smtp_url="smtps://inherited.invalid"' 'set smtp_pass="inherited"' \
+	    'set smtp_oauth_refresh_command="/usr/bin/false"' "source \"$mw_probe_source\"" \
+	    > "$mw_pending/effective.muttrc" || return 1
+	# NeoMutt -Q can exit zero after source parse errors. Account probes
+	# must also be diagnostic-free; reader binding warnings remain separate.
+	if [ "${2:-}" = account ]; then
+		mw_effective=$(neomutt -F "$mw_pending/effective.muttrc" -Q smtp_url -Q smtp_pass \
+		    -Q smtp_oauth_refresh_command -Q sendmail </dev/null 2>"$mw_pending/account-diagnostics") || return 1
+		if [ -s "$mw_pending/account-diagnostics" ]; then
+			mw_fail 'native account parser diagnostics; refusing publication'
+			cat "$mw_pending/account-diagnostics" >&2; return 1
+		fi
+	else
+		mw_effective=$(neomutt -F "$mw_pending/effective.muttrc" -Q smtp_url -Q smtp_pass \
+		    -Q smtp_oauth_refresh_command -Q sendmail </dev/null) || return 1
+	fi
+	[ "$mw_effective" = 'set smtp_url = ""
+set smtp_pass = ""
+set smtp_oauth_refresh_command = ""
+set sendmail = "/usr/bin/false"' ] || { mw_fail 'effective reader transport conflict; foreign settings preserved'; return 1; }
+}
+mw_validate() {
+	mw_reader_safe "$muttrc" || return 1
+	# Lexical safety is not native validity. Probe EVERY surviving source,
+	# including nondefault untouched peers, with inherited SMTP seeded. The
+	# target comes from staging; removed targets must not be sourced at all.
+	for mw_peer in "$live_accdir"/*.muttrc; do
+		[ -f "$mw_peer" ] || continue
+		[ "$mw_peer" != "$live_accdir/$fulladdr.muttrc" ] || continue
+		mw_transport "$mw_peer" account || return 1
+	done
+	if [ "$mw_operation" != remove ]; then
+		mw_transport "$accdir/$fulladdr.muttrc" account || return 1
+	fi
+	# Replace only the staged Maildir path in a parser-only copy. Select LOCAL
+	# store, never IMAP: no network, PassCmd, sync or owner Maildir side effect.
+	mkdir -p "$mw_pending/parser-mail/INBOX/cur" "$mw_pending/parser-mail/INBOX/new" \
+	    "$mw_pending/parser-mail/INBOX/tmp" || return 1
+	awk -v p="$mw_pending/parser-mail/" '
+	    /^Path / {print "Path \"" p "\""; next}
+	    /^Inbox / {print "Inbox \"" p "INBOX\""; next} {print}
+	' "$mbsyncrc" > "$mw_pending/parser.mbsync" || return 1
+	# Parse whole merged reader, pointing the new default source at staging.
+	awk -v old="source \"$live_accdir/$fulladdr.muttrc\"" -v new="source \"$accdir/$fulladdr.muttrc\"" \
+	    '{if ($0==old) print new; else print}' "$muttrc" > "$mw_pending/merged.muttrc" || return 1
+	mw_reader_safe "$mw_pending/merged.muttrc" &&
+	mw_transport "$mw_pending/merged.muttrc" || return 1
+	# Probe a surviving local store/draft only. Last removal has no accounts.
+	mw_probe=$fulladdr
+	if [ "$mw_operation" = remove ]; then mw_probe=$mw_next; fi
+	if [ -n "$mw_probe" ]; then
+		mbsync -c "$mw_pending/parser.mbsync" --list-stores "$mw_probe-local" </dev/null >/dev/null &&
+		msmtp --file="$msmtprc" --account="$mw_probe" --pretend recipient@example.invalid </dev/null >/dev/null
+	else
+		# Native parsers still see the complete empty/foreign merged files;
+		# only parser copies gain a disposable, local-only probe account.
+		printf '\nMaildirStore mw-empty-probe\nPath "%s/parser-mail/"\nInbox "%s/parser-mail/INBOX"\n' \
+		    "$mw_pending" "$mw_pending" >> "$mw_pending/parser.mbsync" || return 1
+		cp "$msmtprc" "$mw_pending/parser.msmtp" &&
+		printf '\naccount mw-empty-probe\nhost smtp.invalid\nauth off\n' >> "$mw_pending/parser.msmtp" &&
+		mbsync -c "$mw_pending/parser.mbsync" --list-stores mw-empty-probe </dev/null >/dev/null &&
+		msmtp --file="$mw_pending/parser.msmtp" --account=mw-empty-probe --pretend recipient@example.invalid </dev/null >/dev/null
+	fi
+}
+
+# Keep the port's getopts/setact/action pipeline, not a second dispatcher.
+LC_ALL=C; export LC_ALL
+mw_stdin=no
+if [ "${1:-}" = --password-stdin ]; then mw_stdin=yes; shift; fi
+while getopts "rfpPXlhodTYD:e:R:y:i:I:s:S:u:a:n:x:m:t:" o; do case "${o}" in
+	l) setact list || exit 1 ;;
+	r) setact reorder || exit 1 ;;
+	d) setact delete || exit 1 ;;
+	D) setact delete && mw_identity "$OPTARG" || exit 1 ; mw_force=yes ;;
+	e) setact add && mw_identity "$OPTARG" || exit 1 ; mw_operation=edit ;;
+	R) setact default && mw_identity "$OPTARG" || exit 1 ; mw_operation=default ;;
+	y) setact sync && [ -z "$mw_syncselected" ] && mw_atom "$OPTARG" || exit 1
+	   case "$OPTARG" in ''|-*) mw_fail 'invalid sync account'; exit 1;; esac
+	   mw_syncaccount=$OPTARG; mw_syncselected=yes ;;
+	Y) setact sync && [ -z "$mw_syncselected" ] || exit 1; mw_syncselected=yes ;;
+	a) setact add && mw_identity "$OPTARG" || exit 1 ;;
+	i) setact add || exit 1 ; imap="$OPTARG" ;;
+	I) setact add || exit 1 ; iport="$OPTARG" ;;
+	s|S) mw_fail 'SMTP activation deferred'; exit 1 ;;
+	u) setact add || exit 1 ; login="$OPTARG" ;;
+	n) setact add || exit 1 ; realname="$OPTARG" ;;
+	m|o|P|f|x|X|p) mw_fail 'unsupported unsafe/deferred mode (-x/-X never accepted)'; exit 1 ;;
+	t) setact toggle || exit 1 ; cronmin="$OPTARG" ;;
+	T) setact toggle || exit 1 ;;
+	*) mwinfo;  exit 1 ;;
+esac done
+shift $((OPTIND - 1))
+[ "$#" = 0 ] || { mw_fail 'unexpected operand'; exit 1; }
+
+case "$action" in
+	list) list ;;
+	add) checkbasics && askinfo && getboxes && getprofiles && finalize ;;
+	default) mw_lifecycle ;;
+	delete) delete ;;
+	sync) mw_sync ;;
+	toggle) togglecron ;;
+	reorder) reorder ;;
+	*) mwinfo; exit 1 ;;
+esac

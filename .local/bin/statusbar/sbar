@@ -24,10 +24,52 @@
 
 # A caught signal ends the wait below; the loop then redraws.
 trap : USR1
-blocks="sb-music sb-news sb-mailbox sb-updates sb-cpu sb-memory sb-volume sb-battery sb-internet sb-words sb-clock"
-line() { for b in $blocks; do $b; done 2>/dev/null | grep . | paste -sd ' ' -; }
+self=$0
+blocks="sb-group sb-music sb-news sb-mailbox sb-updates sb-cpu sb-memory sb-volume sb-battery sb-internet sb-words sb-clock"
+line() { for b in $blocks; do $b; done 2>/dev/null | grep . | paste -sd '|' - | sed 's/|/ | /g'; }
 [ "$1" = -1 ] && { line; exit; }
 if [ "$1" = -t ]; then
+	if [ -z "${SBAR_SUPERVISED-}" ]; then
+		# Supervise the drawing child so a crash cannot leave the bar gone.
+		logdir=${XDG_CACHE_HOME:-$HOME/.cache}
+		# If the cache is unavailable, restart without logging. Never use
+		# a predictable shared /tmp name for either the log or its trim.
+		log=/dev/null
+		if mkdir -p "$logdir" 2>/dev/null && [ -w "$logdir" ]; then
+			log=$logdir/sbar-recovery.log
+		fi
+		trim_log() {
+			[ -f "$log" ] || return 0
+			[ "$(wc -c <"$log")" -gt 65536 ] || return 0
+			tail -n 100 "$log" >"$log.tmp" && mv "$log.tmp" "$log"
+		}
+		trim_log
+		child=
+		trap 'if [ -n "$child" ]; then kill "$child" 2>/dev/null; wait "$child" 2>/dev/null; fi; exit' HUP INT TERM
+		backoff=1
+		while :; do
+			start=$(date +%s)
+			SBAR_SUPERVISED=1 "$self" -t &
+			child=$!
+			while :; do
+				wait "$child"
+				rc=$?
+				kill -0 "$child" 2>/dev/null || break
+			done
+			child=
+			ran=$(( $(date +%s) - start ))
+			[ "$ran" -ge 60 ] && backoff=1
+			printf '%s sbar -t exited %s after %ss; restart in %ss\n' \
+			    "$(date '+%Y-%m-%d %H:%M:%S')" "$rc" "$ran" "$backoff" 2>/dev/null >>"$log"
+			trim_log
+			sleep "$backoff" &
+			child=$!
+			while kill -0 "$child" 2>/dev/null; do wait "$child"; done
+			child=
+			backoff=$((backoff * 2))
+			[ "$backoff" -gt 30 ] && backoff=30
+		done
+	fi
 	# No line wrap, no cursor; theme recolours this terminal with the others.
 	printf '\033[?7l\033[?25l'
 	while printf '\r\033[K%s' "$(line)"; do sleep 5 & wait $!; done

@@ -5,56 +5,66 @@
 # vertrice-install makes it. Real entr watches it.
 hp_setup() {
 	command -v entr >/dev/null 2>&1 || skip "no entr on this host"
-	sub="s|/var/db/hotplug-disk|$T/hotplug-disk|g"
-	watch=$(derived .local/bin/hotplug-watch hotplug-watch "$sub")
-	attach=$(derived .local/share/openbsd/hotplug-attach hotplug-attach "$sub")
+	# The handler reads the trigger and the fstab; both are root-owned paths,
+	# so derive it with them rewritten and point the watcher at that copy.
+	# The mock mount table has sd1 as the root disk, so sd0 in the fstab is
+	# the removable disk.
+	handler=$(derived .local/bin/usb-handler usb-handler \
+		"s|/var/db/hotplug-disk|$T/hotplug-disk|g; s|/etc/fstab|$VT_STATE/fstab|g")
+	watch=$(derived .local/bin/hotplug-watch hotplug-watch \
+		"s|/var/db/hotplug-disk|$T/hotplug-disk|g")
+	attach=$(derived .local/share/openbsd/hotplug-attach hotplug-attach \
+		"s|/var/db/hotplug-disk|$T/hotplug-disk|g")
 	: >"$T/hotplug-disk"
+	printf '%s\n' '4f2a19c07d3e8b61.i /mnt/usb msdos rw,nodev,nosuid 0 0' >"$VT_STATE/fstab"
+	# The handler skips while the real session is locked; the case is not
+	# about the host's lock state, so pgrep says "not locked" here.
+	printf '#!/bin/sh\nexit 1\n' >"$T/bin/pgrep"
+	chmod +x "$T/bin/pgrep"
 }
-attached() { grep -c "^notify-send 💾 $1 attached Super+F9 to mount it\.\$" "$VT_STATE/log"; }
-seen() { [ "$(attached "$1")" -ge 1 ]; }
-entrs() { "$VT_REAL_PGREP" -f "entr .*$T/hotplug-disk" | wc -l | tr -d ' '; }
+started() { DISPLAY=:0 USB_HANDLER=$handler "$VT_SH" "$watch" >/dev/null 2>&1 & wpid=$!; track "$wpid"; }
+seen() { grep -q -- "$1" "$VT_STATE/log" 2>/dev/null; }
+entrs() { "$VT_REAL_PGREP" -f "entr .*$handler" | wc -l | tr -d ' '; }
 watching() { [ "$(entrs)" -ge 1 ]; }
+usb_mounted() { seen '^doas /sbin/mount /mnt/usb$'; }
 
 t_hotplug_first_attach() {
 	hp_setup
-	"$VT_SH" "$watch" >/dev/null 2>&1 &
+	started
 	waitfor 5 watching || fail "entr never started"
 	"$VT_REAL_SLEEP" 0.3
-	eq "no notice before an attach" 0 "$(grep -c '^notify-send' "$VT_STATE/log")"
-	"$VT_SH" "$attach" 2 sd1
-	eq "file written" sd1 "$(cat "$T/hotplug-disk")"
-	waitfor 5 seen sd1 || fail "no notice for the first attach"
-	"$VT_REAL_SLEEP" 0.3
+	notlogged '^doas /sbin/mount'
+	"$VT_SH" "$attach" 2 sd0
+	eq "file written" sd0 "$(cat "$T/hotplug-disk")"
+	waitfor 5 usb_mounted || fail "known disk was not mounted"
+	logged '^notify-send 💾 Mounted /mnt/usb$'
 	"$VT_SH" "$attach" 2 sd2
-	waitfor 5 seen sd2 || fail "no notice for the second attach"
+	waitfor 5 seen '^notify-send 💾 Unknown disk sd2' || fail "no unknown-disk notice for sd2"
 	"$VT_SH" "$attach" 3 iwn0
-	"$VT_REAL_SLEEP" 1
+	"$VT_REAL_SLEEP" 0.5
 	eq "non-disk device leaves the file" sd2 "$(cat "$T/hotplug-disk")"
-	eq "one notice for sd1" 1 "$(attached sd1)"
-	eq "one notice for sd2" 1 "$(attached sd2)"
-	eq "notices in all" 2 "$(grep -c '^notify-send' "$VT_STATE/log")"
 }
 
 t_hotplug_login_after_attach() {
 	hp_setup
-	# A disk was attached before this login, or before a reboot, as the
-	# file lasts: no stale notice for it.
-	"$VT_SH" "$attach" 2 sd9
-	"$VT_SH" "$watch" >/dev/null 2>&1 &
+	: >"$VT_STATE/fstab"	# no known disk: only the event notice is in play
+	# A disk was attached before this login: entr -p postpones the first run.
+	"$VT_SH" "$attach" 2 sd0
+	started
 	waitfor 5 watching || fail "entr never started"
 	"$VT_REAL_SLEEP" 0.5
-	eq "no notice for the old disk" 0 "$(attached sd9)"
-	"$VT_SH" "$attach" 2 sd3
-	waitfor 5 seen sd3 || fail "no notice for a later attach"
-	eq "one notice" 1 "$(attached sd3)"
+	notlogged '^notify-send 💾 Unknown disk sd0'
+	"$VT_SH" "$attach" 2 sd2
+	waitfor 5 seen '^notify-send 💾 Unknown disk sd2' || fail "no notice for a later attach"
+	notlogged '^doas /sbin/mount'
 }
 
 t_hotplug_stops_with_session() {
 	hp_setup
-	"$VT_SH" "$watch" >/dev/null 2>&1 & pid=$!; track "$pid"
+	started
 	waitfor 5 watching || fail "entr never started"
-	kill "$pid"
-	wait "$pid" 2>/dev/null || :
+	kill "$wpid"
+	wait "$wpid" 2>/dev/null || :
 	stopped() { [ "$(entrs)" -eq 0 ]; }
 	waitfor 2 stopped || fail "entr survived its session job"
 }
@@ -76,8 +86,8 @@ th_setup() {
 		"s|> \"/dev/|>> \"$T/dev/|; s|\"/dev/|\"$T/dev/|g")
 	: >"$T/dev/ttyp3"; : >"$T/dev/ttyq1"; : >"$T/dev/ttyC0"
 	printf '%-8s\n' ttyp3 ttyC0 '??' ttyp3 ttyq1 >"$VT_STATE/ttys"
-	printf '%s\n' 'geo xterm 1 4 / 1 crw-rw-rw- rw ptyp3' \
-		'geo xterm 2 4 / 2 crw-rw-rw- rw ptyq1' >"$VT_STATE/pty-masters"
+	printf '%s\n' 'fixture xterm 1 4 / 1 crw-rw-rw- rw ptyp3' \
+		'fixture xterm 2 4 / 2 crw-rw-rw- rw ptyq1' >"$VT_STATE/pty-masters"
 	printf '#!/bin/sh\ncat "$VT_STATE/pty-masters"\n' >"$T/bin/fstat"
 	chmod +x "$T/bin/fstat"
 }
@@ -92,7 +102,7 @@ t_theme_day() {
 	for t in p3 q1; do
 		eq "tty$t: background once" 1 "$(count "]11;#f5f1e8" "$T/dev/tty$t")"
 		eq "tty$t: foreground once" 1 "$(count "]10;#383642" "$T/dev/tty$t")"
-		eq "tty$t: cursor once" 1 "$(count "]12;#a8474a" "$T/dev/tty$t")"
+		eq "tty$t: cursor once" 1 "$(count "]12;#b3261e" "$T/dev/tty$t")"
 		eq "tty$t: 16 palette entries" 16 "$(count "]4;" "$T/dev/tty$t")"
 		eq "tty$t: sequences start with ESC" 19 "$(count "$esc]" "$T/dev/tty$t")"
 	done
@@ -112,7 +122,7 @@ t_theme_no_display() {
 	th_setup
 	"$VT_KSH" "$theme" night || fail "theme night failed"
 	notlogged '^xrdb'
-	eq "terminals still recoloured" 1 "$(count "]11;#24232e" "$T/dev/ttyp3")"
+	eq "terminals still recoloured" 1 "$(count "]11;#17161d" "$T/dev/ttyp3")"
 }
 
 t_theme_toggle() {
@@ -121,7 +131,7 @@ t_theme_toggle() {
 	eq "no state: day" day "$(cat "$XDG_CACHE_HOME/theme")"
 	"$VT_KSH" "$theme" toggle
 	eq "day: night" night "$(cat "$XDG_CACHE_HOME/theme")"
-	eq "night sent" 1 "$(count "]11;#24232e" "$T/dev/ttyp3")"
+	eq "night sent" 1 "$(count "]11;#17161d" "$T/dev/ttyp3")"
 	"$VT_KSH" "$theme" toggle
 	eq "night: day" day "$(cat "$XDG_CACHE_HOME/theme")"
 }
@@ -296,15 +306,124 @@ t_xdgopen_every_entry_resolves() {
 	done
 }
 
-# opout: a compiled document's PDF opens through xdg-open.
+# Record argument boundaries and cwd, not a flattened shell command. The
+# launcher is synchronous ONLY in these fault/contract tests.
+op_setup() {
+	cat >"$T/bin/detach" <<'EOF'
+#!/bin/sh
+printf '%s\n' "$PWD" "$#" "$@" >"$VT_STATE/launch"
+[ "${OP_LAUNCH_FAIL:-0}" = 0 ] || { echo 'launcher test failure' >&2; exit 23; }
+EOF
+	chmod +x "$T/bin/detach"
+	for v in sent browser; do ln -s "$VT_MOCKS/_log" "$T/bin/$v"; done
+}
+op_call() {
+	input=$1 target=$2 viewer=${3:-xdg-open} cwd=${4:-$PWD}
+	rm -f "$VT_STATE/launch"
+	opout "$input" || fail "opout $input"
+	eq "exact launch: $input" "$cwd
+2
+$viewer
+$target" "$(cat "$VT_STATE/launch")"
+}
+op_error() {
+	message=$1; shift
+	rm -f "$VT_STATE/launch"
+	opout "$@" >"$T/opout.stdout" 2>"$T/err" && fail "accepted invalid input: $*"
+	has 'visible diagnostic' "$message" "$(cat "$T/err")"
+	eq 'no stdout on error' '' "$(cat "$T/opout.stdout")"
+	[ ! -e "$VT_STATE/launch" ] || fail 'launched on preflight error'
+}
+
 t_opout_pdf() {
-	xo_setup
-	mkdir -p "$T/w"; cd "$T/w" || fail "no dir"
-	: >doc.md; printf '%%PDF-1.4\n' >doc.pdf
-	opout doc.md
-	logged '^detach xdg-open \./doc\.pdf$'
-	xdg-open ./doc.pdf
-	logged '^zathura \./doc\.pdf$'
+	op_setup
+	mkdir -p nested elsewhere decoy
+	for stem in doc 'a page' 'a$ ! % # '\''quote' '-dash'; do
+		for prefix in '' './' 'nested/' "$T/nested/"; do
+			file=$prefix$stem.md
+			printf '%% root = decoy/main.md\n' >"$file"
+			printf '%%PDF-1.4\n' >"${file%.md}.pdf"
+			case $prefix in *nested/) dir=$T/nested ;; *) dir=$T ;; esac
+			op_call "$file" "$dir/$stem.pdf"
+		done
+	done
+	# Duplicate stems and root declarations must never redirect the view.
+	: >decoy/doc.pdf; : >decoy/main.md; : >decoy/main.pdf
+	op_call doc.md "$T/doc.pdf"
+	(cd elsewhere && op_call ../doc.md "$T/doc.pdf")
+	(cd elsewhere && op_call "$T/nested/doc.md" "$T/nested/doc.pdf")
+	mkdir -p alias real
+	: >real/page.md; : >real/page.pdf
+	ln -s ../real/page.md alias/linked.md
+	: >alias/linked.pdf
+	op_call alias/linked.md "$T/alias/linked.pdf"
+	ln -s alias dirlink
+	op_call dirlink/linked.md "$T/alias/linked.pdf"
+	rm alias/linked.pdf
+	op_error 'output is not a readable regular file' alias/linked.md
+	mkdir ./-directory
+	: >./-directory/-file.md; : >./-directory/-file.pdf
+	op_call -directory/-file.md "$T/-directory/-file.pdf"
+	for ext in ms mom 0 1 9; do
+		: >"doc.$ext"
+		op_call "doc.$ext" "$T/doc.pdf"
+	done
+}
+
+t_opout_direct() {
+	op_setup
+	mkdir -p 'deck dir' elsewhere
+	: >'deck dir/-talk.sent'; : >'deck dir/a page.html'
+	(cd elsewhere && op_call '../deck dir/-talk.sent' './-talk.sent' sent "$T/deck dir")
+	BROWSER=browser op_call 'deck dir/a page.html' "$T/deck dir/a page.html" browser
+	mkdir -p 'browser dir'
+	ln -s "$VT_MOCKS/_log" "$T/browser dir/browser"
+	BROWSER="$T/browser dir/browser" op_call 'deck dir/a page.html' "$T/deck dir/a page.html" "$T/browser dir/browser"
+	BROWSER='' op_error 'BROWSER must name one executable' 'deck dir/a page.html'
+	BROWSER='browser --option' op_error 'viewer not found' 'deck dir/a page.html'
+	BROWSER='browser:other' op_error 'viewer not found' 'deck dir/a page.html'
+}
+
+t_opout_errors() {
+	op_setup
+	op_error usage
+	op_error usage one two
+	op_error 'source path is empty' ''
+	op_error 'source is not a readable regular file' missing.md
+	mkdir directory.md
+	op_error 'source is not a readable regular file' directory.md
+	ln -s missing.md broken.md
+	op_error 'source is not a readable regular file' broken.md
+	: >doc.md
+	mkdir -p out decoy
+	: >out/doc.pdf; : >decoy/doc.pdf
+	op_error 'output is not a readable regular file' doc.md
+	mkdir doc.pdf
+	op_error 'output is not a readable regular file' doc.md
+	rmdir doc.pdf
+	: >doc.pdf
+	chmod 000 doc.md
+	op_error 'source is not a readable regular file' doc.md
+	chmod 600 doc.md
+	chmod 000 doc.pdf
+	op_error 'output is not a readable regular file' doc.md
+	chmod 600 doc.pdf
+	for ext in tex rmd Rmd sil me org pdf txt 10 MD; do
+		: >"doc.$ext"
+		op_error 'unsupported output convention' "doc.$ext"
+	done
+	mkdir only
+	# OpenBSD sh uses the base external printf for diagnostics.
+	ln -s "$(PATH=$syspath command -v printf)" only/printf
+	PATH="$T/only" "$VT_SH" "$REPO/.local/bin/opout" doc.md 2>"$T/err" && fail 'missing viewer accepted'
+	has 'missing viewer' 'viewer not found: xdg-open' "$(cat "$T/err")"
+	ln -s "$VT_MOCKS/_log" only/xdg-open
+	PATH="$T/only" "$VT_SH" "$REPO/.local/bin/opout" doc.md 2>"$T/err" && fail 'missing launcher accepted'
+	has 'missing launcher' 'launcher not found: detach' "$(cat "$T/err")"
+	[ ! -e "$VT_STATE/launch" ] || fail 'launch on missing command'
+	OP_LAUNCH_FAIL=1 opout doc.md 2>"$T/err"; rc=$?
+	eq 'launcher status retained' 23 "$rc"
+	has 'launcher diagnostic not suppressed' 'launcher test failure' "$(cat "$T/err")"
 }
 
 # otp's add path: scan, insert under a temporary name, ask for the real

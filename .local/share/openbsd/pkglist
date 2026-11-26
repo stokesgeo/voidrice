@@ -1,5 +1,7 @@
 git
 neovim
+sc
+sent
 diction
 lf
 fzf
@@ -19,6 +21,8 @@ xcape
 maim
 slop
 ffmpeg
+nq
+yt-dlp
 entr
 noto-emoji
 dmenu
@@ -26,6 +30,7 @@ xwallpaper
 qutebrowser
 chromium
 exfat-fuse
+ntfs_3g
 libarchive
 p5-File-MimeInfo
 sct
@@ -41,3 +46,9 @@ arandr
 shellcheck
 w3m--
 libiconv
+groff
+lowdown
+pandoc
+python3
+gmake
+clamav

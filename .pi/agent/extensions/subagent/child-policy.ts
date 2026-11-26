@@ -1,4 +1,5 @@
-// Launch policy for Pi 1.5.0's adapted subagent example. Not an OS sandbox.
+// Native-child launch policy. Cooperative checks, not an OS sandbox.
+import * as path from "node:path";
 import type { ChildProcess } from "node:child_process";
 
 const allowed = new Set(["read", "grep", "find", "ls", "bash", "edit", "write"]);
@@ -9,9 +10,14 @@ export function childArgs(tools: string[], model?: string, thinking?: string): s
 	const args = ["--mode", "json", "-p", "--no-session", "--offline", "--no-approve",
 		"--no-extensions", "--no-mcp", "--no-skills", "--no-prompt-templates", "--no-themes", "--no-context-files",
 		"--model", model];
+	const agent = process.env.PI_CODING_AGENT_DIR;
+	if (!agent || agent !== process.env.PI_CA_AGENT) throw new Error('Generation agent identity missing');
+	args.push('-e', path.resolve(__dirname, '../work.ts'));
 	if (thinking) args.push("--thinking", thinking);
-	if (tools.length) args.push("--tools", tools.join(","));
-	else args.push("--no-tools");
+	if (tools.length) {
+		const extra = tools.includes("write") || tools.includes("edit") ? ["work_task"] : [];
+		args.push("--tools", [...tools, ...extra, "context_search", "context_read"].join(","));
+	} else args.push("--no-tools");
 	return args;
 }
 

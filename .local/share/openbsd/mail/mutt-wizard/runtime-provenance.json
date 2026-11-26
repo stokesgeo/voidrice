@@ -1,0 +1,34 @@
+{
+  "format": 1,
+  "license": "GPL-3.0; see LICENSE",
+  "upstream": "https://github.com/LukeSmithxyz/mutt-wizard",
+  "upstream_commit": "b4b1323a25474864730e0159c9f29c1b96712529",
+  "package": "mutt-wizard-3.3.1p0v0",
+  "package_url": "https://cdn.openbsd.org/pub/OpenBSD/8.0/packages/amd64/mutt-wizard-3.3.1p0v0.tgz",
+  "input_provenance": "Public package scripts copied from root-owned files; hashes match installed package packing-list entries. Archive signature not independently reverified. Builds use only vendored originals by default.",
+  "modifications": "Vertrice adaptation, 2026-11-25: guarded local IMAP account enrollment/lifecycle, manual PullNew sync, disabled sending, source-owned assets and portable launcher routing. GPL-3.0, without warranty.",
+  "components": {
+    "mailsync": {
+      "original": "originals/mailsync",
+      "package_path": "bin/mailsync",
+      "original_sha256": "197872ab89532771595a2cfc0e7b569ed777ee522063493ed36b405b2b24ccaf",
+      "patch_sha256": "fbdfeaaa7272ad4ae87381d8dcd381fe386f6e29129588efb68872b8aa6c9b29",
+      "output_sha256": "98ab9700e3875cbf6b1a17adfe47f156b48b1836fa57a64a8057f25cef62d508"
+    },
+    "openfile": {
+      "original": "originals/openfile",
+      "package_path": "lib/mutt-wizard/openfile",
+      "original_sha256": "a4a5a82c0da54827096a8e1d649e5e5c385fbc28704118ba98dd5c948b72a432",
+      "patch_sha256": "490b2324a8efc902580f10135ed5a9e4ffc81bfc5f1ae5a3c04b07cc83caaab2",
+      "output_sha256": "d460f631dd3bebd6dd8992525d175ad5a14427330b911cbd0332b0f44ae0640c"
+    },
+    "mw": {
+      "original": "originals/mw",
+      "package_path": "bin/mw",
+      "original_sha256": "9603e131b9ef798d930bb03c86dd9b0101f6fbbd8d47d9ce51aac13893cd907a",
+      "patch_sha256": "5c9be54ae4806f9e65cb3764fc7ae4ef44deca0cee810c3a4260360082d58ccd",
+      "output_sha256": "a5335a3772992523f8c752dbb156ad9b518f678abaad697174483908e0e3a36e"
+    }
+  },
+  "domains_sha256": "6f56a232f2f86686faee471d23ee561e98bda28f6366ef799d3d62c8b3647a71"
+}

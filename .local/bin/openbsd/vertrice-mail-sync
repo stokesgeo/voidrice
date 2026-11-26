@@ -1,0 +1,2 @@
+#!/bin/sh
+exec /bin/sh "${XDG_DATA_HOME:-$HOME/.local/share}/openbsd/mail/mutt-wizard/runtime/mailsync" "$@"

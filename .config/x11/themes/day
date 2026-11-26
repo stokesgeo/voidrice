@@ -1,20 +1,20 @@
 ! day: pastel paper, muted ink. Loaded by `theme`.
 *.foreground: #383642
 *.background: #f5f1e8
-*.cursorColor: #a8474a
+*.cursorColor: #b3261e
 *.color0: #383642
-*.color1: #a3403f
+*.color1: #b3261e
 *.color2: #4d7340
 *.color3: #80621a
-*.color4: #3c639c
+*.color4: #1f4fa8
 *.color5: #834d96
 *.color6: #2c7170
-*.color7: #e6e0d3
+*.color7: #514e59
 *.color8: #6f6a63
-*.color9: #9e3b3a
+*.color9: #c0392b
 *.color10: #48703b
 *.color11: #7a5d16
-*.color12: #3a609a
+*.color12: #2b62c9
 *.color13: #7f4892
 *.color14: #276c6b
-*.color15: #fbf9f4
+*.color15: #26242e

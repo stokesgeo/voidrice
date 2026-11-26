@@ -11,12 +11,14 @@ if [ "$(uname)" = Darwin ]; then
 	case $b in *"'AC Power'"*) ac=1 ;; *) ac=0 ;; esac
 	case $b in *"; charging;"*) state=3 ;; *%*) state=0 ;; *) state=4 ;; esac
 else
-	# The X220's scroll wheel sets the backlight; a Mac has its own keys.
+	# Only click-capable callers send BLOCK_BUTTON; terminal sbar does not.
 	scroll='
-- Scroll to change the backlight.'
+- Super+End/Home requests X brightness in cwm (25-100%; panel may quantize).
+- Down leaves levels at/below 25% unchanged; up recovers toward the floor.
+- Scroll changes it only in a click-capable bar, not terminal sbar.'
 	case $BLOCK_BUTTON in
-		4) wsconsctl display.brightness+=10 >/dev/null ;;
-		5) wsconsctl display.brightness-=10 >/dev/null ;;
+		4) sb-brightness up >/dev/null || exit 1 ;;
+		5) sb-brightness down >/dev/null || exit 1 ;;
 	esac
 	capacity=$(apm -l)
 	ac=$(apm -a)		# 0 off line, 1 on line, 2 backup, 255 unknown

@@ -34,7 +34,7 @@ file="$1"
 
 # ffmpeg cannot edit a file in place: it reads a copy and writes over FILE.
 temp="$(mktemp -p "$(dirname "$file")")"
-trap 'rm -f $temp' HUP INT QUIT TERM EXIT
+trap 'rm -f -- "$temp"' HUP INT QUIT TERM EXIT
 
 [ ! -f "$file" ] && echo 'Provide file to tag.' && err
 

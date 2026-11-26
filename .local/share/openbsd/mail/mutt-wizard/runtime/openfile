@@ -1,0 +1,83 @@
+#!/bin/sh
+# Retain a private attachment copy and check the native opener's handoff status.
+set -eu
+umask 077
+LC_ALL=C
+export LC_ALL
+fail() { printf '%s\n' "$1" >&2; exit 1; }
+[ "$#" -eq 1 ] || fail 'openfile: one local file required'
+uid=$(id -u) || fail 'openfile: cannot determine owner'
+# OpenBSD stat(1): numeric owner and octal permissions, without following links.
+# Only root's sticky /tmp may be writable by other users. No chmod of ancestors.
+trusted_dir() {
+    [ ! -L "$1" ] && [ -d "$1" ] || fail 'openfile: unsafe directory'
+    metadata=$(stat -f '%u %Op' "$1") || fail 'openfile: cannot inspect directory'
+    set -- "$1" $metadata
+    [ "$#" -eq 3 ] || fail 'openfile: invalid directory metadata'
+    [ "$2" = "$uid" ] || [ "$2" = 0 ] || fail 'openfile: untrusted directory owner'
+    mode=$((0$3))
+    if [ "$1" = /tmp ] && [ "$2" = 0 ] && [ $((mode & 01000)) -ne 0 ]; then
+        return
+    fi
+    [ $((mode & 022)) -eq 0 ] || fail 'openfile: writable directory refused'
+}
+# Check every component lexically, not via realpath (which would hide symlinks).
+# Cache components may be created, always under already-checked directories.
+check_path() {
+    path=$1
+    create=$2
+    case "$path" in *[[:cntrl:]]*) fail 'openfile: control characters in path refused';; esac
+    case "$path" in /*) ;; *) fail 'openfile: absolute path required';; esac
+    trusted_dir /
+    rest=${path#/}
+    checked=
+    while [ -n "$rest" ]; do
+        component=${rest%%/*}
+        case "$rest" in */*) rest=${rest#*/};; *) rest=;; esac
+        case "$component" in ''|.|..) fail 'openfile: unsafe path';; esac
+        checked=$checked/$component
+        [ ! -L "$checked" ] || fail 'openfile: symlink path refused'
+        if [ ! -e "$checked" ] && [ "$create" = yes ]; then
+            mkdir "$checked" || fail 'openfile: cannot create cache'
+        fi
+        trusted_dir "$checked"
+    done
+    [ -n "$checked" ] || fail 'openfile: root path refused'
+}
+# Newlines/control bytes make a retained path ambiguous in the terminal UI.
+case "$1" in *[[:cntrl:]]*) fail 'openfile: control characters in path refused';; esac
+case "$1" in /*) source=$1;; *) source=$PWD/$1;; esac
+case "$source" in */|*/.|*/..) fail 'openfile: regular local file required';; esac
+check_path "${source%/*}" no
+[ -f "$source" ] && [ ! -L "$source" ] || fail 'openfile: regular local file required'
+metadata=$(stat -f '%u %Op' "$source") || fail 'openfile: cannot inspect source'
+set -- $metadata
+[ "$#" -eq 2 ] && [ "$1" = "$uid" ] || fail 'openfile: source owner refused'
+[ $((0$2 & 022)) -eq 0 ] || fail 'openfile: writable source refused'
+# Do not pass obvious desktop launchers to MIME dispatch. This is not a general
+# executable-content detector or a guarantee about arbitrary native handlers.
+case "$source" in *.[dD][eE][sS][kK][tT][oO][pP]) fail 'openfile: desktop launcher refused';; esac
+cache=${XDG_CACHE_HOME:-$HOME/.cache}
+check_path "$cache" yes
+metadata=$(stat -f '%u %Op' "$checked") || fail 'openfile: cannot inspect cache'
+set -- $metadata
+[ "$#" -eq 2 ] && [ "$1" = "$uid" ] || fail 'openfile: cache owner refused'
+[ $((0$2 & 022)) -eq 0 ] || fail 'openfile: writable cache refused'
+copydir=$(mktemp -d "$checked/mw-openfile.XXXXXXXXXX") || fail 'openfile: cannot allocate cache'
+# Exclusive allocation in a trusted parent, not a same-UID race boundary.
+trusted_dir "$copydir"
+[ "$(stat -f '%u' "$copydir")" = "$uid" ] || fail 'openfile: allocation owner refused'
+chmod 700 "$copydir" || fail 'openfile: cannot protect allocation'
+file=$copydir/${source##*/}
+if ! cp "$source" "$file" || ! chmod 600 "$file"; then
+    rm -f "$file"
+    rmdir "$copydir"
+    fail 'openfile: copy failed'
+fi
+# Keep the copy even on opener failure for retry. A foreground launcher may
+# return after dispatch or stay running with its viewer; do not guess or poll.
+if xdg-open "$file" </dev/null >/dev/null 2>&1; then
+    exit 0
+fi
+printf 'openfile: opener handoff failed; retry retained copy: %s\n' "$file" >&2
+exit 1

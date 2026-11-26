@@ -1,23 +1,27 @@
 # vertrice
 
-[voidrice](https://github.com/LukeSmithxyz/voidrice) ported to OpenBSD for
-ThinkPads X220 and X210AI: ksh, cwm, xterm, dmenu and a small shell-script
-desktop. Base system first; packages supply what base does not.
+[voidrice](https://github.com/LukeSmithxyz/voidrice) adapted to OpenBSD:
+ksh, cwm, xterm, dmenu and small scripts for writing, browsing, mail, media
+and system maintenance. Pi and Crush are both required supported assistants;
+account sign-in stays local. Base system first; packages supply what base lacks.
 
-The same repository also supports Apple-silicon Macs with Ghostty, AeroSpace
-and SketchyBar. Each system checks out only its selected files.
+The OpenBSD target includes ThinkPads X220 and X210AI. X210AI hardware has not
+yet been tested; installation does not establish hardware compatibility.
+The same repository supports Apple-silicon Macs with Ghostty, AeroSpace and
+SketchyBar. Each system selects its own files.
 
 ## Install on OpenBSD
 
-Vertrice configures an existing OpenBSD installation. It is not an OS or
-firmware installer. Package and Pi installation need network access.
+Vertrice configures an existing OpenBSD installation; it does not install the
+OS or firmware. Review the scripts before running them. Use a local console:
+the system installer replaces configuration and firewall rules, can interrupt
+inbound SSH, and does not roll back earlier changes after a failure.
 
-For a prepared setup USB, read its `README.txt` and start `SETUP` with base
-`sh` as the normal user. Use local root authentication when requested. The USB
-checks its payload, stages it on the native filesystem and asks before system
-changes and home-file replacement. Keep the reported backup/staging paths.
+For a prepared setup USB, follow its `README.txt` and run `SETUP` with base
+`sh` as the normal user. Authenticate locally when asked and retain its recovery
+copies. Do not put credentials or personal profiles on transfer media.
 
-For a manual install into a fresh home, first install Git as root:
+For a manual fresh-home checkout, install Git as root:
 
     pkg_add git
 
@@ -29,68 +33,70 @@ Then, as the normal user:
     git --work-tree=$HOME checkout -f
     git config status.showUntrackedFiles no
 
-**A forced checkout replaces selected files.** For an existing home, preserve
-and merge local configuration first. The manual procedure above does not make
-the setup USB's recovery copies.
+**Forced checkout replaces selected files.** Preserve and merge local files
+first on an existing account. This manual route does not make USB recovery copies
+or adopt the source-update layout.
 
 Read `~/.local/bin/vertrice-install`, then run it as root. With configured doas:
 
     doas sh ~/.local/bin/vertrice-install
 
-Otherwise use `su` and the script's absolute path. Return to the normal user
-before installing Pi:
+Otherwise use `su` and the script's absolute path. The installer installs the
+required scanner, certificate and signature database, runs the initial
+foreground signature refresh, and schedules daily refreshes. A missing or stale
+database is a failed prerequisite, not permission to skip scanning.
 
-    sh ~/.local/bin/openbsd/vertrice-pi-setup
+Return to the ordinary user for first-only assistant setup:
 
-The installer checks doas/pf syntax and stops on failure. Earlier package,
-service and configuration changes can remain; there is no automatic rollback.
-Run setup locally: installing its firewall can interrupt existing inbound SSH.
+    vertrice-pi-setup
 
-Review local settings, then reboot when ready. Use a separate working copy of
-[POST-INSTALL.md](.local/share/vertrice/POST-INSTALL.md) per machine. It covers
-fresh login, hardware, private account sign-in, daily use and recovery.
+Pi setup acquires the pinned public inputs, builds the application and initializes
+a credential-free local profile. It retains an existing installation rather than
+migrating or overwriting it. Then install Crush:
+
+    vertrice-crush-setup
+
+It acquires pinned public source, compiler and modules, builds without root,
+and installs a private generation. Existing activation is retained, not replaced.
+The `crush` launcher validates that private generation and fails closed rather
+than using a system fallback. Provider sign-in remains local under native
+HOME/XDG paths. See the [source-build guide](.local/share/openbsd/crush/README.md)
+for inputs, network use, offline builds and component license notices.
+
+A build output alone is not an installation. Check both assistants locally,
+including provider sign-in and a harmless request. Software checks do not establish
+hardware compatibility or successful account access.
+
+Review local settings and reboot when ready. See
+[post-install use](.local/share/vertrice/POST-INSTALL.md) for fresh login,
+local sign-in and practical checks.
 
 ## Daily use
 
-The default OpenBSD wallpaper is a hotkey and workflow guide. It fits without
-cropping on different screen shapes. A saved `~/.local/share/bg` choice takes
+- Super+F1 lists current keys; Super+a opens Pi; run `crush` in a terminal for Crush.
+- Super+w opens qutebrowser; Super+Shift+w joins Wi-Fi with `dmenuwifi`.
+  Chromium remains available as `chrome`, not on that wireless shortcut.
+- `ipe-pi FILE` opens a live writing seat; edits and explicit save are separate.
+- W3m is the terminal browser and HTML renderer. `TERMINAL_BROWSER` in
+  `~/.config/shell/profile` can select w3m, lynx or elinks; install the matching
+  package and start a fresh login.
+- `man vertrice` covers desktop keys, writing, dictionary, media and backups.
+- [OPENBSD.md](.local/share/vertrice/OPENBSD.md) explains the desktop defaults.
+- [Assistant capabilities](.local/share/vertrice/PI_CAPABILITIES.md) describes
+  supplied tools and configuration boundaries.
+
+The default OpenBSD wallpaper is the key guide. A saved wallpaper takes
 precedence; `setbg ~/.local/share/vertrice/KEYS.png` selects the guide explicitly.
-The guide reflects the shipped cwm keys; Super+F1 reads your current bindings.
-
-- Super+F1: keys; Super+a: Pi; `ipe-pi FILE`: live writing seat.
-- Super+w: qutebrowser for the human; Super+Shift+w: Chromium for agents.
-- W3m: terminal browser and HTML text rendering. `TERMINAL_BROWSER` selects
-  w3m, lynx or elinks; install the selected package and start a fresh login.
-- `man vertrice`: desktop, administration, writing, media and backups.
-- [OPENBSD.md](.local/share/vertrice/OPENBSD.md): purpose and operating principles.
-- [Pi capabilities](.local/share/vertrice/PI_CAPABILITIES.md): local tools and
-  unavailable remote services.
-
-Optional packages are listed in `.local/share/openbsd/pkglist.extra`. Choose
-the workflows you want; applications still need their data and account setup.
-Dictionary setup uses `vertrice-dict` after its optional packages are present.
-Language compilers need their own toolchains. TeX build/cleanup is explicit,
-not an action performed when closing an editor.
-
-Pi is the default assistant. Its user setup installs locked Pi 1.5.0 with npm
-lifecycle scripts disabled and preserves existing settings. Sign in locally;
-no provider credentials belong on the setup USB. The launcher does not install
-software on startup. Codex is deprecated and absent from the OpenBSD package
-lists; retained cdxb code is not required for Pi. Updating a list does not
-uninstall an existing package.
-
-Pi runs with normal user access. Admin approval and separate subagent contexts
-are not OS sandboxes. No remote ingestion, device-delivery or task-sync
-service is installed. Read the IPE README for explicit save and recovery rules.
+Optional applications are in `.local/share/openbsd/pkglist.extra`; select only
+wanted workflows, then configure their data and accounts locally. Compiler and
+TeX workflows need their own toolchains and explicitly execute build commands.
 
 ## Updates
 
-`config` is Git pointed at the bare repository with HOME as its work tree.
-Inspect local changes and the configured remote before pulling with
-`config pull origin master`. Preserve owner settings and review selected-file
-replacements. Changes under `.local/share/openbsd` may require the system
-installer; sparse-selection changes require reapplying the selection before
-checkout. Do not rerun setup blindly to repair an unexplained failure.
+See [source and system updates](.local/share/vertrice/SOURCE-UPDATES.md).
+Fresh installation, adoption of an existing HOME, source review and routine
+maintenance are separate operations. Do not rerun the installer or force a
+checkout to repair an unexplained update failure.
 
 ## macOS
 
@@ -101,18 +107,20 @@ and password-delay settings are preserved; display-off does not promise locking.
 
 ## Development
 
-Tests and qualification records are not installed desktop requirements.
-Run `.local/share/vertrice/tests/run` from a repository checkout. Developer
-hardware checks need review and an explicitly chosen target; they are not part
-of normal first boot.
-
-The repository contains public code, general defaults and tests. Personal
-profiles, task records, account settings and private development notes are not
-release material. Review the staged tree and run a redacted secret scan before
-publication; deleting a file at the tip does not remove it from Git history.
+Run `.local/share/vertrice/tests/run` from a repository checkout. Tests are not
+first-login tasks and do not establish hardware compatibility. The public tree
+contains code, generic defaults and tests, not private profiles, credentials,
+task records or development notes. Review publication content and Git history
+for secrets; removing a file at the tip does not remove earlier copies.
 
 ## Credits
 
-Built on voidrice by Luke Smith and its contributors. GNU GPL version 3;
-see [LICENSE](LICENSE). Retained artwork and Mac default: Thomas Thiemeyer,
-*The Road to Samarkand*. The OpenBSD default is the Vertrice key guide.
+Built on voidrice by Luke Smith and its contributors. Repository scripts are
+licensed under GNU GPL version 3; see [LICENSE](LICENSE). Separately licensed
+third-party components retain their own licenses and notices; consult each
+component's license for its terms, including redistribution. The native Crush
+source uses FSL-1.1-MIT, not a blanket MIT license; bundled vimbubble notices
+retain their MIT terms.
+
+Retained artwork and Mac default: Thomas Thiemeyer, *The Road to Samarkand*.
+The OpenBSD default is the Vertrice key guide.

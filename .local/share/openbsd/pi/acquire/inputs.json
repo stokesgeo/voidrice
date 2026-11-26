@@ -1,0 +1,20 @@
+{
+  "pristine": {
+    "manifest": "pi-package.json",
+    "manifestSha256": "d94a3d6650cdc086a5cf9fa9e857b0f9893eed71251233b222a146b47d0bc641",
+    "lock": "pi-package-lock.json",
+    "lockSha256": "289beb75037288c75f17f087f90ec275b9669579dd85377586a33b2b93ca5740"
+  },
+  "board": {
+    "manifest": "board-package.json",
+    "manifestSha256": "b751af87c59f0ae7deeb5b864b17c8c0c477aaf4a13af816a693b63fce9a7eec",
+    "lock": "board-package-lock.json",
+    "lockSha256": "4055067c7821b1b4c05b64fa2af28033ef55af2a1678f5383614096f350073a2"
+  },
+  "tool": {
+    "manifest": "esbuild-package.json",
+    "manifestSha256": "0529b86945be7ba23ca3be9944445da32b0f2dcf3a67c0e1eefd48ec476656af",
+    "lock": "esbuild-package-lock.json",
+    "lockSha256": "19484b7144cb178c608a2ef3198e9486722c3cd4942ad492ef192413374d5731"
+  }
+}

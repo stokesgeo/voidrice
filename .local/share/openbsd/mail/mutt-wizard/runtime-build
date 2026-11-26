@@ -1,0 +1,10 @@
+#!/bin/sh
+# Backwards-compatible qualification interface; all policy/pins live in build.
+set -eu
+[ "$#" -eq 2 ] || [ "$#" -eq 3 ] || {
+ echo 'usage: sh runtime-build mailsync|openfile /absolute/absent/output [baseline]' >&2; exit 1;
+}
+case "$1" in mailsync|openfile) ;; *) exit 1;; esac
+assets=$(CDPATH= cd -- "$(dirname "$0")" && pwd -P)
+component=$1; shift
+exec /bin/sh "$assets/build" --component "$component" "$@"

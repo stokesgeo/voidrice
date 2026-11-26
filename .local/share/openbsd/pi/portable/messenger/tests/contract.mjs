@@ -1,0 +1,53 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
+import os from 'node:os';
+import { pathToFileURL } from 'node:url';
+import { compile, sourceRoot } from './support.mjs';
+const root=fs.mkdtempSync(path.join(os.tmpdir(),'messenger-contract-'));
+const saved={...process.env};
+try {
+ fs.mkdirSync(root+'/messenger');
+ for(const name of ['candidate-instance.mjs','candidate-fs.mjs','trusted-entry.ts'])fs.copyFileSync(sourceRoot+'/'+name,root+'/messenger/'+name);
+ const route=await import(pathToFileURL(root+'/messenger/candidate-instance.mjs'));
+ const {checkedPath}=await import(pathToFileURL(root+'/messenger/candidate-fs.mjs'));
+const c={schema:1,revision:root,home:root+'/home',agentDir:root+'/home/.local/share/vertrice-pi/profile',nativeAgentDir:root+'/home/.local/share/vertrice-pi/profile',nativeAuthStorage:root+'/home/.local/share/vertrice-pi/profile/auth.json',stateRoot:root+'/home/.local/share/vertrice-pi/state',campaignRoot:root+'/campaign',runtimeRoot:root,packageRoot:root+'/messenger',immutableResourceDir:root+'/agent',boardRoot:root+'/home/.local/share/vertrice-pi/state/board',extensions:[root+'/messenger/messenger-runtime.cjs',root+'/agent/context.mjs'],skills:[root+'/messenger/skills'],prompts:[],themes:[],contextExtension:root+'/agent/context.mjs'};
+for(const [k,v] of Object.entries({sessionDir:'sessions',workDir:'work',transportDir:'transport',teamProfileDir:'teams'}))c[k]=c.stateRoot+'/'+v;
+const nativeBindings=Object.fromEntries(['agentDir','nativeAgentDir','nativeAuthStorage','runtimeRoot','immutableResourceDir','sessionDir','workDir','boardRoot'].map(k=>[k,c[k]]));
+fs.writeFileSync(root+'/instance.json',JSON.stringify(nativeBindings));
+fs.writeFileSync(root+'/messenger-contract.json',JSON.stringify(c));
+assert.throws(()=>route.validateContract(nativeBindings));
+assert.equal(c.boardRoot,c.stateRoot+'/board');
+Object.assign(process.env,{HOME:c.home,PI_CA_MESSENGER_CONTRACT:root+'/messenger-contract.json',PI_CODING_AGENT_DIR:c.agentDir,PI_CA_RUNTIME:c.runtimeRoot,PI_CA_NATIVE_AUTH_STORAGE:c.nativeAuthStorage});
+const captured=route.instance();
+assert.equal(captured.agentDir,c.agentDir);
+for(const k of ['--no-extensions','--no-skills','--no-prompt-templates','--no-themes'])assert(route.childArguments(captured).includes(k));
+for(const key of ['HOME','PI_CODING_AGENT_DIR','NODE_OPTIONS','LD_PRELOAD','AUTH_TOKEN'])assert.throws(()=>route.childEnvironment(captured,{}, {[key]:'bad'}));
+const env=route.childEnvironment(captured,{}, {LANG:'C'},{PI_AGENT_NAME:'worker',PI_CREW_WORKER:'1'});
+assert.equal(env.PI_CA_CREW_CHILD,'1');assert.equal(env.HOME,c.home);
+assert.throws(()=>route.validateContract({...c,sessionDir:c.stateRoot+'/../escape'}));
+assert.throws(()=>route.validateContract({...c,extensions:[...c.extensions,root+'/agent/subagent.mjs']}));
+assert.throws(()=>checkedPath(c,c.campaignRoot+'/../escape'));
+assert.equal(checkedPath(c,c.campaignRoot+'/.pi/messenger/feed.jsonl'),c.campaignRoot+'/.pi/messenger/feed.jsonl');
+route.captureSelectedModel({provider:'provider',id:'selected'});
+assert.equal(route.inheritedModel(route.selectedExecutionModel()),'provider/selected');
+assert.throws(()=>route.inheritedModel('invalid'));
+process.env.PI_CA_CREW_CHILD='1';assert.throws(()=>route.assertAction('work'));assert.throws(()=>route.assertAction('task.revise'));route.assertAction('task.done');delete process.env.PI_CA_CREW_CHILD;
+let text=fs.readFileSync(root+'/messenger/trusted-entry.ts','utf8').replace(/^import .*$/gm,'');
+text=compile(text);
+const exports={};new Function('exports','preflightInstance','installCrewPresence','messenger',text)(exports,()=>{},()=>{},pi=>{
+ pi.on('event',()=>{calls++});pi.registerTool({execute:()=>{calls++}});pi.registerCommand('messenger',{handler:()=>{calls++}});pi.registerShortcut('key',{handler:()=>{calls++}});
+});
+let calls=0;const handlers={};exports.default({on:(e,h)=>handlers.event=h,registerTool:t=>handlers.tool=t.execute,registerCommand:(n,c)=>handlers.command=c.handler,registerShortcut:(k,s)=>handlers.shortcut=s.handler});
+const stale={isProjectTrusted:()=>{throw Error('stale context')}};
+assert.equal(exports.trusted(stale),false);
+const denied={isProjectTrusted:()=>false},trusted={isProjectTrusted:()=>true};
+handlers.event({},stale);await handlers.tool(null,null,null,null,stale);await handlers.command(null,stale);await handlers.shortcut(stale);assert.equal(calls,0);
+handlers.event({},denied);await handlers.tool(null,null,null,null,denied);await handlers.command(null,denied);await handlers.shortcut(denied);assert.equal(calls,0);
+handlers.event({},trusted);await handlers.tool(null,null,null,null,trusted);await handlers.command(null,trusted);await handlers.shortcut(trusted);assert.equal(calls,4);
+console.log('PASS generated native/full contract, discovery, environment, model, delegation, checked paths and native entrypoint trust');
+} finally {
+ for(const key of Object.keys(process.env))if(!(key in saved))delete process.env[key];
+ Object.assign(process.env,saved);
+ fs.rmSync(root,{recursive:true,force:true});
+}

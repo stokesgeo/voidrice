@@ -9,6 +9,7 @@
 [ -f "$XINITRC" ] && alias startx='startx $XINITRC'
 
 [ -f "$MBSYNCRC" ] && alias mbsync='mbsync -c $MBSYNCRC'
+alias source='. "$HOME/.local/bin/source"'
 
 # doas not required for some system commands. The Mac has no doas.
 if command -v doas >/dev/null; then

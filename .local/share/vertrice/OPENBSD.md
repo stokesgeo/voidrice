@@ -1,46 +1,51 @@
 # vertrice on OpenBSD
 
-vertrice is voidrice, Luke Smith's dotfiles for Linux, ported to OpenBSD
-for ThinkPads X220 and X210AI. The public package contains code and defaults,
-not personal account state or a user profile. The reference
-is `man vertrice`; this page says what the thing is and why. The same
-files now install on a Mac as well, with a macOS desktop; this page is
-about the OpenBSD side, and `man vertrice` has the Mac.
-
-## Native tools and small scripts
-
-voidrice already has the shape wanted: plain shell scripts in
-`~/.local/bin`, configs in `~/.config`, dmenu for every menu, one status
-line, and a key for each job. The port swaps the Linux parts (systemd,
-PipeWire, sudo, /sys, GNU flags) for what OpenBSD base has (rc, sndio,
-doas, apm and sysctl, BSD flags) and keeps the rest. Most of the scripts
-are still Luke's.
-
-The defaults are ksh, cwm and xterm. Packages supply capabilities missing from
-base. The microphone and camera are off until explicitly enabled.
+Vertrice adapts Luke Smith's voidrice to OpenBSD, using native tools and small
+scripts: ksh, cwm, xterm, dmenu and a single status line. Packages add what base
+lacks. The public environment supplies generic defaults, not personal profiles
+or signed-in accounts. Pi and Crush are both required supported assistants.
+X220 and X210AI are target machines; X210AI hardware has not yet been tested.
+A shared configuration is not evidence that every device works.
 
 ## Day to day
 
-Log in on the console and X starts: cwm, with voidrice's keys, a status
-line along the bottom, dmenu for menus. Super+F1 lists the keys.
-The default wallpaper is a hotkey and workflow guide. A saved wallpaper choice
-is kept; select `.local/share/vertrice/KEYS.png` with `setbg` to return to the guide.
-Super+w opens qutebrowser, the human default. Chromium (`chrome` on OpenBSD)
-is for agents and remains available on Super+Shift+w. Check actual rendering
-and input on the machine; do not weaken browser security to fix a startup issue.
-W3m is the terminal browser: Newsboat comma-w, the URL menu and LF HTML
-previews use it. TERMINAL_BROWSER in the profile selects w3m, lynx or elinks
-for interactive browsing and the shared HTML renderer. This does not replace
-the graphical browser default.
-After system installation, `vertrice-pi-setup` installs Pi as the ordinary
-user. Super+a opens it; `ipe-pi FILE` opens a live writing seat. The manual
-describes the separate edit, save and backup paths.
-`man vertrice` has the rest: the install, what the installer changes,
-the machine settings, backups (`bk`), writing (`writemode`, `proof`),
-the dictionary (`dict`, `roget`) and reminders (`~/.calendar/calendar`).
-Codex/cdxb is deprecated; Pi is the default assistant.
-The dotfiles are a bare git repository with
-`$HOME` as its work tree; `config` is git pointed at it, and
-`config pull origin master` updates.
+Console login on the first virtual terminal starts X; xenodm is also supported.
+Super+F1 lists the actual cwm bindings. The default wallpaper is a hotkey guide;
+`setbg ~/.local/share/vertrice/KEYS.png` restores it after a personal choice.
 
-Development tests run from the repository; they are not installed user tasks.
+- Super+Return opens a terminal; Super+d opens the application menu.
+- Super+w opens qutebrowser; Super+Shift+w opens the wireless menu.
+  Chromium is available separately as `chrome`.
+- Super+a opens Pi; `crush` starts Crush in a terminal.
+- `ipe-pi FILE` opens a live writing seat. Reading the live buffer, editing and
+  explicitly saving it are separate actions.
+- Super+F2 locks, Super+F5 opens the sndio mixer, Super+F7 selects displays,
+  Super+F8 toggles Transmission and Super+F11 toggles the palette.
+  Check hardware actions on the actual machine.
+
+W3m supplies terminal browsing and HTML text rendering. Set `TERMINAL_BROWSER`
+in `~/.config/shell/profile` to w3m, lynx or elinks and install the matching
+package before a fresh login. That variable does not change the graphical
+browser. Reloading a shell profile does not update an already-running X session.
+
+The microphone and camera default to off. Enable them only for a chosen call
+or recording and restore the intended state afterwards. Never weaken browser
+TLS checks or sandbox settings to make a startup fault disappear.
+
+## Start with useful work
+
+Read `man vertrice` for keys, writing, dictionary, reminders, media and `bk`
+backups. Set up wanted optional applications with their own local data and
+account UI; do not install every optional package merely to obtain one program.
+Sign in separately to Pi and Crush on the machine, keeping secrets out of
+prompts, source and transfer media. Install both with `vertrice-pi-setup` and `vertrice-crush-setup` as the ordinary
+user. A clone alone is not an installed environment.
+
+See [post-install use](POST-INSTALL.md) for practical checks,
+[assistant capabilities](PI_CAPABILITIES.md) for authority boundaries and
+[source updates](SOURCE-UPDATES.md) for the distinction between source review,
+HOME deployment and system maintenance. Do not use a forced checkout or rerun
+system provisioning as routine repair.
+
+The same repository supports a separate macOS desktop; `man vertrice` describes
+its installer, permissions and keys.
